@@ -117,27 +117,7 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
 
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItemActive}>
-            <Text style={styles.navIconActive}>⌂</Text>
-            <Text style={styles.navTextActive}>Home</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem}>
-            <Text style={styles.navIcon}>⌕</Text>
-            <Text style={styles.navText}>Explore</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem}>
-            <Text style={styles.navIcon}>♥</Text>
-            <Text style={styles.navText}>Favourites</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem}>
-            <Text style={styles.navIcon}>◯</Text>
-            <Text style={styles.navText}>Account</Text>
-          </TouchableOpacity>
-        </View>
+        
       </View>
     </SafeAreaView>
   );
@@ -323,49 +303,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#4B5563',
   },
-  bottomNav: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    paddingVertical: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  navItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navItemActive: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navIcon: {
-    fontSize: 18,
-    color: '#9CA3AF',
-    marginBottom: 4,
-  },
-  navIconActive: {
-    fontSize: 18,
-    color: colors?.primary || '#FF385C',
-    marginBottom: 4,
-  },
-  navText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    fontWeight: '600',
-  },
-  navTextActive: {
-    fontSize: 12,
-    color: colors?.primary || '#FF385C',
-    fontWeight: '700',
-  },
+  
 });
