@@ -1,11 +1,11 @@
 export const categories = [
-  { id: 1, name: 'Hotels' },
-  { id: 2, name: 'Restaurants' },
-  { id: 3, name: 'Beaches' },
-  { id: 4, name: 'Bars' },
-  { id: 5, name: 'Cafes' },
-  { id: 6, name: 'Historical Sites' },
-  { id: 7, name: 'Hidden Gems' },
-  { id: 8, name: 'Mosques' },
-  { id: 9, name: 'Churches' }
+  { id: 'hotels', name: 'Hotels', icon: 'bed-outline' },
+  { id: 'restaurants', name: 'Restaurants', icon: 'restaurant-outline' },
+  { id: 'beaches', name: 'Beaches', icon: 'sunny-outline' },
+  { id: 'bars', name: 'Bars', icon: 'wine-outline' },
+  { id: 'cafes', name: 'Cafés', icon: 'cafe-outline' },
+  { id: 'historical', name: 'Historical Sites', icon: 'library-outline' },
+  { id: 'hidden_gems', name: 'Hidden Gems', icon: 'diamond-outline' },
+  { id: 'mosques', name: 'Mosques', icon: 'moon-outline' },
+  { id: 'churches', name: 'Churches', icon: 'business-outline' },
 ];

@@ -20,15 +20,22 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scrollContent}
         >
           <View style={styles.header}>
-            <View style={styles.brandRow}>
-              <Image
-                source={require('../../assets/logo.jpeg')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-              <View>
-                <Text style={styles.brandTitle}>Dritë Guide</Text>
-                <Text style={styles.brandSubtitle}>Discover Albania with ease</Text>
+            <View style={styles.headerContent}>
+              <View style={styles.brandRow}>
+                <View style={styles.logoWrapper}>
+                  <Image
+                    source={require('../../assets/logo.jpeg')}
+                    style={styles.logo}
+                    resizeMode="cover"
+                  />
+                </View>
+
+                <View style={styles.brandTextWrap}>
+                  <Text style={styles.brandTitle}>Dritë Guide</Text>
+                  <Text style={styles.brandSubtitle}>
+                    Discover Albania with ease
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
@@ -47,8 +54,8 @@ export default function HomeScreen() {
           <View style={styles.heroCard}>
             <Text style={styles.heroTitle}>Find the best places in Albania</Text>
             <Text style={styles.heroText}>
-              Explore cities, villages, restaurants, cafés, bars, clubs and hidden
-              gems in one clean and familiar experience.
+              Explore Cities, Villages, Restaurants, Cafés, Bars, Clubs and Hidden
+              Gems in one clean experience.
             </Text>
           </View>
 
@@ -138,27 +145,53 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
   header: {
-    marginBottom: 20,
+    backgroundColor: '#FF385C', // Logo-Farbe (Airbnb-style rot)
+    paddingTop: 20,
+    paddingBottom: 28,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
+
+  headerContent: {
+    marginTop: 10,
+  },
+
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+
+  logoWrapper: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+
   logo: {
     width: 52,
     height: 52,
     borderRadius: 14,
-    marginRight: 12,
   },
+
+  brandTextWrap: {
+    flex: 1,
+  },
+
   brandTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#222222',
+    color: '#FFFFFF',
   },
+
   brandSubtitle: {
-    marginTop: 2,
+    marginTop: 4,
     fontSize: 14,
-    color: '#6B7280',
+    color: '#FFE4EA',
   },
   searchWrapper: {
     flexDirection: 'row',
@@ -303,5 +336,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#4B5563',
   },
-  
+
 });
