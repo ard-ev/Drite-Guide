@@ -6,6 +6,7 @@ import HomeScreen from '../screens/HomeScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import FavouritesScreen from '../screens/FavouritesScreen';
 import AccountScreen from '../screens/AccountScreen';
+import colors from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
 
@@ -15,7 +16,7 @@ export default function TabNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: '#FF385C',
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarStyle: {
           position: 'absolute',
@@ -42,7 +43,7 @@ export default function TabNavigator() {
         tabBarIconStyle: {
           marginTop: 4,
         },
-        tabBarIcon: ({ color, size, focused }) => {
+        tabBarIcon: ({ color, focused }) => {
           let iconName;
 
           if (route.name === 'Home') {

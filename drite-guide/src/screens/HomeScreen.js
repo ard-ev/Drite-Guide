@@ -1,9 +1,7 @@
 import React from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
-  Image,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -11,6 +9,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import colors from '../theme/colors';
 
 export default function HomeScreen() {
@@ -24,179 +23,151 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
-
-      <View style={styles.container}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          <View style={styles.header}>
-            <View style={styles.brandRow}>
-              <Image
-                source={require('../../assets/logo.jpeg')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-
-              <View style={styles.brandTextWrap}>
-                <Text style={styles.brandTitle}>Dritë Guide</Text>
-                <Text style={styles.brandSubtitle}>
-                  Discover Albania with ease
-                </Text>
-              </View>
+    <View style={styles.screen}>
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <StatusBar style="light" />
+        <View style={styles.headerContent}>
+          <View style={styles.brandRow}>
+            <View style={styles.brandTextWrap}>
+              <Text style={styles.brandTitle}>Dritë Guide</Text>
+              <Text style={styles.brandSubtitle}>Discover Albania with ease</Text>
             </View>
           </View>
+        </View>
+      </SafeAreaView>
 
-          <View style={styles.searchWrapper}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search cities, restaurants, cafés, bars..."
-              placeholderTextColor="#8E8E93"
-            />
-            <TouchableOpacity style={styles.searchButton}>
-              <Text style={styles.searchButtonText}>Search</Text>
-            </TouchableOpacity>
-          </View>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.searchWrapper}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search cities, restaurants, cafés, bars..."
+            placeholderTextColor="#8E8E93"
+          />
+          <TouchableOpacity
+            style={styles.searchButton}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Explore')}
+          >
+            <Text style={styles.searchButtonText}>Search</Text>
+          </TouchableOpacity>
+        </View>
 
-          <View style={styles.heroCard}>
-            <Text style={styles.heroTitle}>Find the best places in Albania</Text>
-            <Text style={styles.heroText}>
-              Explore cities, villages, restaurants, cafés, bars, clubs and
-              hidden gems in one clean and familiar experience.
-            </Text>
-          </View>
+        <View style={styles.heroCard}>
+          <Text style={styles.heroTitle}>Find the best places in Albania</Text>
+          <Text style={styles.heroText}>
+            Explore Cities, Villages, Restaurants, Cafés, Bars, Clubs and Hidden
+            Gems in one clean experience.
+          </Text>
+        </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Popular categories</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Popular categories</Text>
 
-            <View style={styles.categoryGrid}>
-              <TouchableOpacity
-                style={styles.categoryCard}
-                onPress={() => handleCategoryPress('restaurants')}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.categoryEmoji}>🍽️</Text>
-                <Text style={styles.categoryTitle}>Restaurants</Text>
-                <Text style={styles.categorySubtitle}>Top-rated places</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.categoryCard}
-                onPress={() => handleCategoryPress('cafes')}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.categoryEmoji}>☕</Text>
-                <Text style={styles.categoryTitle}>Cafés</Text>
-                <Text style={styles.categorySubtitle}>Relaxed spots</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.categoryCard}
-                onPress={() => handleCategoryPress('bars')}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.categoryEmoji}>🍸</Text>
-                <Text style={styles.categoryTitle}>Bars</Text>
-                <Text style={styles.categorySubtitle}>Drinks and nightlife</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.categoryCard}
-                onPress={() => handleCategoryPress('hotels')}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.categoryEmoji}>🏨</Text>
-                <Text style={styles.categoryTitle}>Hotels</Text>
-                <Text style={styles.categorySubtitle}>Stay in comfort</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Suggested places</Text>
-
-            <TouchableOpacity style={styles.placeCard} activeOpacity={0.9}>
-              <View style={styles.placeImagePlaceholder} />
-              <View style={styles.placeContent}>
-                <View style={styles.placeTopRow}>
-                  <Text style={styles.placeCategory}>Restaurant</Text>
-                  <Text style={styles.placeRating}>★ 4.9</Text>
-                </View>
-                <Text style={styles.placeTitle}>Mullixhiu</Text>
-                <Text style={styles.placeLocation}>Tirana, Albania</Text>
-                <Text style={styles.placeDescription}>
-                  A refined Albanian restaurant with local ingredients and a
-                  modern culinary identity.
-                </Text>
-              </View>
+          <View style={styles.categoryGrid}>
+            <TouchableOpacity
+              style={styles.categoryCard}
+              activeOpacity={0.85}
+              onPress={() => handleCategoryPress('restaurants')}
+            >
+              <Text style={styles.categoryEmoji}>🍽️</Text>
+              <Text style={styles.categoryTitle}>Restaurants</Text>
+              <Text style={styles.categorySubtitle}>Top-rated places</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.placeCard} activeOpacity={0.9}>
-              <View style={styles.placeImagePlaceholder} />
-              <View style={styles.placeContent}>
-                <View style={styles.placeTopRow}>
-                  <Text style={styles.placeCategory}>Bar</Text>
-                  <Text style={styles.placeRating}>★ 4.8</Text>
-                </View>
-                <Text style={styles.placeTitle}>Radio Bar</Text>
-                <Text style={styles.placeLocation}>Tirana, Albania</Text>
-                <Text style={styles.placeDescription}>
-                  A stylish cocktail bar with character, music and a strong
-                  local nightlife atmosphere.
-                </Text>
-              </View>
+            <TouchableOpacity
+              style={styles.categoryCard}
+              activeOpacity={0.85}
+              onPress={() => handleCategoryPress('cafes')}
+            >
+              <Text style={styles.categoryEmoji}>☕</Text>
+              <Text style={styles.categoryTitle}>Cafés</Text>
+              <Text style={styles.categorySubtitle}>Relaxed spots</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.categoryCard}
+              activeOpacity={0.85}
+              onPress={() => handleCategoryPress('bars')}
+            >
+              <Text style={styles.categoryEmoji}>🍸</Text>
+              <Text style={styles.categoryTitle}>Bars</Text>
+              <Text style={styles.categorySubtitle}>Drinks and nightlife</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.categoryCard}
+              activeOpacity={0.85}
+              onPress={() => handleCategoryPress('hotels')}
+            >
+              <Text style={styles.categoryEmoji}>🏨</Text>
+              <Text style={styles.categoryTitle}>Hotels</Text>
+              <Text style={styles.categorySubtitle}>Stay in comfort</Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
-    backgroundColor: '#FF385C',
+    backgroundColor: 'rgba(244, 244, 244, 0.9)'
   },
+
+  safeArea: {
+    backgroundColor: colors.primary,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.00,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+
+  headerContent: {
+    paddingTop: 4,
+    paddingBottom: 10,
+    paddingHorizontal: 20,
+  },
+
+  brandRow: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  brandTextWrap: {
+    alignItems: 'center',
+  },
+
+  brandTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+
+  brandSubtitle: {
+    marginTop: 1,
+    fontSize: 11,
+    color: '#FAD4D4',
+    textAlign: 'center',
+  },
+
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',
   },
+
   scrollContent: {
     paddingBottom: 120,
-  },
-
-  header: {
-    backgroundColor: '#FF385C',
-    paddingTop: 8,
-    paddingBottom: 18,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logo: {
-    width: 50,
-    height: 50,
-    marginRight: 12,
-  },
-  brandTextWrap: {
-    flex: 1,
-  },
-  brandTitle: {
-    fontSize: 23,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  brandSubtitle: {
-    marginTop: 2,
-    fontSize: 13,
-    color: '#FFD6DE',
   },
 
   searchWrapper: {
@@ -205,7 +176,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 8,
-    marginTop: -10,
+    marginTop: 14,
     marginHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
@@ -213,19 +184,22 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
+
   searchInput: {
     flex: 1,
-    height: 48,
+    height: 46,
     paddingHorizontal: 14,
     fontSize: 15,
     color: '#222222',
   },
+
   searchButton: {
-    backgroundColor: colors?.primary || '#FF385C',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
     borderRadius: 14,
   },
+
   searchButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
@@ -244,6 +218,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 4,
   },
+
   heroTitle: {
     fontSize: 28,
     fontWeight: '700',
@@ -251,6 +226,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     lineHeight: 34,
   },
+
   heroText: {
     fontSize: 15,
     lineHeight: 24,
@@ -261,6 +237,7 @@ const styles = StyleSheet.create({
     marginTop: 28,
     paddingHorizontal: 20,
   },
+
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
@@ -273,6 +250,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
+
   categoryCard: {
     width: '48%',
     backgroundColor: '#FFFFFF',
@@ -285,68 +263,21 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 3,
   },
+
   categoryEmoji: {
     fontSize: 24,
     marginBottom: 10,
   },
+
   categoryTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#222222',
     marginBottom: 4,
   },
+
   categorySubtitle: {
     fontSize: 13,
     color: '#6B7280',
-  },
-
-  placeCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 14,
-    elevation: 3,
-  },
-  placeImagePlaceholder: {
-    height: 160,
-    backgroundColor: '#F3F4F6',
-  },
-  placeContent: {
-    padding: 16,
-  },
-  placeTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  placeCategory: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-  placeRating: {
-    fontSize: 13,
-    color: '#222222',
-    fontWeight: '700',
-  },
-  placeTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#222222',
-    marginBottom: 4,
-  },
-  placeLocation: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  placeDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#4B5563',
   },
 });
