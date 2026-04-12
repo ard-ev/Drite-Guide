@@ -1,41 +1,50 @@
 import React from 'react';
 import {
+  SafeAreaView,
   View,
   Text,
   Image,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 
 export default function HomeScreen() {
+  const navigation = useNavigation();
+
+  const handleCategoryPress = (categoryId) => {
+    navigation.navigate('Explore', {
+      cityId: 'tirana',
+      categoryId,
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="light" />
+
       <View style={styles.container}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
           <View style={styles.header}>
-            <View style={styles.headerContent}>
-              <View style={styles.brandRow}>
-                <View style={styles.logoWrapper}>
-                  <Image
-                    source={require('../../assets/logo.jpeg')}
-                    style={styles.logo}
-                    resizeMode="cover"
-                  />
-                </View>
+            <View style={styles.brandRow}>
+              <Image
+                source={require('../../assets/logo.jpeg')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
 
-                <View style={styles.brandTextWrap}>
-                  <Text style={styles.brandTitle}>Dritë Guide</Text>
-                  <Text style={styles.brandSubtitle}>
-                    Discover Albania with ease
-                  </Text>
-                </View>
+              <View style={styles.brandTextWrap}>
+                <Text style={styles.brandTitle}>Dritë Guide</Text>
+                <Text style={styles.brandSubtitle}>
+                  Discover Albania with ease
+                </Text>
               </View>
             </View>
           </View>
@@ -54,8 +63,8 @@ export default function HomeScreen() {
           <View style={styles.heroCard}>
             <Text style={styles.heroTitle}>Find the best places in Albania</Text>
             <Text style={styles.heroText}>
-              Explore Cities, Villages, Restaurants, Cafés, Bars, Clubs and Hidden
-              Gems in one clean experience.
+              Explore cities, villages, restaurants, cafés, bars, clubs and
+              hidden gems in one clean and familiar experience.
             </Text>
           </View>
 
@@ -63,25 +72,41 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>Popular categories</Text>
 
             <View style={styles.categoryGrid}>
-              <TouchableOpacity style={styles.categoryCard}>
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => handleCategoryPress('restaurants')}
+                activeOpacity={0.85}
+              >
                 <Text style={styles.categoryEmoji}>🍽️</Text>
                 <Text style={styles.categoryTitle}>Restaurants</Text>
                 <Text style={styles.categorySubtitle}>Top-rated places</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.categoryCard}>
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => handleCategoryPress('cafes')}
+                activeOpacity={0.85}
+              >
                 <Text style={styles.categoryEmoji}>☕</Text>
                 <Text style={styles.categoryTitle}>Cafés</Text>
                 <Text style={styles.categorySubtitle}>Relaxed spots</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.categoryCard}>
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => handleCategoryPress('bars')}
+                activeOpacity={0.85}
+              >
                 <Text style={styles.categoryEmoji}>🍸</Text>
                 <Text style={styles.categoryTitle}>Bars</Text>
                 <Text style={styles.categorySubtitle}>Drinks and nightlife</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.categoryCard}>
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => handleCategoryPress('hotels')}
+                activeOpacity={0.85}
+              >
                 <Text style={styles.categoryEmoji}>🏨</Text>
                 <Text style={styles.categoryTitle}>Hotels</Text>
                 <Text style={styles.categorySubtitle}>Stay in comfort</Text>
@@ -92,7 +117,7 @@ export default function HomeScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Suggested places</Text>
 
-            <TouchableOpacity style={styles.placeCard}>
+            <TouchableOpacity style={styles.placeCard} activeOpacity={0.9}>
               <View style={styles.placeImagePlaceholder} />
               <View style={styles.placeContent}>
                 <View style={styles.placeTopRow}>
@@ -102,29 +127,29 @@ export default function HomeScreen() {
                 <Text style={styles.placeTitle}>Mullixhiu</Text>
                 <Text style={styles.placeLocation}>Tirana, Albania</Text>
                 <Text style={styles.placeDescription}>
-                  A refined local dining experience with authentic Albanian character.
+                  A refined Albanian restaurant with local ingredients and a
+                  modern culinary identity.
                 </Text>
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.placeCard}>
+            <TouchableOpacity style={styles.placeCard} activeOpacity={0.9}>
               <View style={styles.placeImagePlaceholder} />
               <View style={styles.placeContent}>
                 <View style={styles.placeTopRow}>
-                  <Text style={styles.placeCategory}>Café</Text>
+                  <Text style={styles.placeCategory}>Bar</Text>
                   <Text style={styles.placeRating}>★ 4.8</Text>
                 </View>
-                <Text style={styles.placeTitle}>Komiteti Café Museum</Text>
+                <Text style={styles.placeTitle}>Radio Bar</Text>
                 <Text style={styles.placeLocation}>Tirana, Albania</Text>
                 <Text style={styles.placeDescription}>
-                  A well-known place for coffee, atmosphere and a memorable local vibe.
+                  A stylish cocktail bar with character, music and a strong
+                  local nightlife atmosphere.
                 </Text>
               </View>
             </TouchableOpacity>
           </View>
         </ScrollView>
-
-        
       </View>
     </SafeAreaView>
   );
@@ -133,73 +158,55 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#FF385C',
   },
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 110,
+    paddingBottom: 120,
   },
+
   header: {
-    backgroundColor: '#FF385C', // Logo-Farbe (Airbnb-style rot)
-    paddingTop: 20,
-    paddingBottom: 28,
+    backgroundColor: '#FF385C',
+    paddingTop: 8,
+    paddingBottom: 18,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-
-  headerContent: {
-    marginTop: 10,
-  },
-
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-
-  logoWrapper: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-
   logo: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+    width: 50,
+    height: 50,
+    marginRight: 12,
   },
-
   brandTextWrap: {
     flex: 1,
   },
-
   brandTitle: {
-    fontSize: 24,
+    fontSize: 23,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-
   brandSubtitle: {
-    marginTop: 4,
-    fontSize: 14,
-    color: '#FFE4EA',
+    marginTop: 2,
+    fontSize: 13,
+    color: '#FFD6DE',
   },
+
   searchWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
     padding: 8,
-    marginBottom: 22,
+    marginTop: -10,
+    marginHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
@@ -215,7 +222,7 @@ const styles = StyleSheet.create({
   },
   searchButton: {
     backgroundColor: colors?.primary || '#FF385C',
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: 14,
   },
@@ -224,11 +231,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+
   heroCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 22,
-    marginBottom: 24,
+    marginTop: 22,
+    marginHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
@@ -244,11 +253,13 @@ const styles = StyleSheet.create({
   },
   heroText: {
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 24,
     color: '#6B7280',
   },
+
   section: {
-    marginBottom: 26,
+    marginTop: 28,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
     fontSize: 20,
@@ -256,6 +267,7 @@ const styles = StyleSheet.create({
     color: '#222222',
     marginBottom: 14,
   },
+
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -287,6 +299,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B7280',
   },
+
   placeCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 22,
@@ -336,5 +349,4 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#4B5563',
   },
-
 });
