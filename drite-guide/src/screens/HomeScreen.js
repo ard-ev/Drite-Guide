@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -14,13 +14,26 @@ import colors from '../theme/colors';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const handleCategoryPress = (categoryId) => {
-    navigation.navigate('Explore', {
-      cityId: 'tirana',
-      categoryId,
-    });
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      navigation.navigate('SearchResults', {
+        query: searchQuery,
+      });
+    }
   };
+
+  const categories = [
+    { id: 'restaurants', label: 'Restaurants', emoji: '🍽️', subtitle: 'Top-rated places' },
+    { id: 'cafes', label: 'Cafés', emoji: '☕', subtitle: 'Relaxed spots' },
+    { id: 'bars', label: 'Bars', emoji: '🍸', subtitle: 'Drinks & nightlife' },
+    { id: 'hotels', label: 'Hotels', emoji: '🏨', subtitle: 'Stay in comfort' },
+    { id: 'beaches', label: 'Beaches', emoji: '🏖️', subtitle: 'Scenic views' },
+    { id: 'mosques', label: 'Mosques', emoji: '🕌', subtitle: 'Religious sites' },
+    { id: 'churches', label: 'Churches', emoji: '⛪', subtitle: 'Historical' },
+    { id: 'historical', label: 'Historical Sites', emoji: '📚', subtitle: 'Ancient places' },
+  ];
 
   return (
     <View style={styles.screen}>
@@ -46,11 +59,14 @@ export default function HomeScreen() {
             style={styles.searchInput}
             placeholder="Search cities, restaurants, cafés, bars..."
             placeholderTextColor="#8E8E93"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={handleSearch}
           />
           <TouchableOpacity
             style={styles.searchButton}
             activeOpacity={0.85}
-            onPress={() => navigation.navigate('Explore')}
+            onPress={handleSearch}
           >
             <Text style={styles.searchButtonText}>Search</Text>
           </TouchableOpacity>
@@ -68,45 +84,22 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>Popular categories</Text>
 
           <View style={styles.categoryGrid}>
-            <TouchableOpacity
-              style={styles.categoryCard}
-              activeOpacity={0.85}
-              onPress={() => handleCategoryPress('restaurants')}
-            >
-              <Text style={styles.categoryEmoji}>🍽️</Text>
-              <Text style={styles.categoryTitle}>Restaurants</Text>
-              <Text style={styles.categorySubtitle}>Top-rated places</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.categoryCard}
-              activeOpacity={0.85}
-              onPress={() => handleCategoryPress('cafes')}
-            >
-              <Text style={styles.categoryEmoji}>☕</Text>
-              <Text style={styles.categoryTitle}>Cafés</Text>
-              <Text style={styles.categorySubtitle}>Relaxed spots</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.categoryCard}
-              activeOpacity={0.85}
-              onPress={() => handleCategoryPress('bars')}
-            >
-              <Text style={styles.categoryEmoji}>🍸</Text>
-              <Text style={styles.categoryTitle}>Bars</Text>
-              <Text style={styles.categorySubtitle}>Drinks and nightlife</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.categoryCard}
-              activeOpacity={0.85}
-              onPress={() => handleCategoryPress('hotels')}
-            >
-              <Text style={styles.categoryEmoji}>🏨</Text>
-              <Text style={styles.categoryTitle}>Hotels</Text>
-              <Text style={styles.categorySubtitle}>Stay in comfort</Text>
-            </TouchableOpacity>
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={styles.categoryCard}
+                activeOpacity={0.85}
+                onPress={() => {
+                  navigation.navigate('SearchResults', {
+                    query: category.label,
+                  });
+                }}
+              >
+                <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                <Text style={styles.categoryTitle}>{category.label}</Text>
+                <Text style={styles.categorySubtitle}>{category.subtitle}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       </ScrollView>

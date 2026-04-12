@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 import HomeScreen from '../screens/HomeScreen';
-import CategoryScreen from '../screens/CategoryScreen';
+import MapScreen from '../screens/MapScreen';
 import FavouritesScreen from '../screens/FavouritesScreen';
 import AccountScreen from '../screens/AccountScreen';
 import colors from '../theme/colors';
@@ -48,8 +48,8 @@ export default function TabNavigator() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Explore') {
-            iconName = focused ? 'search' : 'search-outline';
+          } else if (route.name === 'Map') {
+            iconName = focused ? 'map' : 'map-outline';
           } else if (route.name === 'Favourites') {
             iconName = focused ? 'heart' : 'heart-outline';
           } else if (route.name === 'Account') {
@@ -61,7 +61,7 @@ export default function TabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Explore" component={CategoryScreen} />
+      <Tab.Screen name="Map" component={MapScreen} />
       <Tab.Screen name="Favourites" component={FavouritesScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
