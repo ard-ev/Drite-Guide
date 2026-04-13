@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
-  SafeAreaView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { places } from '../data/places';
 import { cities } from '../data/cities';
 import colors from '../theme/colors';
@@ -17,9 +17,11 @@ import { FavoritesContext } from '../context/FavoritesContext';
 
 export default function FavouritesScreen() {
   const navigation = useNavigation();
-  const { favorites, isFavorited, toggleFavorite } = useContext(FavoritesContext);
+  const { favorites, toggleFavorite } = useContext(FavoritesContext);
 
-  const favoritesList = places.filter(place => favorites.includes(place.id));
+  const favoritesList = places.filter((place) =>
+    favorites.includes(place.id)
+  );
 
   const getCategoryEmoji = (categoryId) => {
     const emojiMap = {
@@ -52,35 +54,43 @@ export default function FavouritesScreen() {
   };
 
   const handlePlacePress = (placeId) => {
-    navigation.navigate('PlaceDetail', {
-      placeId: placeId,
-    });
+    navigation.navigate('PlaceDetail', { placeId });
   };
 
-  const renderFavoriteItem = ({ item }) => (
+  const renderFavoriteItem = (item) => (
     <TouchableOpacity
+      key={item.id}
       style={styles.favoriteCard}
       activeOpacity={0.7}
       onPress={() => handlePlacePress(item.id)}
     >
-      <Text style={styles.cardEmoji}>{getCategoryEmoji(item.categoryId)}</Text>
+      <Text style={styles.cardEmoji}>
+        {getCategoryEmoji(item.categoryId)}
+      </Text>
+
       <View style={styles.cardContent}>
         <Text style={styles.cardName}>{item.name}</Text>
+
         <View style={styles.cardMeta}>
-          <Text style={styles.cardCategory}>{getCategoryLabel(item.categoryId)}</Text>
+          <Text style={styles.cardCategory}>
+            {getCategoryLabel(item.categoryId)}
+          </Text>
           <Text style={styles.cardCity}>
-            {cities.find(c => c.id === item.cityId)?.name}
+            {cities.find((c) => c.id === item.cityId)?.name}
           </Text>
         </View>
+
         <Text style={styles.cardDescription} numberOfLines={1}>
           {item.description}
         </Text>
       </View>
+
       <View style={styles.cardRight}>
         <View style={styles.ratingBadge}>
           <Ionicons name="star" size={14} color="#FCD34D" />
           <Text style={styles.rating}>{item.rating}</Text>
         </View>
+
         <TouchableOpacity
           style={styles.removeButton}
           onPress={() => toggleFavorite(item.id)}
@@ -92,72 +102,83 @@ export default function FavouritesScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+    <View style={styles.screen}>
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <StatusBar style="dark" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Favourites</Text>
-      </View>
-
-      {/* Content */}
-      {favoritesList.length > 0 ? (
-        <FlatList
-          data={favoritesList}
-          renderItem={renderFavoriteItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+        <ScrollView
           showsVerticalScrollIndicator={false}
-        />
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="heart-outline" size={64} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>No Favourites Yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Save your favorite places by tapping the heart icon when viewing details
-          </Text>
-        </View>
-      )}
-    </SafeAreaView>
+          contentContainerStyle={styles.content}
+        >
+          {/* 🔥 Account-Style Header */}
+          <View style={styles.headerRow}>
+            <Text style={styles.title}>Favourites</Text>
+            <Ionicons name="heart-outline" size={24} color="#222222" />
+          </View>
+
+          {favoritesList.length > 0 ? (
+            <View style={styles.list}>
+              {favoritesList.map(renderFavoriteItem)}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="heart-outline" size={64} color="#D1D5DB" />
+              <Text style={styles.emptyTitle}>No Favourites Yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Save your favorite places by tapping the heart icon when viewing
+                details
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F5F5F5',
   },
 
-  header: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+
+  content: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: colors.primary,
+    paddingBottom: 120,
   },
 
-  headerTitle: {
-    fontSize: 24,
+  // 🔥 IDENTISCH zu Account
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+
+  title: {
+    fontSize: 28,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#222222',
   },
 
-  listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 30,
+  list: {
+    gap: 12,
   },
 
   favoriteCard: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 14,
-    marginBottom: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
 
   cardEmoji: {
@@ -196,7 +217,6 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: 12,
     color: '#6B7280',
-    lineHeight: 16,
   },
 
   cardRight: {
@@ -225,10 +245,9 @@ const styles = StyleSheet.create({
   },
 
   emptyState: {
-    flex: 1,
-    justifyContent: 'center',
+    marginTop: 80,
     alignItems: 'center',
-    paddingHorizontal: 30,
+    paddingHorizontal: 20,
   },
 
   emptyTitle: {
