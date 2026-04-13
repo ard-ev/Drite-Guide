@@ -127,7 +127,7 @@ export default function HomeScreen() {
           <View style={styles.searchWrapper}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search cities, restaurants, cafés, bars..."
+              placeholder="Search Cities, Restaurants, Cafés, Bars..."
               placeholderTextColor="#8E8E93"
               value={searchQuery}
               onChangeText={setSearchQuery}
