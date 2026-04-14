@@ -1,14 +1,29 @@
+import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import HomeScreen from '../screens/HomeScreen';
 import ExploreScreen from '../screens/ExploreScreen';
-import FavouritesScreen from '../screens/FavouritesScreen';
+import SavedScreen from '../screens/SavedScreen';
 import AccountScreen from '../screens/AccountScreen';
 
 const Tab = createBottomTabNavigator();
 
-export default function BottomTabs() {
+export default function TabNavigator() {
+  const [refreshKeys, setRefreshKeys] = useState({
+    Home: 0,
+    Explore: 0,
+    Saved: 0,
+    Account: 0,
+  });
+
+  const refreshTab = (tabName) => {
+    setRefreshKeys((prev) => ({
+      ...prev,
+      [tabName]: prev[tabName] + 1,
+    }));
+  };
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -47,8 +62,8 @@ export default function BottomTabs() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Explore') {
             iconName = focused ? 'map' : 'map-outline';
-          } else if (route.name === 'Favourites') {
-            iconName = focused ? 'heart' : 'heart-outline';
+          } else if (route.name === 'Saved') {
+            iconName = focused ? 'bookmark' : 'bookmark-outline';
           } else if (route.name === 'Account') {
             iconName = focused ? 'person-circle' : 'person-circle-outline';
           } else {
@@ -59,10 +74,61 @@ export default function BottomTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Explore" component={ExploreScreen} />
-      <Tab.Screen name="Favourites" component={FavouritesScreen} />
-      <Tab.Screen name="Account" component={AccountScreen} />
+      <Tab.Screen
+        name="Home"
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            if (navigation.isFocused()) {
+              refreshTab('Home');
+            }
+          },
+        })}
+      >
+        {(props) => <HomeScreen key={`Home-${refreshKeys.Home}`} {...props} />}
+      </Tab.Screen>
+
+      <Tab.Screen
+        name="Explore"
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            if (navigation.isFocused()) {
+              refreshTab('Explore');
+            }
+          },
+        })}
+      >
+        {(props) => (
+          <ExploreScreen key={`Explore-${refreshKeys.Explore}`} {...props} />
+        )}
+      </Tab.Screen>
+
+      <Tab.Screen
+        name="Saved"
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            if (navigation.isFocused()) {
+              refreshTab('Saved');
+            }
+          },
+        })}
+      >
+        {(props) => <SavedScreen key={`Saved-${refreshKeys.Saved}`} {...props} />}
+      </Tab.Screen>
+
+      <Tab.Screen
+        name="Account"
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            if (navigation.isFocused()) {
+              refreshTab('Account');
+            }
+          },
+        })}
+      >
+        {(props) => (
+          <AccountScreen key={`Account-${refreshKeys.Account}`} {...props} />
+        )}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }

@@ -12,38 +12,11 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
+import { useAuth } from '../context/AuthContext';
 
 export default function AccountScreen() {
     const navigation = useNavigation();
-
-    // Später mit echtem Auth-State ersetzen
-    const isLoggedIn = false;
-
-    const accountSections = [
-        {
-            id: 'favourites',
-            title: 'My Favourites',
-            subtitle: isLoggedIn
-                ? 'Your saved places across the app'
-                : 'Saved locally on this device',
-            icon: 'heart-outline',
-            screen: 'Favourites',
-        },
-        {
-            id: 'trips',
-            title: 'My Trips',
-            subtitle: 'Create and manage your saved travel lists',
-            icon: 'briefcase-outline',
-            screen: 'MyTrips',
-        },
-        {
-            id: 'visited',
-            title: 'Visited Places',
-            subtitle: 'Track places you have already explored',
-            icon: 'checkmark-circle-outline',
-            screen: 'VisitedPlaces',
-        },
-    ];
+    const { currentUser, isLoggedIn, logout } = useAuth();
 
     const settingsSections = [
         {
@@ -131,11 +104,7 @@ export default function AccountScreen() {
                 >
                     <View style={styles.headerRow}>
                         <Text style={styles.title}>Account</Text>
-                        <Ionicons
-                            name="person-circle-outline"
-                            size={24}
-                            color="#222222"
-                        />
+                        <Ionicons name="person-circle-outline" size={24} color="#222222" />
                     </View>
 
                     {!isLoggedIn ? (
@@ -150,13 +119,13 @@ export default function AccountScreen() {
 
                             <Text style={styles.authTitle}>Log in or sign up</Text>
                             <Text style={styles.authSubtitle}>
-                                Save your favourites, create trips and sync your activity across
-                                devices.
+                                Save your places, create trips and sync your activity across devices.
                             </Text>
 
                             <TouchableOpacity
                                 style={styles.primaryButton}
                                 activeOpacity={0.88}
+                                onPress={() => navigation.navigate('Login')}
                             >
                                 <Text style={styles.primaryButtonText}>Log in</Text>
                             </TouchableOpacity>
@@ -164,6 +133,7 @@ export default function AccountScreen() {
                             <TouchableOpacity
                                 style={styles.secondaryButton}
                                 activeOpacity={0.88}
+                                onPress={() => navigation.navigate('Signup')}
                             >
                                 <Text style={styles.secondaryButtonText}>Sign up</Text>
                             </TouchableOpacity>
@@ -175,53 +145,73 @@ export default function AccountScreen() {
                                     color={colors.primary}
                                 />
                                 <Text style={styles.syncHintText}>
-                                    Favourites are currently saved locally on this device.
+                                    Saved places can also be used without an account on this device.
                                 </Text>
                             </View>
                         </View>
                     ) : (
-                        <View style={styles.profileCard}>
-                            <Image
-                                source={{ uri: 'https://i.pravatar.cc/160?img=12' }}
-                                style={styles.avatar}
-                            />
+                        <>
+                            <View style={styles.profileCard}>
+                                <Image
+                                    source={{ uri: 'https://i.pravatar.cc/160?img=12' }}
+                                    style={styles.avatar}
+                                />
 
-                            <Text style={styles.profileName}>Ard</Text>
-                            <Text style={styles.profileLocation}>Switzerland</Text>
+                                <Text style={styles.profileName}>
+                                    {currentUser?.firstName} {currentUser?.lastName}
+                                </Text>
 
-                            <View style={styles.statsRow}>
-                                <View style={styles.statBox}>
-                                    <Text style={styles.statValue}>18</Text>
-                                    <Text style={styles.statLabel}>Saved</Text>
+                                <Text style={styles.profileUsername}>
+                                    @{currentUser?.username}
+                                </Text>
+
+                                <Text style={styles.profileEmail}>
+                                    {currentUser?.email}
+                                </Text>
+
+                                <View style={styles.statsRow}>
+                                    <View style={styles.statBox}>
+                                        <Text style={styles.statValue}>
+                                            {currentUser?.savedPlaces?.length || 0}
+                                        </Text>
+                                        <Text style={styles.statLabel}>Saved</Text>
+                                    </View>
+
+                                    <View style={styles.statBox}>
+                                        <Text style={styles.statValue}>
+                                            {currentUser?.trips?.length || 0}
+                                        </Text>
+                                        <Text style={styles.statLabel}>Trips</Text>
+                                    </View>
+
+                                    <View style={styles.statBox}>
+                                        <Text style={styles.statValue}>
+                                            {currentUser?.visitedPlaces?.length || 0}
+                                        </Text>
+                                        <Text style={styles.statLabel}>Visited</Text>
+                                    </View>
                                 </View>
 
-                                <View style={styles.statBox}>
-                                    <Text style={styles.statValue}>4</Text>
-                                    <Text style={styles.statLabel}>Trips</Text>
-                                </View>
-
-                                <View style={styles.statBox}>
-                                    <Text style={styles.statValue}>9</Text>
-                                    <Text style={styles.statLabel}>Visited</Text>
-                                </View>
+                                <TouchableOpacity
+                                    style={styles.logoutButton}
+                                    activeOpacity={0.88}
+                                    onPress={logout}
+                                >
+                                    <Text style={styles.logoutButtonText}>Log out</Text>
+                                </TouchableOpacity>
                             </View>
-                        </View>
+
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Settings</Text>
+                                {settingsSections.map(renderMenuItem)}
+                            </View>
+
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>Legal</Text>
+                                {legalSections.map(renderMenuItem)}
+                            </View>
+                        </>
                     )}
-
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>My Activity</Text>
-                        {accountSections.map(renderMenuItem)}
-                    </View>
-
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Settings</Text>
-                        {settingsSections.map(renderMenuItem)}
-                    </View>
-
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Legal</Text>
-                        {legalSections.map(renderMenuItem)}
-                    </View>
                 </ScrollView>
             </SafeAreaView>
         </View>
@@ -332,6 +322,7 @@ const styles = StyleSheet.create({
     syncHintText: {
         fontSize: 13,
         color: '#6B7280',
+        flex: 1,
     },
 
     profileCard: {
@@ -358,9 +349,16 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: '700',
         color: '#222222',
+        textAlign: 'center',
     },
 
-    profileLocation: {
+    profileUsername: {
+        marginTop: 4,
+        fontSize: 14,
+        color: '#6B7280',
+    },
+
+    profileEmail: {
         marginTop: 4,
         fontSize: 14,
         color: '#6B7280',
@@ -392,6 +390,21 @@ const styles = StyleSheet.create({
         marginTop: 4,
         fontSize: 12,
         color: '#6B7280',
+    },
+
+    logoutButton: {
+        width: '100%',
+        backgroundColor: '#111827',
+        paddingVertical: 15,
+        borderRadius: 16,
+        alignItems: 'center',
+        marginTop: 18,
+    },
+
+    logoutButtonText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
     },
 
     section: {
