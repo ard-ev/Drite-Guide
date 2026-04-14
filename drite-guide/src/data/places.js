@@ -7,6 +7,7 @@ export const places = [
         name: 'Mullixhiu',
         rating: 4.9,
         description: 'Modern Albanian cuisine with high-quality local ingredients.',
+        image: 'https://placehold.co/800x500/F5E6D3/222222?text=Mullixhiu',
     },
     {
         id: 'r2',
@@ -15,6 +16,7 @@ export const places = [
         name: 'Oda Garden',
         rating: 4.7,
         description: 'Traditional Albanian dishes in a cozy garden setting.',
+        image: 'https://placehold.co/800x500/EADBC8/222222?text=Oda+Garden',
     },
     {
         id: 'c1',
@@ -23,6 +25,7 @@ export const places = [
         name: 'Komiteti Café Museum',
         rating: 4.8,
         description: 'Unique café with Albanian culture and great coffee.',
+        image: 'https://placehold.co/800x500/D9C7B0/222222?text=Komiteti+Cafe+Museum',
     },
     {
         id: 'b1',
@@ -31,6 +34,7 @@ export const places = [
         name: 'Radio Bar',
         rating: 4.8,
         description: 'Popular cocktail bar in Blloku with a lively atmosphere.',
+        image: 'https://placehold.co/800x500/CDBBA7/222222?text=Radio+Bar',
     },
     {
         id: 'h1',
@@ -39,6 +43,7 @@ export const places = [
         name: 'Maritim Hotel Plaza',
         rating: 4.8,
         description: 'Luxury hotel in the center of Tirana.',
+        image: 'https://placehold.co/800x500/E5DDD5/222222?text=Maritim+Hotel+Plaza',
     },
 
     // ================= SHKODER =================
@@ -49,6 +54,7 @@ export const places = [
         name: 'Tradita Geg & Tosk',
         rating: 4.9,
         description: 'Authentic Albanian cuisine in a traditional house.',
+        image: 'https://placehold.co/800x500/E8D7C7/222222?text=Tradita+Geg+%26+Tosk',
     },
     {
         id: 'c2',
@@ -57,6 +63,7 @@ export const places = [
         name: 'Pasta e Vino',
         rating: 4.6,
         description: 'Relaxed café with great coffee and desserts.',
+        image: 'https://placehold.co/800x500/D8C9B6/222222?text=Pasta+e+Vino',
     },
     {
         id: 'b2',
@@ -65,6 +72,7 @@ export const places = [
         name: 'San Francisco Bar',
         rating: 4.5,
         description: 'Casual bar with music and drinks.',
+        image: 'https://placehold.co/800x500/CFC4B4/222222?text=San+Francisco+Bar',
     },
     {
         id: 'h2',
@@ -73,6 +81,7 @@ export const places = [
         name: 'Hotel Colosseo',
         rating: 4.7,
         description: 'Elegant hotel in the city center.',
+        image: 'https://placehold.co/800x500/E7E0D8/222222?text=Hotel+Colosseo',
     },
 
     // ================= VLORE =================
@@ -83,6 +92,7 @@ export const places = [
         name: 'Solem Restaurant',
         rating: 4.7,
         description: 'Seafood restaurant with a beautiful sea view.',
+        image: 'https://placehold.co/800x500/CFE8F7/222222?text=Solem+Restaurant',
     },
     {
         id: 'c3',
@@ -91,6 +101,7 @@ export const places = [
         name: 'Lungo Mare Café',
         rating: 4.5,
         description: 'Perfect place for coffee by the promenade.',
+        image: 'https://placehold.co/800x500/D9EEF7/222222?text=Lungo+Mare+Cafe',
     },
     {
         id: 'b3',
@@ -99,6 +110,7 @@ export const places = [
         name: 'Sky Lounge Vlora',
         rating: 4.6,
         description: 'Rooftop bar with stunning sunset views.',
+        image: 'https://placehold.co/800x500/BEDAE8/222222?text=Sky+Lounge+Vlora',
     },
     {
         id: 'h3',
@@ -107,6 +119,7 @@ export const places = [
         name: 'Hotel Partner',
         rating: 4.6,
         description: 'Modern hotel close to the beach.',
+        image: 'https://placehold.co/800x500/E3F0F8/222222?text=Hotel+Partner',
     },
 
     // ================= DURRES =================
@@ -117,6 +130,7 @@ export const places = [
         name: 'Spaghetteria Luli',
         rating: 4.7,
         description: 'Italian-style restaurant with fresh seafood.',
+        image: 'https://placehold.co/800x500/F2DFC8/222222?text=Spaghetteria+Luli',
     },
     {
         id: 'c4',
@@ -125,6 +139,7 @@ export const places = [
         name: 'Café del Mar',
         rating: 4.5,
         description: 'Beachside café with relaxed vibes.',
+        image: 'https://placehold.co/800x500/E5D4BC/222222?text=Cafe+del+Mar',
     },
     {
         id: 'b4',
@@ -133,6 +148,7 @@ export const places = [
         name: 'Cinco Cavalli',
         rating: 4.6,
         description: 'Trendy beach bar with cocktails.',
+        image: 'https://placehold.co/800x500/DCC6A8/222222?text=Cinco+Cavalli',
     },
     {
         id: 'h4',
@@ -141,6 +157,7 @@ export const places = [
         name: 'Adriatik Hotel',
         rating: 4.7,
         description: 'Luxury beachfront hotel.',
+        image: 'https://placehold.co/800x500/EDE6DD/222222?text=Adriatik+Hotel',
     },
 
     // ================= KSAMIL =================
@@ -151,6 +168,7 @@ export const places = [
         name: 'Guva Restaurant',
         rating: 4.8,
         description: 'Famous seafood restaurant near the beach.',
+        image: 'https://placehold.co/800x500/C7F0F2/222222?text=Guva+Restaurant',
     },
     {
         id: 'c5',
@@ -159,6 +177,7 @@ export const places = [
         name: 'Island Café',
         rating: 4.6,
         description: 'Chill café with sea view.',
+        image: 'https://placehold.co/800x500/D8F5F6/222222?text=Island+Cafe',
     },
     {
         id: 'b5',
@@ -167,6 +186,7 @@ export const places = [
         name: 'Bianco Lounge Bar',
         rating: 4.7,
         description: 'Beach bar with music and cocktails.',
+        image: 'https://placehold.co/800x500/B9E7EA/222222?text=Bianco+Lounge+Bar',
     },
     {
         id: 'h5',
@@ -175,6 +195,7 @@ export const places = [
         name: 'Hotel Luxury Ksamil',
         rating: 4.5,
         description: 'Modern hotel close to the beach.',
+        image: 'https://placehold.co/800x500/E6FAFB/222222?text=Hotel+Luxury+Ksamil',
     },
 
     // ================= LEZHE =================
@@ -185,6 +206,7 @@ export const places = [
         name: 'Mrizi i Zanave',
         rating: 4.9,
         description: 'One of Albania’s most famous farm-to-table restaurants.',
+        image: 'https://placehold.co/800x500/DCE7C2/222222?text=Mrizi+i+Zanave',
     },
     {
         id: 'c6',
@@ -193,6 +215,7 @@ export const places = [
         name: 'Lezha Coffee House',
         rating: 4.4,
         description: 'Simple café with good coffee.',
+        image: 'https://placehold.co/800x500/E8EFCF/222222?text=Lezha+Coffee+House',
     },
     {
         id: 'b6',
@@ -201,6 +224,7 @@ export const places = [
         name: 'Bar Infinity',
         rating: 4.3,
         description: 'Local bar with music and drinks.',
+        image: 'https://placehold.co/800x500/CFD9B3/222222?text=Bar+Infinity',
     },
     {
         id: 'h6',
@@ -209,6 +233,7 @@ export const places = [
         name: 'Hotel Liss',
         rating: 4.5,
         description: 'Comfortable hotel near the center.',
+        image: 'https://placehold.co/800x500/F0F5E6/222222?text=Hotel+Liss',
     },
 
     // ================= SARANDA =================
@@ -219,6 +244,7 @@ export const places = [
         name: 'Haxhi Restaurant',
         rating: 4.8,
         description: 'Seafood restaurant with amazing views.',
+        image: 'https://placehold.co/800x500/CBE7F5/222222?text=Haxhi+Restaurant',
     },
     {
         id: 'c7',
@@ -227,6 +253,7 @@ export const places = [
         name: 'Jericho Café',
         rating: 4.6,
         description: 'Nice café with desserts and coffee.',
+        image: 'https://placehold.co/800x500/DBEEF8/222222?text=Jericho+Cafe',
     },
     {
         id: 'b7',
@@ -235,6 +262,7 @@ export const places = [
         name: 'Mango Beach Club',
         rating: 4.7,
         description: 'Famous beach club with parties and drinks.',
+        image: 'https://placehold.co/800x500/B7D9EE/222222?text=Mango+Beach+Club',
     },
     {
         id: 'h7',
@@ -243,5 +271,6 @@ export const places = [
         name: 'Bougainville Bay Hotel',
         rating: 4.6,
         description: 'Luxury hotel with sea view.',
+        image: 'https://placehold.co/800x500/E4F3FB/222222?text=Bougainville+Bay+Hotel',
     },
 ];

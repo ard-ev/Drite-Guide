@@ -5,17 +5,46 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { cities } from '../data/cities';
 
 export default function SavedScreen() {
+  const navigation = useNavigation();
   const { currentUser, isLoggedIn, getSavedPlaces, removeSavedPlace } = useAuth();
 
   const savedPlaces = getSavedPlaces() || [];
+
+  const getCityName = (cityId) => {
+    return cities.find((city) => city.id === cityId)?.name || 'Unknown city';
+  };
+
+  const getCategoryLabel = (categoryId) => {
+    const categoryLabels = {
+      restaurants: 'Restaurant',
+      cafes: 'Café',
+      bars: 'Bar',
+      hotels: 'Hotel',
+      beaches: 'Beach',
+      historical: 'Historical Site',
+      hidden_gems: 'Hidden Gem',
+      hiddengems: 'Hidden Gem',
+      mosques: 'Mosque',
+      churches: 'Church',
+      museums: 'Museum',
+      bunkers: 'Bunker',
+      adventures: 'Adventure',
+      governmentservices: 'Government Service',
+    };
+
+    return categoryLabels[categoryId] || categoryId || 'Place';
+  };
 
   return (
     <View style={styles.screen}>
@@ -56,37 +85,51 @@ export default function SavedScreen() {
               <Text style={styles.sectionTitle}>Saved places</Text>
 
               {savedPlaces.map((place) => (
-                <View key={place.id} style={styles.placeCard}>
-                  <View style={styles.placeLeft}>
-                    <View style={styles.iconWrap}>
-                      <Ionicons
-                        name="location-outline"
-                        size={20}
-                        color="#222222"
-                      />
-                    </View>
+                <TouchableOpacity
+                  key={place.id}
+                  style={styles.placeCard}
+                  activeOpacity={0.88}
+                  onPress={() =>
+                    navigation.navigate('PlaceDetail', {
+                      placeId: place.id,
+                    })
+                  }
+                >
+                  <Image
+                    source={{
+                      uri:
+                        place.image ||
+                        'https://placehold.co/600x400/E5E7EB/222222?text=No+Image',
+                    }}
+                    style={styles.placeImage}
+                    resizeMode="cover"
+                  />
 
-                    <View style={styles.textWrap}>
-                      <Text style={styles.placeName}>
-                        {place.name || 'Unnamed place'}
-                      </Text>
-                      <Text style={styles.placeMeta}>
-                        {place.city || 'Unknown city'}
-                      </Text>
-                    </View>
+                  <View style={styles.placeContent}>
+                    <Text style={styles.placeName} numberOfLines={1}>
+                      {place.name || 'Unnamed place'}
+                    </Text>
+
+                    <Text style={styles.placeMeta} numberOfLines={1}>
+                      {getCategoryLabel(place.categoryId)} • {getCityName(place.cityId)}
+                    </Text>
+
+                    {place.rating ? (
+                      <View style={styles.ratingRow}>
+                        <Ionicons name="star" size={14} color="#F59E0B" />
+                        <Text style={styles.ratingText}>{place.rating}</Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <TouchableOpacity
+                    style={styles.deleteButton}
                     activeOpacity={0.8}
                     onPress={() => removeSavedPlace(place.id)}
                   >
-                    <Ionicons
-                      name="trash-outline"
-                      size={20}
-                      color="#9CA3AF"
-                    />
+                    <Ionicons name="trash-outline" size={20} color="#9CA3AF" />
                   </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
@@ -192,13 +235,11 @@ const styles = StyleSheet.create({
 
   placeCard: {
     backgroundColor: colors.white,
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    marginBottom: 10,
+    borderRadius: 20,
+    marginBottom: 12,
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.04,
@@ -206,36 +247,50 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  placeLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 10,
+  placeImage: {
+    width: 96,
+    height: 96,
+    backgroundColor: '#E5E7EB',
   },
 
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-
-  textWrap: {
+  placeContent: {
     flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
 
   placeName: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     color: '#222222',
   },
 
   placeMeta: {
-    marginTop: 2,
-    fontSize: 12,
+    marginTop: 4,
+    fontSize: 13,
     color: '#6B7280',
+  },
+
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+
+  ratingText: {
+    marginLeft: 4,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+
+  deleteButton: {
+    width: 52,
+    height: 52,
+    marginRight: 10,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F9FAFB',
   },
 });

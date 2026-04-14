@@ -22,19 +22,78 @@ export default function HomeScreen() {
   const [hasSearched, setHasSearched] = useState(false);
 
   const categories = [
-    { id: 'restaurants', label: 'Restaurants', emoji: '🍽️', subtitle: 'Top-rated places' },
-    { id: 'cafes', label: 'Cafés', emoji: '☕', subtitle: 'Relaxed spots' },
-    { id: 'bars', label: 'Bars', emoji: '🍸', subtitle: 'Drinks & nightlife' },
-    { id: 'hotels', label: 'Hotels', emoji: '🏨', subtitle: 'Stay in comfort' },
-    { id: 'beaches', label: 'Beaches', emoji: '🏖️', subtitle: 'Scenic views' },
-    { id: 'mosques', label: 'Religious Sites', emoji: '🕌 ⛪', subtitle: 'Mosques, Churches etc.' },
-    { id: 'historical', label: 'Historical Sites', emoji: '📚', subtitle: 'Ancient places' },
-    { id: 'hiddengems', label: 'Hidden Gems', emoji: '💎', subtitle: 'Exclusive' },
-    { id: 'museums', label: 'Museums', emoji: '🏛️', subtitle: 'History & Culture' },
-    { id: 'bunkers', label: 'Bunkers', emoji: '🪖', subtitle: 'Find all Bunkers' },
-    { id: 'adventures', label: 'Adventures', emoji: '🚤🗻', subtitle: 'Out and About having Fun' },
-    { id: 'governmentservices', label: 'Government Services', emoji: '🏦', subtitle: 'Offices, Police, Embassies & more' },
-    
+    {
+      id: 'restaurants',
+      label: 'Restaurants',
+      subtitle: 'Top-rated places',
+      image: require('../../assets/catimg/restaurant.jpg'),
+    },
+    {
+      id: 'cafes',
+      label: 'Cafés',
+      subtitle: 'Relaxed spots',
+      image: require('../../assets/catimg/cafe.jpg'),
+    },
+    {
+      id: 'bars',
+      label: 'Bars',
+      subtitle: 'Drinks & nightlife',
+      image: require('../../assets/catimg/bars.jpg'),
+    },
+    {
+      id: 'hotels',
+      label: 'Hotels',
+      subtitle: 'Stay in comfort',
+      image: require('../../assets/catimg/hotels.jpg'),
+    },
+    {
+      id: 'beaches',
+      label: 'Beaches',
+      subtitle: 'Scenic views',
+      image: require('../../assets/catimg/beaches.jpg'),
+    },
+    {
+      id: 'mosques',
+      label: 'Religious Sites',
+      subtitle: 'Mosques, Churches etc.',
+      image: require('../../assets/catimg/religious.jpg'),
+    },
+    {
+      id: 'historical',
+      label: 'Historical Sites',
+      subtitle: 'Ancient places',
+      image: require('../../assets/catimg/historical.jpg'),
+    },
+    {
+      id: 'hiddengems',
+      label: 'Hidden Gems',
+      subtitle: 'Exclusive',
+      image: require('../../assets/catimg/hiddengems.jpg'),
+    },
+    {
+      id: 'museums',
+      label: 'Museums',
+      subtitle: 'History & Culture',
+      image: require('../../assets/catimg/museum.jpg'),
+    },
+    {
+      id: 'bunkers',
+      label: 'Bunkers',
+      subtitle: 'Find all Bunkers',
+      image: require('../../assets/catimg/bunkers.jpg'),
+    },
+    {
+      id: 'adventures',
+      label: 'Adventures',
+      subtitle: 'Out and About having Fun',
+      image: require('../../assets/catimg/adventures.jpg'),
+    },
+    {
+      id: 'governmentservices',
+      label: 'Government Services',
+      subtitle: 'Offices, Police, Embassies & more',
+      image: require('../../assets/catimg/governmentservices.jpg'),
+    },
   ];
 
   const getCityName = (cityId) => {
@@ -50,8 +109,13 @@ export default function HomeScreen() {
       beaches: 'Beach',
       historical: 'Historical Site',
       hidden_gems: 'Hidden Gem',
+      hiddengems: 'Hidden Gem',
       mosques: 'Mosque',
       churches: 'Church',
+      museums: 'Museum',
+      bunkers: 'Bunker',
+      adventures: 'Adventure',
+      governmentservices: 'Government Service',
     };
 
     return categoryLabels[categoryId] || categoryId;
@@ -145,7 +209,7 @@ export default function HomeScreen() {
           {hasSearched ? (
             <View style={styles.section}>
               <View style={styles.resultsHeaderRow}>
-                <Text style={styles.sectionTitle}>Search results</Text>
+                <Text style={styles.sectionTitleNoMargin}>Search results</Text>
 
                 <TouchableOpacity onPress={clearSearchResults} activeOpacity={0.8}>
                   <Text style={styles.clearResultsText}>Clear</Text>
@@ -165,17 +229,29 @@ export default function HomeScreen() {
                         })
                       }
                     >
-                      <View style={styles.resultTopRow}>
-                        <View style={styles.resultTextWrap}>
-                          <Text style={styles.resultTitle}>{place.name}</Text>
-                          <Text style={styles.resultSubtitle}>
-                            {getCategoryLabel(place.categoryId)} • {getCityName(place.cityId)}
-                          </Text>
+                      <Image
+                        source={{ uri: place.image }}
+                        style={styles.resultImage}
+                        resizeMode="cover"
+                      />
+
+                      <View style={styles.resultContent}>
+                        <View style={styles.resultTopRow}>
+                          <View style={styles.resultTextWrap}>
+                            <Text style={styles.resultTitle}>{place.name}</Text>
+                            <Text style={styles.resultSubtitle}>
+                              {getCategoryLabel(place.categoryId)} • {getCityName(place.cityId)}
+                            </Text>
+                          </View>
+
+                          <View style={styles.ratingBadge}>
+                            <Text style={styles.ratingText}>★ {place.rating}</Text>
+                          </View>
                         </View>
 
-                        <View style={styles.ratingBadge}>
-                          <Text style={styles.ratingText}>★ {place.rating}</Text>
-                        </View>
+                        <Text style={styles.resultDescription} numberOfLines={2}>
+                          {place.description}
+                        </Text>
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -207,9 +283,16 @@ export default function HomeScreen() {
                       activeOpacity={0.85}
                       onPress={() => handleCategoryPress(category.id)}
                     >
-                      <Text style={styles.categoryEmoji}>{category.emoji}</Text>
-                      <Text style={styles.categoryTitle}>{category.label}</Text>
-                      <Text style={styles.categorySubtitle}>{category.subtitle}</Text>
+                      <Image
+                        source={category.image}
+                        style={styles.categoryImage}
+                        resizeMode="cover"
+                      />
+
+                      <View style={styles.categoryContent}>
+                        <Text style={styles.categoryTitle}>{category.label}</Text>
+                        <Text style={styles.categorySubtitle}>{category.subtitle}</Text>
+                      </View>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -349,6 +432,12 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
+  sectionTitleNoMargin: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#222222',
+  },
+
   clearResultsText: {
     fontSize: 14,
     fontWeight: '700',
@@ -357,9 +446,9 @@ const styles = StyleSheet.create({
 
   resultCard: {
     backgroundColor: colors.white,
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 20,
+    marginBottom: 14,
+    overflow: 'hidden',
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
@@ -367,10 +456,20 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
+  resultImage: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#E5E7EB',
+  },
+
+  resultContent: {
+    padding: 16,
+  },
+
   resultTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
 
   resultTextWrap: {
@@ -379,7 +478,7 @@ const styles = StyleSheet.create({
   },
 
   resultTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: '#222222',
   },
@@ -387,6 +486,13 @@ const styles = StyleSheet.create({
   resultSubtitle: {
     marginTop: 4,
     fontSize: 13,
+    color: '#6B7280',
+  },
+
+  resultDescription: {
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 20,
     color: '#6B7280',
   },
 
@@ -429,8 +535,8 @@ const styles = StyleSheet.create({
     width: '48%',
     backgroundColor: colors.white,
     borderRadius: 20,
-    padding: 18,
     marginBottom: 14,
+    overflow: 'hidden',
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
@@ -438,9 +544,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
-  categoryEmoji: {
-    fontSize: 24,
-    marginBottom: 10,
+  categoryImage: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#E5E7EB',
+  },
+
+  categoryContent: {
+    padding: 16,
   },
 
   categoryTitle: {

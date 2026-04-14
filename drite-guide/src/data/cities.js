@@ -54,4 +54,9 @@ export const cities = [
         name: 'Berat',
         image: require('../../assets/cities/berat.jpg'),
     },
+    {
+        id: 'lezhe',
+        name: 'Lezhe',
+        image: require('../../assets/cities/lezhe.jpg'),
+    },
 ];
