@@ -195,7 +195,7 @@ export default function SearchResultsScreen({ route }) {
 
   const handlePlacePress = (place) => {
     Keyboard.dismiss();
-    navigation.navigate('PlaceDetail', {
+    navigation.navigate('PlaceDetails', {
       placeId: place.id,
     });
   };

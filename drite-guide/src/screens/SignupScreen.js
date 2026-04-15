@@ -52,7 +52,7 @@ export default function SignupScreen() {
             [
                 {
                     text: 'Continue',
-                    onPress: () => navigation.navigate('Main', { screen: 'Account' }),
+                    onPress: () => navigation.navigate('AccountMain'),
                 },
             ]
         );

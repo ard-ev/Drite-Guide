@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,19 +7,55 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import colors from '../theme/colors';
 import { places } from '../data/places';
 import { cities } from '../data/cities';
 
+const { width: screenWidth } = Dimensions.get('window');
+const HERO_WIDTH = screenWidth - 40;
+const HERO_COUNT = 2;
+
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const heroScrollRef = useRef(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+
+  const heroVideoPlayer = useVideoPlayer(
+    require('../../assets/videos/albania-hero.mp4'),
+    (player) => {
+      player.loop = true;
+      player.muted = true;
+      player.play();
+    }
+  );
+
+  useEffect(() => {
+    if (hasSearched) return;
+
+    const interval = setInterval(() => {
+      const nextIndex = (activeHeroIndex + 1) % HERO_COUNT;
+
+      heroScrollRef.current?.scrollTo({
+        x: nextIndex * HERO_WIDTH,
+        animated: true,
+      });
+
+      setActiveHeroIndex(nextIndex);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [activeHeroIndex, hasSearched]);
 
   const categories = [
     {
@@ -121,48 +157,169 @@ export default function HomeScreen() {
     return categoryLabels[categoryId] || categoryId;
   };
 
+  const getImageSource = (image) => {
+    if (typeof image === 'string') {
+      return { uri: image };
+    }
+    return image;
+  };
+
+  const normalizeText = (text) => {
+    return (text || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, '')
+      .trim();
+  };
+
+  const levenshteinDistance = (a, b) => {
+    const matrix = Array.from({ length: b.length + 1 }, () =>
+      Array(a.length + 1).fill(0)
+    );
+
+    for (let i = 0; i <= a.length; i += 1) {
+      matrix[0][i] = i;
+    }
+
+    for (let j = 0; j <= b.length; j += 1) {
+      matrix[j][0] = j;
+    }
+
+    for (let j = 1; j <= b.length; j += 1) {
+      for (let i = 1; i <= a.length; i += 1) {
+        const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
+
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1,
+          matrix[j - 1][i - 1] + indicator
+        );
+      }
+    }
+
+    return matrix[b.length][a.length];
+  };
+
+  const getSimilarityScore = (query, target) => {
+    if (!query || !target) return 0;
+
+    const normalizedQuery = normalizeText(query);
+    const normalizedTarget = normalizeText(target);
+
+    if (!normalizedQuery || !normalizedTarget) return 0;
+
+    if (normalizedTarget === normalizedQuery) return 100;
+    if (normalizedTarget.startsWith(normalizedQuery)) return 80;
+    if (normalizedTarget.includes(normalizedQuery)) return 60;
+
+    const queryWords = normalizedQuery.split(' ').filter(Boolean);
+    const targetWords = normalizedTarget.split(' ').filter(Boolean);
+
+    let partialMatches = 0;
+
+    queryWords.forEach((queryWord) => {
+      if (
+        targetWords.some(
+          (targetWord) =>
+            targetWord.includes(queryWord) ||
+            queryWord.includes(targetWord) ||
+            levenshteinDistance(queryWord, targetWord) <= 1
+        )
+      ) {
+        partialMatches += 1;
+      }
+    });
+
+    if (partialMatches > 0) {
+      return 30 + partialMatches * 10;
+    }
+
+    if (levenshteinDistance(normalizedQuery, normalizedTarget) <= 2) {
+      return 25;
+    }
+
+    return 0;
+  };
+
+  const buildSearchResults = (query) => {
+    return places
+      .map((place) => {
+        const cityName = getCityName(place.cityId);
+        const categoryLabel = getCategoryLabel(place.categoryId);
+
+        const score = Math.max(
+          getSimilarityScore(query, place.name),
+          getSimilarityScore(query, cityName),
+          getSimilarityScore(query, place.categoryId),
+          getSimilarityScore(query, categoryLabel)
+        );
+
+        return {
+          ...place,
+          searchScore: score,
+        };
+      })
+      .filter((place) => place.searchScore > 0)
+      .sort((a, b) => {
+        if (b.searchScore !== a.searchScore) {
+          return b.searchScore - a.searchScore;
+        }
+        return Number(b.rating || 0) - Number(a.rating || 0);
+      });
+  };
+
+  const handleSearchInputChange = (text) => {
+    setSearchQuery(text);
+    setHasSearched(false);
+
+    const query = normalizeText(text);
+
+    if (!query) {
+      setSuggestions([]);
+      return;
+    }
+
+    const suggestionResults = buildSearchResults(query).slice(0, 5);
+    setSuggestions(suggestionResults);
+  };
+
   const handleSearch = () => {
-    const query = searchQuery.trim().toLowerCase();
+    const query = normalizeText(searchQuery);
 
     if (!query) {
       return;
     }
 
-    const filteredPlaces = places
-      .filter((place) => {
-        const cityName = getCityName(place.cityId).toLowerCase();
-        const placeName = place.name?.toLowerCase() || '';
-        const categoryId = place.categoryId?.toLowerCase() || '';
-        const categoryLabel = getCategoryLabel(place.categoryId).toLowerCase();
-
-        return (
-          placeName.includes(query) ||
-          cityName.includes(query) ||
-          categoryId.includes(query) ||
-          categoryLabel.includes(query)
-        );
-      })
-      .sort((a, b) => Number(b.rating) - Number(a.rating));
+    const filteredPlaces = buildSearchResults(query);
 
     setSearchResults(filteredPlaces);
+    setSuggestions([]);
     setHasSearched(true);
     setSearchQuery('');
   };
 
-  const handleCategoryPress = (categoryId) => {
-    const filteredPlaces = places
-      .filter((place) => place.categoryId === categoryId)
-      .sort((a, b) => Number(b.rating) - Number(a.rating));
+  const handleCategoryPress = (category) => {
+    setSuggestions([]);
+    setHasSearched(false);
 
-    setSearchResults(filteredPlaces);
-    setHasSearched(true);
-    setSearchQuery('');
+    navigation.navigate('CategoryPlaces', {
+      categoryId: category.id,
+      categoryLabel: category.label,
+    });
   };
 
   const clearSearchResults = () => {
     setSearchResults([]);
+    setSuggestions([]);
     setHasSearched(false);
     setSearchQuery('');
+  };
+
+  const handleHeroScrollEnd = (event) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / HERO_WIDTH);
+    setActiveHeroIndex(index);
   };
 
   return (
@@ -173,6 +330,7 @@ export default function HomeScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.headerRow}>
             <View style={styles.headerTextWrap}>
@@ -193,7 +351,7 @@ export default function HomeScreen() {
               placeholder="Search Cities, Restaurants, Cafés, Bars..."
               placeholderTextColor="#8E8E93"
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChangeText={handleSearchInputChange}
               onSubmitEditing={handleSearch}
               returnKeyType="search"
             />
@@ -205,6 +363,39 @@ export default function HomeScreen() {
               <Text style={styles.searchButtonText}>Search</Text>
             </TouchableOpacity>
           </View>
+
+          {searchQuery.trim().length > 0 && suggestions.length > 0 && !hasSearched ? (
+            <View style={styles.suggestionsBox}>
+              {suggestions.map((item, index) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.suggestionItem,
+                    index === suggestions.length - 1 && styles.suggestionItemLast,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setSuggestions([]);
+                    setSearchQuery('');
+                    navigation.navigate('PlaceDetails', { placeId: item.id });
+                  }}
+                >
+                  <View style={styles.suggestionTextWrap}>
+                    <Text style={styles.suggestionTitle}>{item.name}</Text>
+                    <Text style={styles.suggestionSubtitle}>
+                      {getCategoryLabel(item.categoryId)} • {getCityName(item.cityId)}
+                    </Text>
+                  </View>
+
+                  {item.rating ? (
+                    <View style={styles.suggestionRatingBadge}>
+                      <Text style={styles.suggestionRatingText}>★ {item.rating}</Text>
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
 
           {hasSearched ? (
             <View style={styles.section}>
@@ -224,13 +415,13 @@ export default function HomeScreen() {
                       style={styles.resultCard}
                       activeOpacity={0.85}
                       onPress={() =>
-                        navigation.navigate('PlaceDetail', {
+                        navigation.navigate('PlaceDetails', {
                           placeId: place.id,
                         })
                       }
                     >
                       <Image
-                        source={{ uri: place.image }}
+                        source={getImageSource(place.image)}
                         style={styles.resultImage}
                         resizeMode="cover"
                       />
@@ -244,9 +435,11 @@ export default function HomeScreen() {
                             </Text>
                           </View>
 
-                          <View style={styles.ratingBadge}>
-                            <Text style={styles.ratingText}>★ {place.rating}</Text>
-                          </View>
+                          {place.rating ? (
+                            <View style={styles.ratingBadge}>
+                              <Text style={styles.ratingText}>★ {place.rating}</Text>
+                            </View>
+                          ) : null}
                         </View>
 
                         <Text style={styles.resultDescription} numberOfLines={2}>
@@ -264,12 +457,51 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              <View style={styles.heroCard}>
-                <Text style={styles.heroTitle}>Find the best places in Albania</Text>
-                <Text style={styles.heroText}>
-                  Explore Cities, Villages, Restaurants, Cafés, Bars, Clubs and Hidden
-                  Gems in one clean experience.
-                </Text>
+              <View style={styles.heroSection}>
+                <View style={styles.heroViewport}>
+                  <ScrollView
+                    ref={heroScrollRef}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    decelerationRate="fast"
+                    bounces={false}
+                    onMomentumScrollEnd={handleHeroScrollEnd}
+                    scrollEventThrottle={16}
+                  >
+                    <View style={styles.heroCard}>
+                      <Text style={styles.heroEyebrow}>Travel smarter</Text>
+                      <Text style={styles.heroTitle}>Find the best places in Albania</Text>
+                      <Text style={styles.heroText}>
+                        Explore Cities, Villages, Restaurants, Cafés, Bars, Clubs and
+                        Hidden Gems in one experience.
+                      </Text>
+                    </View>
+
+                    <View style={styles.videoHeroCard}>
+                        <VideoView
+                          style={styles.videoHero}
+                          player={heroVideoPlayer}
+                          fullscreenOptions={{ enable: false }}
+                          allowsPictureInPicture={false}
+                          nativeControls={false}
+                          contentFit="cover"
+                        />
+                    </View>
+                  </ScrollView>
+                </View>
+
+                <View style={styles.pagination}>
+                  {[0, 1].map((index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.paginationDot,
+                        activeHeroIndex === index && styles.paginationDotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
               </View>
 
               <View style={styles.section}>
@@ -281,7 +513,7 @@ export default function HomeScreen() {
                       key={category.id}
                       style={styles.categoryCard}
                       activeOpacity={0.85}
-                      onPress={() => handleCategoryPress(category.id)}
+                      onPress={() => handleCategoryPress(category)}
                     >
                       <Image
                         source={category.image}
@@ -350,7 +582,7 @@ const styles = StyleSheet.create({
   headerLogo: {
     width: 46,
     height: 46,
-    borderRadius: 28,
+    borderRadius: 23,
     backgroundColor: colors.white,
   },
 
@@ -388,16 +620,107 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  suggestionsBox: {
+    marginTop: 10,
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+
+  suggestionItemLast: {
+    borderBottomWidth: 0,
+  },
+
+  suggestionTextWrap: {
+    flex: 1,
+    marginRight: 12,
+  },
+
+  suggestionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#222222',
+  },
+
+  suggestionSubtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+
+  suggestionRatingBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+
+  suggestionRatingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+
+  heroSection: {
+    marginTop: 22,
+  },
+
+  heroViewport: {
+    width: HERO_WIDTH,
+    overflow: 'hidden',
+    borderRadius: 24,
+  },
+
   heroCard: {
+    width: HERO_WIDTH,
     backgroundColor: colors.white,
     borderRadius: 24,
     padding: 22,
-    marginTop: 22,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
     shadowRadius: 16,
     elevation: 4,
+  },
+
+  videoHeroCard: {
+    width: HERO_WIDTH,
+    height: 190,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: colors.white,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+
+  videoHero: {
+    width: '100%',
+    height: '100%',
+  },
+
+  heroEyebrow: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 10,
   },
 
   heroTitle: {
@@ -412,6 +735,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 24,
     color: '#6B7280',
+  },
+
+  pagination: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 14,
+  },
+
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#D1D5DB',
+    marginHorizontal: 4,
+  },
+
+  paginationDotActive: {
+    width: 22,
+    backgroundColor: colors.primary,
   },
 
   section: {

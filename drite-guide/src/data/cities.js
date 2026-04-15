@@ -59,4 +59,24 @@ export const cities = [
         name: 'Lezhe',
         image: require('../../assets/cities/lezhe.jpg'),
     },
+    {
+        id: 'shengjin',
+        name: 'Shengjin',
+        image: require('../../assets/cities/lezhe.jpg'),
+    },
+    {
+        id: 'velipoje',
+        name: 'Velipoje',
+        image: require('../../assets/cities/lezhe.jpg'),
+    },
+    {
+        id: 'saranda',
+        name: 'Saranda',
+        image: require('../../assets/cities/lezhe.jpg'),
+    },
+    {
+        id: 'himare',
+        name: 'Himare',
+        image: require('../../assets/cities/lezhe.jpg'),
+    },
 ];

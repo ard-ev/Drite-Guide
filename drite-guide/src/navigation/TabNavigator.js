@@ -1,134 +1,62 @@
-import React, { useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 
-import HomeScreen from '../screens/HomeScreen';
-import ExploreScreen from '../screens/ExploreScreen';
-import SavedScreen from '../screens/SavedScreen';
-import AccountScreen from '../screens/AccountScreen';
+import HomeStackNavigator from './HomeStackNavigator';
+import ExploreStackNavigator from './ExploreStackNavigator';
+import SavedStackNavigator from './SavedStackNavigator';
+import AccountStackNavigator from './AccountStackNavigator';
+import colors from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
-  const [refreshKeys, setRefreshKeys] = useState({
-    Home: 0,
-    Explore: 0,
-    Saved: 0,
-    Account: 0,
-  });
-
-  const refreshTab = (tabName) => {
-    setRefreshKeys((prev) => ({
-      ...prev,
-      [tabName]: prev[tabName] + 1,
-    }));
-  };
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#d51e1e',
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarShowLabel: true,
         tabBarStyle: {
           position: 'absolute',
-          left: 10,
-          right: 10,
+          left: 0,
+          right: 0,
           bottom: 0,
-          height: 88,
-          borderRadius: 24,
+          height: 80,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
           backgroundColor: '#FFFFFF',
           borderTopWidth: 0,
-          paddingTop: 4,
+          paddingTop: 6,
           paddingBottom: 10,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.08,
-          shadowRadius: 18,
-          elevation: 8,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.06,
+          shadowRadius: 14,
+          elevation: 10,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
-          marginBottom: 4,
-        },
-        tabBarIconStyle: {
           marginTop: 4,
         },
-        tabBarIcon: ({ color, size, focused }) => {
-          let iconName;
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarIcon: ({ color, size }) => {
+          let iconName = 'ellipse-outline';
 
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Explore') {
-            iconName = focused ? 'map' : 'map-outline';
-          } else if (route.name === 'Saved') {
-            iconName = focused ? 'bookmark' : 'bookmark-outline';
-          } else if (route.name === 'Account') {
-            iconName = focused ? 'person-circle' : 'person-circle-outline';
-          } else {
-            iconName = 'ellipse-outline';
-          }
+          if (route.name === 'Home') iconName = 'home-outline';
+          if (route.name === 'Explore') iconName = 'map-outline';
+          if (route.name === 'Saved') iconName = 'bookmark-outline';
+          if (route.name === 'Account') iconName = 'person-circle-outline';
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={size || 24} color={color} />;
         },
       })}
     >
-      <Tab.Screen
-        name="Home"
-        listeners={({ navigation }) => ({
-          tabPress: () => {
-            if (navigation.isFocused()) {
-              refreshTab('Home');
-            }
-          },
-        })}
-      >
-        {(props) => <HomeScreen key={`Home-${refreshKeys.Home}`} {...props} />}
-      </Tab.Screen>
-
-      <Tab.Screen
-        name="Explore"
-        listeners={({ navigation }) => ({
-          tabPress: () => {
-            if (navigation.isFocused()) {
-              refreshTab('Explore');
-            }
-          },
-        })}
-      >
-        {(props) => (
-          <ExploreScreen key={`Explore-${refreshKeys.Explore}`} {...props} />
-        )}
-      </Tab.Screen>
-
-      <Tab.Screen
-        name="Saved"
-        listeners={({ navigation }) => ({
-          tabPress: () => {
-            if (navigation.isFocused()) {
-              refreshTab('Saved');
-            }
-          },
-        })}
-      >
-        {(props) => <SavedScreen key={`Saved-${refreshKeys.Saved}`} {...props} />}
-      </Tab.Screen>
-
-      <Tab.Screen
-        name="Account"
-        listeners={({ navigation }) => ({
-          tabPress: () => {
-            if (navigation.isFocused()) {
-              refreshTab('Account');
-            }
-          },
-        })}
-      >
-        {(props) => (
-          <AccountScreen key={`Account-${refreshKeys.Account}`} {...props} />
-        )}
-      </Tab.Screen>
+      <Tab.Screen name="Home" component={HomeStackNavigator} />
+      <Tab.Screen name="Explore" component={ExploreStackNavigator} />
+      <Tab.Screen name="Saved" component={SavedStackNavigator} />
+      <Tab.Screen name="Account" component={AccountStackNavigator} />
     </Tab.Navigator>
   );
 }

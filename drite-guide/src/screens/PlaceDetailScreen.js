@@ -12,84 +12,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { places } from '../data/places';
 import { cities } from '../data/cities';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 
 export default function PlaceDetailScreen({ route }) {
-  const navigation = useNavigation();
-  const { placeId } = route.params;
-
-  const place = places.find((p) => p.id === placeId);
+  const { placeId } = route.params || {};
   const { getSavedPlaces, savePlace, removeSavedPlace } = useAuth();
 
+  const place = places.find((p) => p.id === placeId);
   const savedPlaces = getSavedPlaces() || [];
   const isSaved = savedPlaces.some((item) => item.id === placeId);
 
   if (!place) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar style="dark" />
-
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>Not Found</Text>
-
-          <View style={styles.iconButton} />
-        </View>
-
         <View style={styles.notFound}>
           <Text style={styles.notFoundTitle}>Place not found</Text>
           <Text style={styles.notFoundText}>
             The selected place could not be loaded.
           </Text>
-        </View>
-
-        <View style={styles.fakeTabBar}>
-          <TouchableOpacity
-            style={styles.fakeTabItem}
-            onPress={() => navigation.navigate('Main', { screen: 'Home' })}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="home-outline" size={24} color="#9CA3AF" />
-            <Text style={styles.fakeTabLabel}>Home</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.fakeTabItem}
-            onPress={() => navigation.navigate('Main', { screen: 'Explore' })}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="map-outline" size={24} color="#9CA3AF" />
-            <Text style={styles.fakeTabLabel}>Explore</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.fakeTabItem}
-            onPress={() => navigation.navigate('Main', { screen: 'Saved' })}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="bookmark-outline" size={24} color="#9CA3AF" />
-            <Text style={styles.fakeTabLabel}>Saved</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.fakeTabItem}
-            onPress={() => navigation.navigate('Main', { screen: 'Account' })}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="person-circle-outline" size={24} color="#9CA3AF" />
-            <Text style={styles.fakeTabLabel}>Account</Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -115,24 +59,27 @@ export default function PlaceDetailScreen({ route }) {
       governmentservices: 'Government Service',
     };
 
-    return categoryLabels[categoryId] || categoryId;
+    return categoryLabels[categoryId] || categoryId || 'Place';
   };
 
   const imageGallery =
     Array.isArray(place.images) && place.images.length > 0
       ? place.images
       : place.image
-        ? [place.image, place.image, place.image]
-        : [
-          'https://placehold.co/1200x800/E5E7EB/222222?text=No+Image',
-          'https://placehold.co/1200x800/F3F4F6/222222?text=Gallery+Image',
-          'https://placehold.co/1200x800/E5E7EB/222222?text=Place+Preview',
-        ];
+        ? [place.image]
+        : ['https://placehold.co/1200x800/E5E7EB/222222?text=No+Image'];
 
   const phoneNumber = place.phone || '+355000000000';
   const address = place.address || `${city?.name || 'Albania'} Center`;
   const latitude = place.latitude ?? null;
   const longitude = place.longitude ?? null;
+
+  const getImageSource = (image) => {
+    if (typeof image === 'string') {
+      return { uri: image };
+    }
+    return image;
+  };
 
   const handleCall = async () => {
     const url = `tel:${phoneNumber}`;
@@ -177,170 +124,143 @@ export default function PlaceDetailScreen({ route }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={styles.screen}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar style="dark" />
 
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={styles.header}>
+          <View style={styles.headerSpacer} />
+          <Text style={styles.headerTitle}>Details</Text>
 
-        <Text style={styles.headerTitle}>Details</Text>
-
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={handleToggleSaved}
-          activeOpacity={0.85}
-        >
-          <Ionicons
-            name={isSaved ? 'bookmark' : 'bookmark-outline'}
-            size={22}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.galleryRow}
-        >
-          {imageGallery.map((img, index) => (
-            <Image
-              key={`${place.id}-image-${index}`}
-              source={{ uri: img }}
-              style={[
-                styles.galleryImage,
-                index === 0 ? styles.galleryImageFirst : null,
-              ]}
-              resizeMode="cover"
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={handleToggleSaved}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name={isSaved ? 'bookmark' : 'bookmark-outline'}
+              size={22}
+              color={colors.primary}
             />
-          ))}
-        </ScrollView>
-
-        <View style={styles.topSection}>
-          <View style={styles.categoryBadge}>
-            <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
-            <Text style={styles.categoryLabel}>{getCategoryLabel(place.categoryId)}</Text>
-          </View>
-
-          <View style={styles.ratingBadge}>
-            <Ionicons name="star" size={16} color="#F59E0B" />
-            <Text style={styles.ratingText}>{place.rating}</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.placeName}>{place.name}</Text>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.galleryRow}
+          >
+            {imageGallery.map((img, index) => (
+              <Image
+                key={`${place.id}-image-${index}`}
+                source={getImageSource(img)}
+                style={[
+                  styles.galleryImage,
+                  index === 0 ? styles.galleryImageFirst : null,
+                ]}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
 
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <Ionicons name="location-outline" size={16} color={colors.primary} />
-            <Text style={styles.metaText}>{city?.name || 'Unknown City'}</Text>
+          <View style={styles.topSection}>
+            <View style={styles.categoryBadge}>
+              <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
+              <Text style={styles.categoryLabel}>
+                {getCategoryLabel(place.categoryId)}
+              </Text>
+            </View>
+
+            {place.rating ? (
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={16} color="#F59E0B" />
+                <Text style={styles.ratingText}>{place.rating}</Text>
+              </View>
+            ) : null}
           </View>
 
-          <View style={styles.metaDot} />
+          <Text style={styles.placeName}>{place.name}</Text>
 
-          <View style={styles.metaItem}>
-            <Ionicons name="navigate-outline" size={16} color={colors.primary} />
-            <Text style={styles.metaText}>{address}</Text>
-          </View>
-        </View>
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <Ionicons name="location-outline" size={16} color={colors.primary} />
+              <Text style={styles.metaText}>{city?.name || 'Unknown City'}</Text>
+            </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>About</Text>
-          <Text style={styles.description}>
-            {place.description || 'No description available for this place yet.'}
-          </Text>
-        </View>
+            <View style={styles.metaDot} />
 
-        <View style={styles.infoGrid}>
-          <View style={[styles.infoCard, { marginRight: 8 }]}>
-            <Ionicons name="star-outline" size={22} color={colors.primary} />
-            <Text style={styles.infoLabel}>Rating</Text>
-            <Text style={styles.infoValue}>{place.rating}</Text>
+            <View style={styles.metaItem}>
+              <Ionicons name="navigate-outline" size={16} color={colors.primary} />
+              <Text style={styles.metaText} numberOfLines={1}>
+                {address}
+              </Text>
+            </View>
           </View>
 
-          <View style={[styles.infoCard, { marginLeft: 8 }]}>
-            <Ionicons name="call-outline" size={22} color={colors.primary} />
-            <Text style={styles.infoLabel}>Phone</Text>
-            <Text style={styles.infoValue} numberOfLines={1}>
-              {phoneNumber}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>About</Text>
+            <Text style={styles.description}>
+              {place.description || 'No description available for this place yet.'}
             </Text>
           </View>
-        </View>
 
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={handleCall}
-            activeOpacity={0.88}
-          >
-            <Ionicons name="call" size={20} color="#FFFFFF" />
-            <Text style={styles.buttonText}>Call</Text>
-          </TouchableOpacity>
+          <View style={styles.infoGrid}>
+            <View style={[styles.infoCard, { marginRight: 8 }]}>
+              <Ionicons name="star-outline" size={22} color={colors.primary} />
+              <Text style={styles.infoLabel}>Rating</Text>
+              <Text style={styles.infoValue}>{place.rating || 'N/A'}</Text>
+            </View>
 
-          <TouchableOpacity
-            style={[styles.button, styles.secondaryButton]}
-            onPress={handleNavigate}
-            activeOpacity={0.88}
-          >
-            <Ionicons name="navigate" size={20} color={colors.primary} />
-            <Text style={styles.secondaryButtonText}>Navigate</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+            <View style={[styles.infoCard, { marginLeft: 8 }]}>
+              <Ionicons name="call-outline" size={22} color={colors.primary} />
+              <Text style={styles.infoLabel}>Phone</Text>
+              <Text style={styles.infoValue} numberOfLines={1}>
+                {phoneNumber}
+              </Text>
+            </View>
+          </View>
 
-      <View style={styles.fakeTabBar}>
-        <TouchableOpacity
-          style={styles.fakeTabItem}
-          onPress={() => navigation.navigate('Main', { screen: 'Home' })}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="home-outline" size={24} color="#9CA3AF" />
-          <Text style={styles.fakeTabLabel}>Home</Text>
-        </TouchableOpacity>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.button, styles.primaryButton]}
+              onPress={handleCall}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="call" size={20} color="#FFFFFF" />
+              <Text style={styles.buttonText}>Call</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.fakeTabItem}
-          onPress={() => navigation.navigate('Main', { screen: 'Explore' })}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="map-outline" size={24} color="#9CA3AF" />
-          <Text style={styles.fakeTabLabel}>Explore</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.fakeTabItem}
-          onPress={() => navigation.navigate('Main', { screen: 'Saved' })}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="bookmark-outline" size={24} color="#9CA3AF" />
-          <Text style={styles.fakeTabLabel}>Saved</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.fakeTabItem}
-          onPress={() => navigation.navigate('Main', { screen: 'Account' })}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="person-circle-outline" size={24} color="#9CA3AF" />
-          <Text style={styles.fakeTabLabel}>Account</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+            <TouchableOpacity
+              style={[styles.button, styles.secondaryButton]}
+              onPress={handleNavigate}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="navigate" size={20} color={colors.primary} />
+              <Text style={styles.secondaryButtonText}>Navigate</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
@@ -354,6 +274,11 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 12,
     backgroundColor: '#F5F5F5',
+  },
+
+  headerSpacer: {
+    width: 40,
+    height: 40,
   },
 
   iconButton: {
@@ -453,7 +378,7 @@ const styles = StyleSheet.create({
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    maxWidth: '100%',
+    maxWidth: '46%',
   },
 
   metaText: {
@@ -556,40 +481,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     marginLeft: 8,
-  },
-
-  fakeTabBar: {
-    position: 'absolute',
-    left: 10,
-    right: 10,
-    bottom: 0,
-    height: 88,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 0,
-    paddingTop: 4,
-    paddingBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-
-  fakeTabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 64,
-  },
-
-  fakeTabLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    marginTop: 4,
   },
 
   notFound: {

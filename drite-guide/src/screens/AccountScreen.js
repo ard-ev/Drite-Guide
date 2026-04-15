@@ -71,6 +71,10 @@ export default function AccountScreen() {
         navigation.navigate(screen);
     };
 
+    const handleLogout = () => {
+        logout();
+    };
+
     const renderMenuItem = (item) => (
         <TouchableOpacity
             key={item.id}
@@ -125,7 +129,7 @@ export default function AccountScreen() {
                             <TouchableOpacity
                                 style={styles.primaryButton}
                                 activeOpacity={0.88}
-                                onPress={() => navigation.navigate('Login')}
+                                onPress={() => handlePress('Login')}
                             >
                                 <Text style={styles.primaryButtonText}>Log in</Text>
                             </TouchableOpacity>
@@ -133,7 +137,7 @@ export default function AccountScreen() {
                             <TouchableOpacity
                                 style={styles.secondaryButton}
                                 activeOpacity={0.88}
-                                onPress={() => navigation.navigate('Signup')}
+                                onPress={() => handlePress('Signup')}
                             >
                                 <Text style={styles.secondaryButtonText}>Sign up</Text>
                             </TouchableOpacity>
@@ -195,7 +199,7 @@ export default function AccountScreen() {
                                 <TouchableOpacity
                                     style={styles.logoutButton}
                                     activeOpacity={0.88}
-                                    onPress={logout}
+                                    onPress={handleLogout}
                                 >
                                     <Text style={styles.logoutButtonText}>Log out</Text>
                                 </TouchableOpacity>
@@ -394,7 +398,7 @@ const styles = StyleSheet.create({
 
     logoutButton: {
         width: '100%',
-        backgroundColor: '#111827',
+        backgroundColor: colors.primary,
         paddingVertical: 15,
         borderRadius: 16,
         alignItems: 'center',

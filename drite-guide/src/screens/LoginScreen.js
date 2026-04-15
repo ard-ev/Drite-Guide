@@ -36,7 +36,7 @@ export default function LoginScreen() {
         Alert.alert('Login successful', `Welcome back, ${result.user.firstName}!`, [
             {
                 text: 'Continue',
-                onPress: () => navigation.navigate('Main', { screen: 'Account' }),
+                onPress: () => navigation.navigate('AccountMain'),
             },
         ]);
     };

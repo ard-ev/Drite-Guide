@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,14 +18,31 @@ import colors from '../theme/colors';
 export default function ExploreScreen() {
   const navigation = useNavigation();
 
-  const handleCityPress = (cityId) => {
-    navigation.navigate('Explore', {
-      cityId,
-    });
-  };
+  const allowedCityIds = [
+    'tirana',
+    'durres',
+    'shkoder',
+    'vlore',
+    'ksamil',
+    'dhermi',
+    'lin',
+    'theth',
+    'gjirokaster',
+    'korca',
+    'berat',
+    'lezhe',
+  ];
+
+  const visibleCities = useMemo(() => {
+    return cities.filter((city) => allowedCityIds.includes(city.id));
+  }, []);
 
   const getPlacesCount = (cityId) => {
     return places.filter((place) => place.cityId === cityId).length;
+  };
+
+  const handleCityPress = (cityId) => {
+    navigation.navigate('CityPlaces', { cityId });
   };
 
   const renderCityCard = (city) => {
@@ -35,13 +52,14 @@ export default function ExploreScreen() {
       <TouchableOpacity
         key={city.id}
         style={styles.cityCard}
-        onPress={() => handleCityPress(city.id)}
         activeOpacity={0.88}
+        onPress={() => handleCityPress(city.id)}
       >
         <ImageBackground
           source={city.image}
           style={styles.cityImage}
           imageStyle={styles.cityImageStyle}
+          resizeMode="cover"
         >
           <View style={styles.cityOverlay} />
 
@@ -73,19 +91,22 @@ export default function ExploreScreen() {
         >
           <View style={styles.headerRow}>
             <Text style={styles.title}>Explore</Text>
-            <Ionicons name="map-outline" size={24} color={colors.black} />
+
+            <View style={styles.headerIcon}>
+              <Ionicons name="map-outline" size={22} color={colors.black} />
+            </View>
           </View>
 
-          <View style={styles.mapAdvert}>
-            <Ionicons name="map" size={48} color={colors.primary} />
-            <Text style={styles.advertTitle}>Explore Albania</Text>
-            <Text style={styles.advertSubtext}>
-              Browse all cities and their attractions below
+          <View style={styles.heroCard}>
+            <Ionicons name="map-outline" size={46} color={colors.primary} />
+            <Text style={styles.heroTitle}>Explore Albania</Text>
+            <Text style={styles.heroText}>
+              Choose a city and browse its best places
             </Text>
           </View>
 
           <View style={styles.citiesSection}>
-            {cities.map(renderCityCard)}
+            {visibleCities.map(renderCityCard)}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -96,12 +117,12 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.gray,
+    backgroundColor: '#F5F5F5',
   },
 
   safeArea: {
     flex: 1,
-    backgroundColor: colors.gray,
+    backgroundColor: '#F5F5F5',
   },
 
   content: {
@@ -123,7 +144,8 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
 
-  mapAdvert: {
+
+  heroCard: {
     backgroundColor: colors.primary + '15',
     borderRadius: 24,
     paddingVertical: 30,
@@ -132,7 +154,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  advertTitle: {
+  heroTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.primary,
@@ -140,7 +162,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
-  advertSubtext: {
+  heroText: {
     fontSize: 13,
     color: '#6B7280',
     textAlign: 'center',

@@ -90,7 +90,7 @@ export default function SavedScreen() {
                   style={styles.placeCard}
                   activeOpacity={0.88}
                   onPress={() =>
-                    navigation.navigate('PlaceDetail', {
+                    navigation.navigate('PlaceDetails', {
                       placeId: place.id,
                     })
                   }
