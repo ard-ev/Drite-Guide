@@ -8,6 +8,7 @@ import {
   Modal,
   Pressable,
   ImageBackground,
+  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -19,11 +20,19 @@ import { places } from '../data/places';
 import { cities } from '../data/cities';
 import colors from '../theme/colors';
 
+const FALLBACK_LOCATION = {
+  latitude: 41.3275,
+  longitude: 19.8187,
+};
+
 export default function ExploreScreen() {
   const navigation = useNavigation();
 
   const [showMapExpanded, setShowMapExpanded] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [showPlacePreview, setShowPlacePreview] = useState(false);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
   const allowedCityIds = [
     'tirana',
@@ -44,17 +53,35 @@ export default function ExploreScreen() {
     getUserLocation();
   }, []);
 
+  const cityMap = useMemo(() => {
+    return cities.reduce((acc, city) => {
+      acc[city.id] = city;
+      return acc;
+    }, {});
+  }, []);
+
+  const formatCategory = (categoryId) => {
+    if (!categoryId) return 'Place';
+
+    return categoryId
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   const getUserLocation = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== 'granted') {
-        console.log('Location permission denied');
+        setLocationPermissionDenied(true);
+        setUserLocation(FALLBACK_LOCATION);
         return;
       }
 
+      setLocationPermissionDenied(false);
+
       const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.Balanced,
       });
 
       setUserLocation({
@@ -63,6 +90,7 @@ export default function ExploreScreen() {
       });
     } catch (error) {
       console.log('Error getting user location:', error);
+      setUserLocation(FALLBACK_LOCATION);
     }
   };
 
@@ -117,7 +145,7 @@ export default function ExploreScreen() {
         place.longitude
       );
 
-      return distance <= 20;
+      return distance <= 100;
     });
   }, [userLocation, placesWithCoordinates]);
 
@@ -125,7 +153,34 @@ export default function ExploreScreen() {
     if (!userLocation) {
       await getUserLocation();
     }
+
+    setSelectedPlace(null);
+    setShowPlacePreview(false);
     setShowMapExpanded(true);
+  };
+
+  const handleMarkerPress = (place) => {
+    setSelectedPlace(place);
+    setShowPlacePreview(true);
+  };
+
+  const closePlacePreview = () => {
+    setSelectedPlace(null);
+    setShowPlacePreview(false);
+  };
+
+  const openPlaceDetailsFromPreview = () => {
+    if (!selectedPlace) return;
+
+    const placeId = selectedPlace.id;
+
+    setShowMapExpanded(false);
+    setShowPlacePreview(false);
+    setSelectedPlace(null);
+
+    setTimeout(() => {
+      navigation.navigate('PlaceDetails', { placeId });
+    }, 150);
   };
 
   const renderCityCard = (city) => {
@@ -163,11 +218,21 @@ export default function ExploreScreen() {
     );
   };
 
-  const previewMapUrl = 'https://www.google.com/maps?q=41.3275,19.8187&z=11&output=embed';
+  const previewMapUrl =
+    'https://www.google.com/maps?q=41.3275,19.8187&z=7&output=embed';
 
   const expandedMapUrl = userLocation
-    ? `https://www.google.com/maps?q=${userLocation.latitude},${userLocation.longitude}&z=12&output=embed`
+    ? `https://www.google.com/maps?q=${userLocation.latitude},${userLocation.longitude}&z=11&output=embed`
     : 'https://www.google.com/maps?q=41.3275,19.8187&z=8&output=embed';
+
+  const externalMapUrl = userLocation
+    ? `https://www.google.com/maps?q=${userLocation.latitude},${userLocation.longitude}`
+    : 'https://www.google.com/maps?q=41.3275,19.8187';
+
+  const selectedCity = selectedPlace ? cityMap[selectedPlace.cityId] : null;
+  const selectedCategory = selectedPlace
+    ? formatCategory(selectedPlace.categoryId)
+    : 'Place';
 
   return (
     <View style={styles.screen}>
@@ -199,16 +264,17 @@ export default function ExploreScreen() {
               allowFullScreen
             />
 
+            <View style={styles.heroGradientOverlay} />
+
             <View style={styles.mapTextOverlay}>
-              <Ionicons
-                name="map-outline"
-                size={46}
-                color={colors.white}
-                style={styles.heroIcon}
-              />
+              <View style={styles.heroBadge}>
+                <Ionicons name="map-outline" size={16} color={colors.white} />
+                <Text style={styles.heroBadgeText}>Interactive Map</Text>
+              </View>
+
               <Text style={styles.heroTitle}>Explore Albania</Text>
               <Text style={styles.heroText}>
-                Tap to view the interactive map
+                Discover cities, nearby spots and hidden gems on the map
               </Text>
             </View>
           </TouchableOpacity>
@@ -219,7 +285,7 @@ export default function ExploreScreen() {
             animationType="fade"
             onRequestClose={() => setShowMapExpanded(false)}
           >
-            <SafeAreaView style={styles.expandedMapContainer} edges={['top']}>
+            <View style={styles.expandedMapContainer}>
               <iframe
                 title="Explore Albania Map"
                 src={expandedMapUrl}
@@ -228,37 +294,193 @@ export default function ExploreScreen() {
                 allowFullScreen
               />
 
-              <View style={styles.mapTopOverlay}>
-                <Pressable
-                  style={styles.floatingCloseButton}
-                  onPress={() => setShowMapExpanded(false)}
-                >
-                  <Ionicons name="close" size={24} color={colors.white} />
-                </Pressable>
+              <SafeAreaView
+                pointerEvents="box-none"
+                style={styles.mapOverlaySafeArea}
+              >
+                <View style={styles.mapHeaderFloating}>
+                  <View style={styles.mapHeaderLeft}>
+                    <View style={styles.mapFloatingPill}>
+                      <Ionicons
+                        name="compass-outline"
+                        size={15}
+                        color={colors.black}
+                      />
+                      <Text style={styles.mapFloatingPillText}>
+                        {nearbyPlaces.length} nearby
+                      </Text>
+                    </View>
 
-                <Pressable
-                  style={styles.floatingLocationButton}
-                  onPress={() => {
-                    window.open(expandedMapUrl, '_blank');
-                  }}
-                >
-                  <Ionicons name="locate" size={20} color={colors.white} />
-                </Pressable>
-              </View>
+                    {locationPermissionDenied && (
+                      <View style={styles.mapWarningPill}>
+                        <Ionicons
+                          name="location-off-outline"
+                          size={14}
+                          color="#A15C00"
+                        />
+                        <Text style={styles.mapWarningPillText}>
+                          Using fallback location
+                        </Text>
+                      </View>
+                    )}
+                  </View>
 
-              <View style={styles.mapInfoCard}>
-                <View style={styles.mapInfoRow}>
-                  <Ionicons name="location" size={16} color={colors.black} />
-                  <Text style={styles.mapInfoText}>
-                    {nearbyPlaces.length} nearby {nearbyPlaces.length === 1 ? 'place' : 'places'}
-                  </Text>
+                  <View style={styles.mapActionsColumn}>
+                    <Pressable
+                      style={styles.floatingActionButton}
+                      onPress={() => setShowMapExpanded(false)}
+                    >
+                      <Ionicons name="close" size={22} color={colors.black} />
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.floatingActionButton}
+                      onPress={() => window.open(externalMapUrl, '_blank')}
+                    >
+                      <Ionicons name="locate" size={20} color={colors.black} />
+                    </Pressable>
+                  </View>
                 </View>
 
-                <Text style={styles.mapInfoSubtext}>
-                  Showing your current area on web. Nearby places are counted from your saved data.
-                </Text>
-              </View>
-            </SafeAreaView>
+                {!showPlacePreview && (
+                  <View style={styles.mapBottomOverlay}>
+                    <View style={styles.mapInfoCard}>
+                      <View style={styles.mapInfoTopRow}>
+                        <View>
+                          <Text style={styles.mapInfoTitle}>Nearby places</Text>
+                          <Text style={styles.mapInfoSubtext}>
+                            Click a place below to preview its details.
+                          </Text>
+                        </View>
+
+                        <View style={styles.mapInfoCountBadge}>
+                          <Text style={styles.mapInfoCountText}>
+                            {nearbyPlaces.length}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {showPlacePreview && selectedPlace && (
+                  <View style={styles.placePreviewContainer}>
+                    <View style={styles.placePreviewHandle} />
+
+                    {selectedPlace.image && (
+                      <Image
+                        source={selectedPlace.image}
+                        style={styles.placePreviewImage}
+                        resizeMode="cover"
+                      />
+                    )}
+
+                    <View style={styles.placePreviewHeader}>
+                      <View style={styles.placePreviewHeaderText}>
+                        <Text style={styles.placePreviewTitle}>
+                          {selectedPlace.name}
+                        </Text>
+
+                        <View style={styles.previewTagsRow}>
+                          <View style={styles.previewTag}>
+                            <Text style={styles.previewTagText}>
+                              {selectedCategory}
+                            </Text>
+                          </View>
+
+                          {selectedCity?.name && (
+                            <View style={styles.previewTagSecondary}>
+                              <Ionicons
+                                name="location-outline"
+                                size={13}
+                                color="#555"
+                              />
+                              <Text style={styles.previewTagSecondaryText}>
+                                {selectedCity.name}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+
+                      <Pressable
+                        style={styles.placePreviewClose}
+                        onPress={closePlacePreview}
+                      >
+                        <Ionicons name="close" size={20} color={colors.black} />
+                      </Pressable>
+                    </View>
+
+                    <View style={styles.placePreviewMetaRow}>
+                      <View style={styles.placePreviewRatingPill}>
+                        <Ionicons name="star" size={15} color="#FFB400" />
+                        <Text style={styles.placePreviewRating}>
+                          {selectedPlace.rating ?? 'N/A'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text
+                      style={styles.placePreviewDescription}
+                      numberOfLines={3}
+                    >
+                      {selectedPlace.description}
+                    </Text>
+
+                    <TouchableOpacity
+                      activeOpacity={0.88}
+                      style={styles.placePreviewButton}
+                      onPress={openPlaceDetailsFromPreview}
+                    >
+                      <Text style={styles.placePreviewButtonText}>
+                        Open place details
+                      </Text>
+                      <Ionicons
+                        name="arrow-forward"
+                        size={18}
+                        color={colors.white}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.webPlacesStripContent}
+                  style={styles.webPlacesStrip}
+                >
+                  {nearbyPlaces.map((place) => {
+                    const city = cityMap[place.cityId];
+
+                    return (
+                      <TouchableOpacity
+                        key={place.id}
+                        style={[
+                          styles.webPlaceChip,
+                          selectedPlace?.id === place.id && styles.webPlaceChipActive,
+                        ]}
+                        activeOpacity={0.88}
+                        onPress={() => handleMarkerPress(place)}
+                      >
+                        <Text
+                          style={styles.webPlaceChipTitle}
+                          numberOfLines={1}
+                        >
+                          {place.name}
+                        </Text>
+                        <Text
+                          style={styles.webPlaceChipSubtitle}
+                          numberOfLines={1}
+                        >
+                          {city?.name || 'Unknown city'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </SafeAreaView>
+            </View>
           </Modal>
 
           <View style={styles.citiesSection}>
@@ -318,8 +540,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     marginBottom: 22,
-    height: 200,
+    height: 210,
     position: 'relative',
+    backgroundColor: '#EDEDED',
   },
 
   webIframe: {
@@ -335,43 +558,61 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  heroGradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.30)',
+  },
+
   mapTextOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 18,
+    paddingBottom: 18,
   },
 
-  heroIcon: {
-    marginBottom: 8,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginBottom: 12,
+  },
+
+  heroBadgeText: {
+    marginLeft: 6,
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   heroTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
     color: colors.white,
-    marginTop: 8,
     marginBottom: 6,
-    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
   },
 
   heroText: {
     fontSize: 13,
     color: 'rgba(255,255,255,0.95)',
-    textAlign: 'center',
     lineHeight: 20,
-    textShadowColor: 'rgba(0,0,0,0.8)',
+    maxWidth: '82%',
+    textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
   },
 
   citiesSection: {
@@ -439,66 +680,101 @@ const styles = StyleSheet.create({
 
   expandedMapContainer: {
     flex: 1,
-    backgroundColor: colors.black,
-  },
-
-  expandedMapContainer: {
-    flex: 1,
     backgroundColor: '#000',
+    position: 'relative',
   },
 
-  expandedMapView: {
-    flex: 1,
+  mapOverlaySafeArea: {
+    ...StyleSheet.absoluteFillObject,
   },
 
-  mapTopOverlay: {
+  mapHeaderFloating: {
     position: 'absolute',
-    top: 58,
-    left: 20,
-    right: 20,
+    top: 16,
+    left: 16,
+    right: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 20,
+    alignItems: 'flex-start',
+    zIndex: 30,
   },
 
-  floatingCloseButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#E53935',
+  mapHeaderLeft: {
+    flex: 1,
+    paddingRight: 14,
+  },
+
+  mapFloatingPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
+    marginBottom: 8,
+  },
+
+  mapFloatingPillText: {
+    marginLeft: 7,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.black,
+  },
+
+  mapWarningPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,244,224,0.98)',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+
+  mapWarningPillText: {
+    marginLeft: 6,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8A5A00',
+  },
+
+  mapActionsColumn: {
+    gap: 10,
+  },
+
+  floatingActionButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.96)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 8,
   },
 
-  floatingLocationButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FF6B2C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-
-  mapInfoCard: {
+  mapBottomOverlay: {
     position: 'absolute',
     left: 16,
     right: 16,
     bottom: 24,
+    zIndex: 20,
+  },
+
+  mapInfoCard: {
     backgroundColor: colors.white,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
@@ -506,45 +782,227 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
 
-  webIframeFull: {
-    width: '100%',
-    height: '100%',
-    borderWidth: 0,
-    flex: 1,
-  },
-
-  mapInfoCard: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 20,
-    backgroundColor: colors.white,
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-
-  mapInfoRow: {
+  mapInfoTopRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
   },
 
-  mapInfoText: {
-    fontSize: 15,
+  mapInfoTitle: {
+    fontSize: 17,
     fontWeight: '700',
     color: colors.black,
-    marginLeft: 8,
+    marginBottom: 4,
   },
 
   mapInfoSubtext: {
     fontSize: 13,
     lineHeight: 18,
+    color: '#666',
+  },
+
+  mapInfoCountBadge: {
+    minWidth: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F3F3F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+
+  mapInfoCountText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.black,
+  },
+
+  placePreviewContainer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 86,
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+    zIndex: 25,
+  },
+
+  placePreviewHandle: {
+    width: 42,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#D9D9D9',
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+
+  placePreviewImage: {
+    width: '100%',
+    height: 145,
+    borderRadius: 18,
+    marginBottom: 14,
+  },
+
+  placePreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+
+  placePreviewHeaderText: {
+    flex: 1,
+  },
+
+  placePreviewTitle: {
+    fontSize: 21,
+    fontWeight: '700',
+    color: colors.black,
+    marginBottom: 8,
+  },
+
+  previewTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  previewTag: {
+    backgroundColor: '#F3F3F3',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  previewTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#444',
+  },
+
+  previewTagSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  previewTagSecondaryText: {
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#555',
+  },
+
+  placePreviewClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F2F2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+
+  placePreviewMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
+  placePreviewRatingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  placePreviewRating: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.black,
+    marginLeft: 6,
+  },
+
+  placePreviewDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+
+  placePreviewButton: {
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#D62828',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+
+  placePreviewButtonText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '700',
+    marginRight: 8,
+  },
+
+  webPlacesStrip: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 16,
+    zIndex: 15,
+  },
+
+  webPlacesStripContent: {
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+
+  webPlaceChip: {
+    minWidth: 150,
+    maxWidth: 180,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+
+  webPlaceChipActive: {
+    borderWidth: 1.5,
+    borderColor: '#D62828',
+  },
+
+  webPlaceChipTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.black,
+    marginBottom: 4,
+  },
+
+  webPlaceChipSubtitle: {
+    fontSize: 12,
     color: '#666',
   },
 });

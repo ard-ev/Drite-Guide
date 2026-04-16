@@ -8,6 +8,7 @@ import {
     Modal,
     Pressable,
     ImageBackground,
+    Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -21,6 +22,13 @@ import { places } from '../data/places';
 import { cities } from '../data/cities';
 import colors from '../theme/colors';
 
+const FALLBACK_REGION = {
+    latitude: 41.3275,
+    longitude: 19.8187,
+    latitudeDelta: 1.8,
+    longitudeDelta: 1.8,
+};
+
 export default function ExploreScreen() {
     const navigation = useNavigation();
     const mapRef = useRef(null);
@@ -29,6 +37,7 @@ export default function ExploreScreen() {
     const [userLocation, setUserLocation] = useState(null);
     const [selectedPlace, setSelectedPlace] = useState(null);
     const [showPlacePreview, setShowPlacePreview] = useState(false);
+    const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
     const allowedCityIds = [
         'tirana',
@@ -49,26 +58,51 @@ export default function ExploreScreen() {
         getUserLocation();
     }, []);
 
+    const cityMap = useMemo(() => {
+        return cities.reduce((acc, city) => {
+            acc[city.id] = city;
+            return acc;
+        }, {});
+    }, []);
+
+    const formatCategory = (categoryId) => {
+        if (!categoryId) return 'Place';
+
+        return categoryId
+            .replace(/[-_]/g, ' ')
+            .replace(/\b\w/g, (char) => char.toUpperCase());
+    };
+
     const getUserLocation = async () => {
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
 
             if (status !== 'granted') {
-                console.log('Location permission denied');
+                setLocationPermissionDenied(true);
+                setUserLocation({
+                    latitude: 41.3275,
+                    longitude: 19.8187,
+                });
                 return;
             }
 
-            await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High,
+            setLocationPermissionDenied(false);
+
+            const currentLocation = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
             });
 
-            // Test location: Tirana
+            setUserLocation({
+                latitude: currentLocation.coords.latitude,
+                longitude: currentLocation.coords.longitude,
+            });
+        } catch (error) {
+            console.log('Error getting user location:', error);
+
             setUserLocation({
                 latitude: 41.3275,
                 longitude: 19.8187,
             });
-        } catch (error) {
-            console.log('Error getting user location:', error);
         }
     };
 
@@ -141,27 +175,31 @@ export default function ExploreScreen() {
         ? {
             latitude: userLocation.latitude,
             longitude: userLocation.longitude,
-            latitudeDelta: 0.08,
-            longitudeDelta: 0.08,
+            latitudeDelta: 0.18,
+            longitudeDelta: 0.18,
         }
-        : {
-            latitude: 41.3275,
-            longitude: 19.8187,
-            latitudeDelta: 1.8,
-            longitudeDelta: 1.8,
-        };
+        : FALLBACK_REGION;
 
-    const centerOnUserLocation = () => {
-        if (userLocation && mapRef.current) {
-            mapRef.current.animateToRegion(
-                {
-                    latitude: userLocation.latitude,
-                    longitude: userLocation.longitude,
-                    latitudeDelta: 0.12,
-                    longitudeDelta: 0.12,
-                },
-                800
-            );
+    const centerOnUserLocation = async () => {
+        try {
+            if (!userLocation) {
+                await getUserLocation();
+                return;
+            }
+
+            if (mapRef.current) {
+                mapRef.current.animateToRegion(
+                    {
+                        latitude: userLocation.latitude,
+                        longitude: userLocation.longitude,
+                        latitudeDelta: 0.14,
+                        longitudeDelta: 0.14,
+                    },
+                    700
+                );
+            }
+        } catch (error) {
+            console.log('Error centering on location:', error);
         }
     };
 
@@ -232,10 +270,14 @@ export default function ExploreScreen() {
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
         <style>
-          * { margin: 0; padding: 0; }
-          body { height: 100vh; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body { width: 100%; height: 100%; overflow: hidden; }
+          body { background: #f5f5f5; }
           #map { width: 100%; height: 100%; }
-          .leaflet-control-attribution { display: none !important; }
+          .leaflet-control-attribution,
+          .leaflet-control-container {
+            display: none !important;
+          }
         </style>
       </head>
       <body>
@@ -250,19 +292,25 @@ export default function ExploreScreen() {
             keyboard: false,
             tap: false,
             touchZoom: false
-          }).setView([41.3275, 19.8187], 12);
+          }).setView([41.3275, 19.8187], 7);
 
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '',
             maxZoom: 19
           }).addTo(map);
 
-          L.marker([41.3275, 19.8187]).addTo(map)
-            .bindPopup('<b>Tirana</b><br>Capital of Albania');
+          L.marker([41.3275, 19.8187]).addTo(map);
+          L.marker([41.323, 19.441]).addTo(map);
+          L.marker([40.15, 19.638]).addTo(map);
         </script>
       </body>
     </html>
   `;
+
+    const selectedCity = selectedPlace ? cityMap[selectedPlace.cityId] : null;
+    const selectedCategory = selectedPlace
+        ? formatCategory(selectedPlace.categoryId)
+        : 'Place';
 
     return (
         <View style={styles.screen}>
@@ -293,16 +341,20 @@ export default function ExploreScreen() {
                             style={styles.webViewMap}
                         />
 
+                        <View style={styles.heroGradientOverlay} />
                         <View style={styles.mapTextOverlay}>
-                            <Ionicons
-                                name="map-outline"
-                                size={46}
-                                color={colors.white}
-                                style={styles.heroIcon}
-                            />
+                            <View style={styles.heroBadge}>
+                                <Ionicons
+                                    name="map-outline"
+                                    size={16}
+                                    color={colors.white}
+                                />
+                                <Text style={styles.heroBadgeText}>Interactive Map</Text>
+                            </View>
+
                             <Text style={styles.heroTitle}>Explore Albania</Text>
                             <Text style={styles.heroText}>
-                                Tap to view the interactive map
+                                Discover cities, nearby spots and hidden gems on the map
                             </Text>
                         </View>
                     </TouchableOpacity>
@@ -320,7 +372,7 @@ export default function ExploreScreen() {
                                 initialRegion={initialMapRegion}
                                 showsUserLocation={true}
                                 showsMyLocationButton={false}
-                                showsCompass={true}
+                                showsCompass={false}
                                 loadingEnabled={true}
                                 onMapReady={centerOnUserLocation}
                                 onPress={() => {
@@ -367,40 +419,77 @@ export default function ExploreScreen() {
                                 pointerEvents="box-none"
                                 style={styles.mapOverlaySafeArea}
                             >
-                                <View style={styles.mapTopOverlay}>
-                                    <Pressable
-                                        style={styles.floatingCloseButton}
-                                        onPress={() => setShowMapExpanded(false)}
-                                    >
-                                        <Ionicons name="close" size={24} color={colors.white} />
-                                    </Pressable>
+                                <View style={styles.mapHeaderFloating}>
+                                    <View style={styles.mapHeaderLeft}>
+                                        <View style={styles.mapFloatingPill}>
+                                            <Ionicons
+                                                name="compass-outline"
+                                                size={15}
+                                                color={colors.black}
+                                            />
+                                            <Text style={styles.mapFloatingPillText}>
+                                                {nearbyPlaces.length} nearby
+                                            </Text>
+                                        </View>
 
-                                    <Pressable
-                                        style={styles.floatingLocationButton}
-                                        onPress={centerOnUserLocation}
-                                    >
-                                        <Ionicons name="locate" size={20} color={colors.white} />
-                                    </Pressable>
+                                        {locationPermissionDenied && (
+                                            <View style={styles.mapWarningPill}>
+                                                <Ionicons
+                                                    name="location-off-outline"
+                                                    size={14}
+                                                    color="#A15C00"
+                                                />
+                                                <Text style={styles.mapWarningPillText}>
+                                                    Using fallback location
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
+
+                                    <View style={styles.mapActionsColumn}>
+                                        <Pressable
+                                            style={styles.floatingActionButton}
+                                            onPress={() => setShowMapExpanded(false)}
+                                        >
+                                            <Ionicons
+                                                name="close"
+                                                size={22}
+                                                color={colors.black}
+                                            />
+                                        </Pressable>
+
+                                        <Pressable
+                                            style={styles.floatingActionButton}
+                                            onPress={centerOnUserLocation}
+                                        >
+                                            <Ionicons
+                                                name="locate"
+                                                size={20}
+                                                color={colors.black}
+                                            />
+                                        </Pressable>
+                                    </View>
                                 </View>
 
                                 {!showPlacePreview && (
                                     <View style={styles.mapBottomOverlay}>
                                         <View style={styles.mapInfoCard}>
-                                            <View style={styles.mapInfoRow}>
-                                                <Ionicons
-                                                    name="location"
-                                                    size={16}
-                                                    color={colors.black}
-                                                />
-                                                <Text style={styles.mapInfoText}>
-                                                    {nearbyPlaces.length} nearby{' '}
-                                                    {nearbyPlaces.length === 1 ? 'place' : 'places'}
-                                                </Text>
-                                            </View>
+                                            <View style={styles.mapInfoTopRow}>
+                                                <View>
+                                                    <Text style={styles.mapInfoTitle}>
+                                                        Nearby places
+                                                    </Text>
+                                                    <Text style={styles.mapInfoSubtext}>
+                                                        Tap a marker to preview a place.
+                                                    </Text>
+                                                </View>
 
-                                            <Text style={styles.mapInfoSubtext}>
-                                                Tap a marker to preview a place.
-                                            </Text>
+                                                <View style={styles.mapInfoCountBadge}>
+                                                    <Text style={styles.mapInfoCountText}>
+                                                        {nearbyPlaces.length}
+                                                    </Text>
+                                                </View>
+                                            </View>
                                         </View>
                                     </View>
                                 )}
@@ -409,29 +498,69 @@ export default function ExploreScreen() {
                                     <View style={styles.placePreviewContainer}>
                                         <View style={styles.placePreviewHandle} />
 
+                                        {selectedPlace.image && (
+                                            <Image
+                                                source={selectedPlace.image}
+                                                style={styles.placePreviewImage}
+                                                resizeMode="cover"
+                                            />
+                                        )}
+
                                         <View style={styles.placePreviewHeader}>
                                             <View style={styles.placePreviewHeaderText}>
                                                 <Text style={styles.placePreviewTitle}>
                                                     {selectedPlace.name}
                                                 </Text>
-                                                <Text style={styles.placePreviewCategory}>
-                                                    {selectedPlace.categoryId}
-                                                </Text>
+
+                                                <View style={styles.previewTagsRow}>
+                                                    <View style={styles.previewTag}>
+                                                        <Text style={styles.previewTagText}>
+                                                            {selectedCategory}
+                                                        </Text>
+                                                    </View>
+
+                                                    {selectedCity?.name && (
+                                                        <View style={styles.previewTagSecondary}>
+                                                            <Ionicons
+                                                                name="location-outline"
+                                                                size={13}
+                                                                color="#555"
+                                                            />
+                                                            <Text
+                                                                style={
+                                                                    styles.previewTagSecondaryText
+                                                                }
+                                                            >
+                                                                {selectedCity.name}
+                                                            </Text>
+                                                        </View>
+                                                    )}
+                                                </View>
                                             </View>
 
                                             <Pressable
                                                 style={styles.placePreviewClose}
                                                 onPress={closePlacePreview}
                                             >
-                                                <Ionicons name="close" size={20} color={colors.black} />
+                                                <Ionicons
+                                                    name="close"
+                                                    size={20}
+                                                    color={colors.black}
+                                                />
                                             </Pressable>
                                         </View>
 
                                         <View style={styles.placePreviewMetaRow}>
-                                            <Ionicons name="star" size={16} color="#FFB400" />
-                                            <Text style={styles.placePreviewRating}>
-                                                {selectedPlace.rating ?? 'N/A'}
-                                            </Text>
+                                            <View style={styles.placePreviewRatingPill}>
+                                                <Ionicons
+                                                    name="star"
+                                                    size={15}
+                                                    color="#FFB400"
+                                                />
+                                                <Text style={styles.placePreviewRating}>
+                                                    {selectedPlace.rating ?? 'N/A'}
+                                                </Text>
+                                            </View>
                                         </View>
 
                                         <Text
@@ -447,7 +576,7 @@ export default function ExploreScreen() {
                                             onPress={openPlaceDetailsFromPreview}
                                         >
                                             <Text style={styles.placePreviewButtonText}>
-                                                Tap to open details
+                                                Open place details
                                             </Text>
                                             <Ionicons
                                                 name="arrow-forward"
@@ -518,12 +647,18 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         overflow: 'hidden',
         marginBottom: 22,
-        height: 200,
+        height: 210,
         position: 'relative',
+        backgroundColor: '#EDEDED',
     },
 
     webViewMap: {
         flex: 1,
+    },
+
+    heroGradientOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.30)',
     },
 
     mapTextOverlay: {
@@ -532,37 +667,50 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(0,0,0,0.4)',
+        alignItems: 'flex-start',
+        justifyContent: 'flex-end',
+        paddingHorizontal: 18,
+        paddingBottom: 18,
     },
 
-    heroIcon: {
-        marginBottom: 8,
-        textShadowColor: 'rgba(0,0,0,0.8)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 3,
+    heroBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(255,255,255,0.16)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.18)',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+        marginBottom: 12,
+    },
+
+    heroBadgeText: {
+        marginLeft: 6,
+        color: colors.white,
+        fontSize: 12,
+        fontWeight: '600',
     },
 
     heroTitle: {
-        fontSize: 24,
+        fontSize: 26,
         fontWeight: '700',
         color: colors.white,
-        marginTop: 8,
         marginBottom: 6,
-        textShadowColor: 'rgba(0,0,0,0.8)',
+        textShadowColor: 'rgba(0,0,0,0.35)',
         textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 3,
+        textShadowRadius: 4,
     },
 
     heroText: {
         fontSize: 13,
         color: 'rgba(255,255,255,0.95)',
-        textAlign: 'center',
         lineHeight: 20,
-        textShadowColor: 'rgba(0,0,0,0.8)',
+        maxWidth: '82%',
+        textShadowColor: 'rgba(0,0,0,0.35)',
         textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 3,
+        textShadowRadius: 4,
     },
 
     citiesSection: {
@@ -641,46 +789,78 @@ const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
     },
 
-    mapTopOverlay: {
+    mapHeaderFloating: {
         position: 'absolute',
-        top: 54,
-        left: 20,
-        right: 20,
+        top: 60,
+        left: 16,
+        right: 16,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
+        zIndex: 30,
     },
 
-    floatingCloseButton: {
+    mapHeaderLeft: {
+        flex: 1,
+        paddingRight: 14,
+    },
+
+    mapFloatingPill: {
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.96)',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: 999,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 5,
+        marginBottom: 8,
+    },
+
+    mapFloatingPillText: {
+        marginLeft: 7,
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.black,
+    },
+
+    mapWarningPill: {
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,244,224,0.98)',
+        paddingHorizontal: 11,
+        paddingVertical: 8,
+        borderRadius: 999,
+    },
+
+    mapWarningPillText: {
+        marginLeft: 6,
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#8A5A00',
+    },
+
+    mapActionsColumn: {
+        gap: 10,
+    },
+
+    floatingActionButton: {
         width: 50,
         height: 50,
-        borderRadius: 25,
-        backgroundColor: '#D62828',
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.96)',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.18,
+        shadowOpacity: 0.12,
         shadowRadius: 14,
         elevation: 8,
-        borderWidth: 1.5,
-        borderColor: 'rgba(255,255,255,0.18)',
-    },
-
-    floatingLocationButton: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: '#FF6B2C',
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.18,
-        shadowRadius: 14,
-        elevation: 8,
-        borderWidth: 1.5,
-        borderColor: 'rgba(255,255,255,0.18)',
     },
 
     mapBottomOverlay: {
@@ -692,9 +872,9 @@ const styles = StyleSheet.create({
 
     mapInfoCard: {
         backgroundColor: colors.white,
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        borderRadius: 24,
+        paddingHorizontal: 18,
+        paddingVertical: 16,
         shadowColor: colors.black,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.1,
@@ -702,23 +882,39 @@ const styles = StyleSheet.create({
         elevation: 6,
     },
 
-    mapInfoRow: {
+    mapInfoTopRow: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 6,
     },
 
-    mapInfoText: {
-        fontSize: 15,
+    mapInfoTitle: {
+        fontSize: 17,
         fontWeight: '700',
         color: colors.black,
-        marginLeft: 8,
+        marginBottom: 4,
     },
 
     mapInfoSubtext: {
         fontSize: 13,
         lineHeight: 18,
         color: '#666',
+    },
+
+    mapInfoCountBadge: {
+        minWidth: 42,
+        height: 42,
+        borderRadius: 21,
+        backgroundColor: '#F3F3F3',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 12,
+    },
+
+    mapInfoCountText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: colors.black,
     },
 
     customMarkerWrapper: {
@@ -757,7 +953,7 @@ const styles = StyleSheet.create({
         right: 16,
         bottom: 24,
         backgroundColor: colors.white,
-        borderRadius: 24,
+        borderRadius: 28,
         paddingHorizontal: 16,
         paddingTop: 12,
         paddingBottom: 16,
@@ -779,6 +975,13 @@ const styles = StyleSheet.create({
         marginBottom: 14,
     },
 
+    placePreviewImage: {
+        width: '100%',
+        height: 145,
+        borderRadius: 18,
+        marginBottom: 14,
+    },
+
     placePreviewHeader: {
         flexDirection: 'row',
         alignItems: 'flex-start',
@@ -790,22 +993,52 @@ const styles = StyleSheet.create({
     },
 
     placePreviewTitle: {
-        fontSize: 20,
+        fontSize: 21,
         fontWeight: '700',
         color: colors.black,
-        marginBottom: 4,
+        marginBottom: 8,
     },
 
-    placePreviewCategory: {
-        fontSize: 13,
-        color: '#777',
-        textTransform: 'capitalize',
+    previewTagsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 8,
+    },
+
+    previewTag: {
+        backgroundColor: '#F3F3F3',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+    },
+
+    previewTagText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#444',
+    },
+
+    previewTagSecondary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8F8F8',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+    },
+
+    previewTagSecondaryText: {
+        marginLeft: 4,
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#555',
     },
 
     placePreviewClose: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: '#F2F2F2',
         alignItems: 'center',
         justifyContent: 'center',
@@ -818,9 +1051,18 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
 
+    placePreviewRatingPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF8E7',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+    },
+
     placePreviewRating: {
         fontSize: 14,
-        fontWeight: '600',
+        fontWeight: '700',
         color: colors.black,
         marginLeft: 6,
     },
@@ -833,7 +1075,7 @@ const styles = StyleSheet.create({
     },
 
     placePreviewButton: {
-        height: 50,
+        height: 52,
         borderRadius: 16,
         backgroundColor: '#D62828',
         flexDirection: 'row',
