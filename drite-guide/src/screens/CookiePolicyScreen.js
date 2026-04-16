@@ -44,72 +44,155 @@ export default function CookiePolicyScreen() {
                             size={42}
                             color={colors.primary}
                         />
-                        <Text style={styles.heroTitle}>Cookies & tracking</Text>
+                        <Text style={styles.heroTitle}>Cookies & similar technologies</Text>
                         <Text style={styles.heroSubtitle}>
-                            Learn how we use cookies and similar technologies.
+                            Learn how Dritë Guide uses cookies, device storage, SDKs,
+                            analytics and similar tracking technologies.
                         </Text>
                     </View>
 
                     <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>1. What are cookies?</Text>
+                        <Text style={styles.sectionTitle}>Effective date</Text>
                         <Text style={styles.sectionText}>
-                            Cookies are small text files stored on your device when you use an
-                            app or visit a website. They help remember preferences, improve
-                            performance and analyze user behavior.
+                            16.04.2026
                         </Text>
                     </View>
 
                     <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>2. How we use cookies</Text>
+                        <Text style={styles.sectionTitle}>1. Scope of this Policy</Text>
                         <Text style={styles.sectionText}>
-                            Dritë Guide may use cookies or similar technologies to enhance your
-                            experience, remember your preferences, and improve app performance
-                            and usability.
+                            This Cookie Policy explains how Dritë Guide uses cookies and
+                            similar technologies in connection with our app, website, and
+                            related services, where applicable.
+                        </Text>
+                        <Text style={styles.sectionText}>
+                            Because Dritë Guide is primarily a mobile application, some of
+                            the technologies we use may not be traditional browser cookies.
+                            Instead, we may use similar technologies such as local storage,
+                            SDKs, device identifiers, pixels, analytics tools, or other
+                            technologies that store information on or access information
+                            from your device.
                         </Text>
                     </View>
 
                     <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>3. Types of cookies</Text>
+                        <Text style={styles.sectionTitle}>2. What are cookies and similar technologies?</Text>
                         <Text style={styles.sectionText}>
-                            • Essential cookies: Required for core app functionality{"\n"}
-                            • Performance cookies: Help analyze usage and improve features{"\n"}
-                            • Functional cookies: Remember user settings and preferences{"\n"}
-                            • Analytics cookies: Provide insights into user behavior
+                            Cookies are small text files that websites may store on your
+                            browser or device. In mobile apps and modern digital services,
+                            similar functions may also be carried out by technologies such
+                            as local storage, software development kits (SDKs), tracking
+                            pixels, tags, device identifiers, or similar tools used to
+                            remember preferences, enable core functions, measure usage, or
+                            improve performance.
                         </Text>
                     </View>
 
                     <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>4. Third-party services</Text>
+                        <Text style={styles.sectionTitle}>3. Technologies we may use</Text>
                         <Text style={styles.sectionText}>
-                            We may use trusted third-party services (such as analytics tools)
-                            that also use cookies or tracking technologies to help us understand
-                            how users interact with the app.
+                            Depending on the platform and features used, Dritë Guide may
+                            use the following types of technologies:
+                            {'\n\n'}• essential storage technologies required for app login,
+                            settings, navigation, or basic functionality;
+                            {'\n'}• functional technologies used to remember your preferences,
+                            saved places, or language and interface settings;
+                            {'\n'}• analytics or measurement technologies used to understand
+                            how users interact with the app and to improve performance;
+                            {'\n'}• diagnostic or crash-reporting tools used to detect errors,
+                            monitor stability, and maintain service quality;
+                            {'\n'}• location-related technologies used when you grant
+                            location permission for nearby places or map-based features.
                         </Text>
                     </View>
 
                     <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>5. Managing cookies</Text>
+                        <Text style={styles.sectionTitle}>4. Why we use these technologies</Text>
                         <Text style={styles.sectionText}>
-                            You can control or disable cookies through your device settings.
-                            Please note that disabling certain cookies may affect app
-                            functionality and user experience.
+                            We may use cookies and similar technologies to:
+                            {'\n\n'}• operate and secure the app;
+                            {'\n'}• remember preferences and saved content;
+                            {'\n'}• provide maps, nearby places, and location-based features;
+                            {'\n'}• understand how the app is used;
+                            {'\n'}• improve performance, reliability, and user experience;
+                            {'\n'}• detect bugs, crashes, misuse, or technical problems.
                         </Text>
                     </View>
 
                     <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>6. Updates to this policy</Text>
+                        <Text style={styles.sectionTitle}>5. Legal basis and consent</Text>
                         <Text style={styles.sectionText}>
-                            We may update this Cookie Policy from time to time. Changes will be
-                            reflected in this section and continued use of the app means you
-                            accept the updated policy.
+                            Where required by applicable law, we will ask for your consent
+                            before using non-essential cookies or similar technologies.
+                            Technologies that are strictly necessary for core app operation,
+                            security, or the service you actively request may be used
+                            without separate consent where permitted by law.
+                        </Text>
+                        <Text style={styles.sectionText}>
+                            You can also control certain permissions, such as location
+                            access, through your device settings.
                         </Text>
                     </View>
 
                     <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>7. Contact</Text>
+                        <Text style={styles.sectionTitle}>6. Third-party technologies</Text>
                         <Text style={styles.sectionText}>
-                            If you have any questions about this Cookie Policy, you can contact
-                            us through the official channels provided in the app.
+                            Dritë Guide may use third-party services, libraries, or SDKs
+                            that use cookies or similar technologies on our behalf or for
+                            their own technical operation. Depending on your implementation,
+                            this may include providers for analytics, crash reporting,
+                            maps, authentication, hosting, or notifications.
+                        </Text>
+                        <Text style={styles.sectionText}>
+                            {'\n\n'}• Analytics
+                            {'\n'}• Google Maps
+                            {'\n'}• Authentication tool
+                        </Text>
+                    </View>
+
+                    <View style={styles.sectionCard}>
+                        <Text style={styles.sectionTitle}>7. How you can manage these technologies</Text>
+                        <Text style={styles.sectionText}>
+                            Depending on your device, browser, or operating system, you may
+                            be able to manage cookies, identifiers, app permissions, local
+                            storage, or tracking preferences through your system settings or
+                            browser settings.
+                        </Text>
+                        <Text style={styles.sectionText}>
+                            Please note that disabling certain essential technologies may
+                            affect the availability, functionality, or performance of parts
+                            of Dritë Guide.
+                        </Text>
+                    </View>
+
+                    <View style={styles.sectionCard}>
+                        <Text style={styles.sectionTitle}>8. Relationship with our Privacy Policy</Text>
+                        <Text style={styles.sectionText}>
+                            This Cookie Policy should be read together with our Privacy
+                            Policy, which explains how we collect, use, share, and protect
+                            personal data. Where cookies or similar technologies involve
+                            personal data, our Privacy Policy also applies.
+                        </Text>
+                    </View>
+
+                    <View style={styles.sectionCard}>
+                        <Text style={styles.sectionTitle}>9. Changes to this Policy</Text>
+                        <Text style={styles.sectionText}>
+                            We may update this Cookie Policy from time to time. When we do,
+                            we will update the effective date above. Continued use of the
+                            app after the updated Policy becomes effective means you accept
+                            the revised version, to the extent permitted by law.
+                        </Text>
+                    </View>
+
+                    <View style={styles.sectionCard}>
+                        <Text style={styles.sectionTitle}>10. Contact</Text>
+                        <Text style={styles.sectionText}>
+                            If you have questions about this Cookie Policy or our use of
+                            cookies and similar technologies, contact us at:
+                            {'\n\n'}Ard Sadiki
+                            {'\n'}driteguide@gmail.com
+                            {'\n'}+41 78 727 92 30
                         </Text>
                     </View>
                 </ScrollView>
@@ -216,5 +299,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         lineHeight: 22,
         color: '#6B7280',
+        marginBottom: 10,
     },
 });

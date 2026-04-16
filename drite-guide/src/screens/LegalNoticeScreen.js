@@ -55,9 +55,8 @@ export default function LegalNoticeScreen() {
                         <Text style={styles.sectionText}>
                             Dritë Guide{"\n"}
                             Ard Sadiki{"\n"}
-                            Lagja Sadikut 1{"\n"}
-                            9403 Goldach{"\n"}
-                            Switzerland
+                            1000 Tirana{"\n"}
+                            Albania
                         </Text>
                     </View>
 

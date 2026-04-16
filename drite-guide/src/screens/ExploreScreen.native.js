@@ -167,7 +167,7 @@ export default function ExploreScreen() {
                 place.longitude
             );
 
-            return distance <= 100;
+            return distance <= 1200;
         });
     }, [userLocation, placesWithCoordinates]);
 
