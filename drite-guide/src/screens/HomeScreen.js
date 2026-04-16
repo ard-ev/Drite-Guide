@@ -10,7 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import colors from '../theme/colors';
@@ -20,9 +20,11 @@ import { cities } from '../data/cities';
 const { width: screenWidth } = Dimensions.get('window');
 const HERO_WIDTH = screenWidth - 40;
 const HERO_COUNT = 2;
+const VIDEO_HERO_INDEX = 1;
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const heroScrollRef = useRef(null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,26 +38,38 @@ export default function HomeScreen() {
     (player) => {
       player.loop = true;
       player.muted = true;
-      player.play();
+      player.currentTime = 0;
     }
   );
+
+  useEffect(() => {
+    if (!heroVideoPlayer) return;
+
+    if (isFocused && activeHeroIndex === VIDEO_HERO_INDEX) {
+      heroVideoPlayer.play();
+    } else {
+      heroVideoPlayer.pause();
+    }
+  }, [heroVideoPlayer, isFocused, activeHeroIndex]);
 
   useEffect(() => {
     if (hasSearched) return;
 
     const interval = setInterval(() => {
-      const nextIndex = (activeHeroIndex + 1) % HERO_COUNT;
+      setActiveHeroIndex((currentIndex) => {
+        const nextIndex = (currentIndex + 1) % HERO_COUNT;
 
-      heroScrollRef.current?.scrollTo({
-        x: nextIndex * HERO_WIDTH,
-        animated: true,
+        heroScrollRef.current?.scrollTo({
+          x: nextIndex * HERO_WIDTH,
+          animated: true,
+        });
+
+        return nextIndex;
       });
-
-      setActiveHeroIndex(nextIndex);
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [activeHeroIndex, hasSearched]);
+  }, [hasSearched]);
 
   const categories = [
     {
@@ -364,14 +378,17 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {searchQuery.trim().length > 0 && suggestions.length > 0 && !hasSearched ? (
+          {searchQuery.trim().length > 0 &&
+            suggestions.length > 0 &&
+            !hasSearched ? (
             <View style={styles.suggestionsBox}>
               {suggestions.map((item, index) => (
                 <TouchableOpacity
                   key={item.id}
                   style={[
                     styles.suggestionItem,
-                    index === suggestions.length - 1 && styles.suggestionItemLast,
+                    index === suggestions.length - 1 &&
+                    styles.suggestionItemLast,
                   ]}
                   activeOpacity={0.85}
                   onPress={() => {
@@ -383,13 +400,16 @@ export default function HomeScreen() {
                   <View style={styles.suggestionTextWrap}>
                     <Text style={styles.suggestionTitle}>{item.name}</Text>
                     <Text style={styles.suggestionSubtitle}>
-                      {getCategoryLabel(item.categoryId)} • {getCityName(item.cityId)}
+                      {getCategoryLabel(item.categoryId)} •{' '}
+                      {getCityName(item.cityId)}
                     </Text>
                   </View>
 
                   {item.rating ? (
                     <View style={styles.suggestionRatingBadge}>
-                      <Text style={styles.suggestionRatingText}>★ {item.rating}</Text>
+                      <Text style={styles.suggestionRatingText}>
+                        ★ {item.rating}
+                      </Text>
                     </View>
                   ) : null}
                 </TouchableOpacity>
@@ -402,7 +422,10 @@ export default function HomeScreen() {
               <View style={styles.resultsHeaderRow}>
                 <Text style={styles.sectionTitleNoMargin}>Search results</Text>
 
-                <TouchableOpacity onPress={clearSearchResults} activeOpacity={0.8}>
+                <TouchableOpacity
+                  onPress={clearSearchResults}
+                  activeOpacity={0.8}
+                >
                   <Text style={styles.clearResultsText}>Clear</Text>
                 </TouchableOpacity>
               </View>
@@ -431,13 +454,16 @@ export default function HomeScreen() {
                           <View style={styles.resultTextWrap}>
                             <Text style={styles.resultTitle}>{place.name}</Text>
                             <Text style={styles.resultSubtitle}>
-                              {getCategoryLabel(place.categoryId)} • {getCityName(place.cityId)}
+                              {getCategoryLabel(place.categoryId)} •{' '}
+                              {getCityName(place.cityId)}
                             </Text>
                           </View>
 
                           {place.rating ? (
                             <View style={styles.ratingBadge}>
-                              <Text style={styles.ratingText}>★ {place.rating}</Text>
+                              <Text style={styles.ratingText}>
+                                ★ {place.rating}
+                              </Text>
                             </View>
                           ) : null}
                         </View>
@@ -471,22 +497,25 @@ export default function HomeScreen() {
                   >
                     <View style={styles.heroCard}>
                       <Text style={styles.heroEyebrow}>Travel smarter</Text>
-                      <Text style={styles.heroTitle}>Find the best places in Albania</Text>
+                      <Text style={styles.heroTitle}>
+                        Find the best places in Albania
+                      </Text>
                       <Text style={styles.heroText}>
-                        Explore Cities, Villages, Restaurants, Cafés, Bars, Clubs and
-                        Hidden Gems in one experience.
+                        Explore Cities, Villages, Restaurants, Cafés, Bars,
+                        Clubs and Hidden Gems in one experience.
                       </Text>
                     </View>
 
                     <View style={styles.videoHeroCard}>
-                        <VideoView
-                          style={styles.videoHero}
-                          player={heroVideoPlayer}
-                          fullscreenOptions={{ enable: false }}
-                          allowsPictureInPicture={false}
-                          nativeControls={false}
-                          contentFit="cover"
-                        />
+                      <VideoView
+                        style={styles.videoHero}
+                        player={heroVideoPlayer}
+                        nativeControls={false}
+                        allowsPictureInPicture={false}
+                        fullscreenOptions={{ enable: false }}
+                        contentFit="cover"
+                        surfaceType="textureView"
+                      />
                     </View>
                   </ScrollView>
                 </View>
@@ -497,7 +526,8 @@ export default function HomeScreen() {
                       key={index}
                       style={[
                         styles.paginationDot,
-                        activeHeroIndex === index && styles.paginationDotActive,
+                        activeHeroIndex === index &&
+                        styles.paginationDotActive,
                       ]}
                     />
                   ))}
@@ -522,8 +552,12 @@ export default function HomeScreen() {
                       />
 
                       <View style={styles.categoryContent}>
-                        <Text style={styles.categoryTitle}>{category.label}</Text>
-                        <Text style={styles.categorySubtitle}>{category.subtitle}</Text>
+                        <Text style={styles.categoryTitle}>
+                          {category.label}
+                        </Text>
+                        <Text style={styles.categorySubtitle}>
+                          {category.subtitle}
+                        </Text>
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -714,6 +748,7 @@ const styles = StyleSheet.create({
   videoHero: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#000',
   },
 
   heroEyebrow: {

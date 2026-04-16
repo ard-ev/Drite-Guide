@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,14 +13,17 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
+import * as Location from 'expo-location';
+
 import { places } from '../data/places';
 import { cities } from '../data/cities';
 import colors from '../theme/colors';
 
 export default function ExploreScreen() {
   const navigation = useNavigation();
+
   const [showMapExpanded, setShowMapExpanded] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
 
   const allowedCityIds = [
     'tirana',
@@ -37,6 +40,32 @@ export default function ExploreScreen() {
     'lezhe',
   ];
 
+  useEffect(() => {
+    getUserLocation();
+  }, []);
+
+  const getUserLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== 'granted') {
+        console.log('Location permission denied');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+    } catch (error) {
+      console.log('Error getting user location:', error);
+    }
+  };
+
   const visibleCities = useMemo(() => {
     return cities.filter((city) => allowedCityIds.includes(city.id));
   }, []);
@@ -47,6 +76,56 @@ export default function ExploreScreen() {
 
   const handleCityPress = (cityId) => {
     navigation.navigate('CityPlaces', { cityId });
+  };
+
+  const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
+    const toRad = (value) => (value * Math.PI) / 180;
+    const R = 6371;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const placesWithCoordinates = useMemo(() => {
+    return places.filter(
+      (place) =>
+        typeof place.latitude === 'number' &&
+        typeof place.longitude === 'number'
+    );
+  }, []);
+
+  const nearbyPlaces = useMemo(() => {
+    if (!userLocation) {
+      return placesWithCoordinates;
+    }
+
+    return placesWithCoordinates.filter((place) => {
+      const distance = getDistanceInKm(
+        userLocation.latitude,
+        userLocation.longitude,
+        place.latitude,
+        place.longitude
+      );
+
+      return distance <= 20;
+    });
+  }, [userLocation, placesWithCoordinates]);
+
+  const handleOpenMap = async () => {
+    if (!userLocation) {
+      await getUserLocation();
+    }
+    setShowMapExpanded(true);
   };
 
   const renderCityCard = (city) => {
@@ -84,6 +163,12 @@ export default function ExploreScreen() {
     );
   };
 
+  const previewMapUrl = 'https://www.google.com/maps?q=41.3275,19.8187&z=11&output=embed';
+
+  const expandedMapUrl = userLocation
+    ? `https://www.google.com/maps?q=${userLocation.latitude},${userLocation.longitude}&z=12&output=embed`
+    : 'https://www.google.com/maps?q=41.3275,19.8187&z=8&output=embed';
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -104,43 +189,16 @@ export default function ExploreScreen() {
           <TouchableOpacity
             style={styles.heroCard}
             activeOpacity={0.9}
-            onPress={() => setShowMapExpanded(true)}
+            onPress={handleOpenMap}
           >
-            <WebView
-              source={{
-                html: `
-                  <!DOCTYPE html>
-                  <html>
-                    <head>
-                      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-                      <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-                      <style>
-                        * { margin: 0; padding: 0; }
-                        body { height: 100vh; }
-                        #map { width: 100%; height: 100%; }
-                        .leaflet-control-attribution { display: none !important; }
-                      </style>
-                    </head>
-                    <body>
-                      <div id="map"></div>
-                      <script>
-                        const map = L.map('map').setView([41.3275, 19.8187], 12);
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                          attribution: '',
-                          maxZoom: 19
-                        }).addTo(map);
-                        L.marker([41.3275, 19.8187]).addTo(map)
-                          .bindPopup('<b>Tirana</b><br>Capital of Albania');
-                      </script>
-                    </body>
-                  </html>
-                `,
-              }}
-              scrollEnabled={false}
-              overScrollMode="never"
-              style={styles.webViewMap}
+            <iframe
+              title="Explore Albania Preview"
+              src={previewMapUrl}
+              style={styles.webIframe}
+              loading="lazy"
+              allowFullScreen
             />
+
             <View style={styles.mapTextOverlay}>
               <Ionicons
                 name="map-outline"
@@ -155,7 +213,6 @@ export default function ExploreScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Expanded Map Modal */}
           <Modal
             visible={showMapExpanded}
             transparent={false}
@@ -163,81 +220,44 @@ export default function ExploreScreen() {
             onRequestClose={() => setShowMapExpanded(false)}
           >
             <SafeAreaView style={styles.expandedMapContainer} edges={['top']}>
-              <View style={styles.expandedMapHeader}>
+              <iframe
+                title="Explore Albania Map"
+                src={expandedMapUrl}
+                style={styles.webIframeFull}
+                loading="lazy"
+                allowFullScreen
+              />
+
+              <View style={styles.mapTopOverlay}>
                 <Pressable
-                  style={styles.closeButton}
+                  style={styles.floatingCloseButton}
                   onPress={() => setShowMapExpanded(false)}
                 >
-                  <Ionicons
-                    name="close"
-                    size={28}
-                    color={colors.white}
-                  />
+                  <Ionicons name="close" size={24} color={colors.white} />
                 </Pressable>
-                <Text style={styles.expandedTitle}>
-                  Map of Albania
-                </Text>
-                <View style={{ width: 40 }} />
+
+                <Pressable
+                  style={styles.floatingLocationButton}
+                  onPress={() => {
+                    window.open(expandedMapUrl, '_blank');
+                  }}
+                >
+                  <Ionicons name="locate" size={20} color={colors.white} />
+                </Pressable>
               </View>
 
-              <WebView
-                source={{
-                  html: `
-                    <!DOCTYPE html>
-                    <html>
-                      <head>
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-                        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-                        <style>
-                          * { margin: 0; padding: 0; }
-                          body { height: 100vh; }
-                          #map { width: 100%; height: 100%; }
-                          .leaflet-control-attribution { display: none !important; }
-                        </style>
-                      </head>
-                      <body>
-                        <div id="map"></div>
-                        <script>
-                          const map = L.map('map').setView([41.1533, 20.1683], 7);
-                          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            attribution: '',
-                            maxZoom: 19
-                          }).addTo(map);
+              <View style={styles.mapInfoCard}>
+                <View style={styles.mapInfoRow}>
+                  <Ionicons name="location" size={16} color={colors.black} />
+                  <Text style={styles.mapInfoText}>
+                    {nearbyPlaces.length} nearby {nearbyPlaces.length === 1 ? 'place' : 'places'}
+                  </Text>
+                </View>
 
-                          const cities = [
-                            {lat: 41.3275, lng: 19.8187, name: 'Tirana', type: 'capital'},
-                            {lat: 41.5183, lng: 19.5534, name: 'Durrës', type: 'city'},
-                            {lat: 42.0694, lng: 19.5086, name: 'Shkodër', type: 'city'},
-                            {lat: 40.4636, lng: 19.4944, name: 'Vlorë', type: 'city'},
-                            {lat: 39.8671, lng: 20.1546, name: 'Saranda', type: 'city'},
-                            {lat: 39.7667, lng: 20.75, name: 'Ksamil', type: 'city'},
-                            {lat: 40.3261, lng: 19.8295, name: 'Dhermi', type: 'city'},
-                            {lat: 40.0997, lng: 20.2583, name: 'Gjirokastër', type: 'city'},
-                            {lat: 41.1275, lng: 20.5969, name: 'Korça', type: 'city'},
-                            {lat: 40.7167, lng: 19.2667, name: 'Berat', type: 'city'},
-                            {lat: 41.8197, lng: 19.2789, name: 'Lezhë', type: 'city'},
-                            {lat: 41.8494, lng: 19.9906, name: 'Theth', type: 'city'}
-                          ];
-
-                          cities.forEach(city => {
-                            const color = city.type === 'capital' ? '#FF3B30' : '#FF9500';
-                            L.circleMarker([city.lat, city.lng], {
-                              radius: city.type === 'capital' ? 8 : 6,
-                              fillColor: color,
-                              color: '#fff',
-                              weight: 2,
-                              opacity: 1,
-                              fillOpacity: 0.8
-                            }).addTo(map).bindPopup('<b>' + city.name + '</b>');
-                          });
-                        </script>
-                      </body>
-                    </html>
-                  `,
-                }}
-                style={styles.expandedMapView}
-              />
+                <Text style={styles.mapInfoSubtext}>
+                  Showing your current area on web. Nearby places are counted from your saved data.
+                </Text>
+              </View>
             </SafeAreaView>
           </Modal>
 
@@ -280,6 +300,19 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
 
+  headerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
 
   heroCard: {
     borderRadius: 24,
@@ -289,7 +322,16 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
-  webViewMap: {
+  webIframe: {
+    width: '100%',
+    height: '100%',
+    borderWidth: 0,
+  },
+
+  webIframeFull: {
+    width: '100%',
+    height: '100%',
+    borderWidth: 0,
     flex: 1,
   },
 
@@ -302,13 +344,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-
-  heroCardContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-    flex: 1,
   },
 
   heroIcon: {
@@ -407,34 +442,109 @@ const styles = StyleSheet.create({
     backgroundColor: colors.black,
   },
 
-  expandedMapHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    zIndex: 10,
-  },
-
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  expandedTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.white,
+  expandedMapContainer: {
     flex: 1,
-    textAlign: 'center',
+    backgroundColor: '#000',
   },
 
   expandedMapView: {
     flex: 1,
+  },
+
+  mapTopOverlay: {
+    position: 'absolute',
+    top: 58,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 20,
+  },
+
+  floatingCloseButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E53935',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+
+  floatingLocationButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FF6B2C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+
+  mapInfoCard: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+
+  webIframeFull: {
+    width: '100%',
+    height: '100%',
+    borderWidth: 0,
+    flex: 1,
+  },
+
+  mapInfoCard: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 20,
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+
+  mapInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+
+  mapInfoText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.black,
+    marginLeft: 8,
+  },
+
+  mapInfoSubtext: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#666',
   },
 });

@@ -54,9 +54,9 @@ export default function LegalNoticeScreen() {
                         <Text style={styles.sectionTitle}>1. Provider</Text>
                         <Text style={styles.sectionText}>
                             Dritë Guide{"\n"}
-                            Example Company Name{"\n"}
-                            Example Street 12{"\n"}
-                            9000 St. Gallen{"\n"}
+                            Ard Sadiki{"\n"}
+                            Lagja Sadikut 1{"\n"}
+                            9403 Goldach{"\n"}
                             Switzerland
                         </Text>
                     </View>
@@ -64,9 +64,9 @@ export default function LegalNoticeScreen() {
                     <View style={styles.sectionCard}>
                         <Text style={styles.sectionTitle}>2. Contact</Text>
                         <Text style={styles.sectionText}>
-                            Email: contact@driteguide.com{"\n"}
-                            Phone: +41 00 000 00 00{"\n"}
-                            Website: www.driteguide.com
+                            Email: driteguide@gmail.com{"\n"}
+                            Phone: +41 78 727 92 30{"\n"}
+                            Website: www.ardsadiki.com
                         </Text>
                     </View>
 

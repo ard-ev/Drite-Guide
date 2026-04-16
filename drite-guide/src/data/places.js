@@ -1,7 +1,7 @@
 export const places = [
     // ================= TIRANA =================
     {
-        id: 'r1',
+        id: 're1',
         cityId: 'tirana',
         categoryId: 'restaurants',
         name: 'Mullixhiu',
@@ -14,10 +14,12 @@ export const places = [
             'https://placehold.co/800x500/F5E6D3/222222?text=Mullixhiu',
             'https://placehold.co/800x500/F5E6D3/222222?text=Mullixhiu',
             'https://placehold.co/800x500/F5E6D3/222222?text=Mullixhiu',
-        ]
+        ],
+        latitude: 41.31348,
+        longitude: 19.81666,
     },
     {
-        id: 'r2',
+        id: 're2',
         cityId: 'tirana',
         categoryId: 'restaurants',
         name: 'Oda Garden',
@@ -30,10 +32,12 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Oda+Garden',
             'https://placehold.co/800x500/EADBC8/222222?text=Oda+Garden',
             'https://placehold.co/800x500/EADBC8/222222?text=Oda+Garden',
-        ]
+        ],
+        latitude: 41.3319,
+        longitude: 19.8243,
     },
     {
-        id: 'c1',
+        id: 'ca1',
         cityId: 'tirana',
         categoryId: 'cafes',
         name: 'Komiteti Café Museum',
@@ -46,10 +50,12 @@ export const places = [
             'https://placehold.co/800x500/D9C7B0/222222?text=Komiteti+Cafe+Museum',
             'https://placehold.co/800x500/D9C7B0/222222?text=Komiteti+Cafe+Museum',
             'https://placehold.co/800x500/D9C7B0/222222?text=Komiteti+Cafe+Museum',
-        ]
+        ],
+        latitude: 41.3273,
+        longitude: 19.8216,
     },
     {
-        id: 'b1',
+        id: 'ba1',
         cityId: 'tirana',
         categoryId: 'bars',
         name: 'Radio Bar',
@@ -62,10 +68,12 @@ export const places = [
             'https://placehold.co/800x500/CDBBA7/222222?text=Radio+Bar',
             'https://placehold.co/800x500/CDBBA7/222222?text=Radio+Bar',
             'https://placehold.co/800x500/CDBBA7/222222?text=Radio+Bar',
-        ]
+        ],
+        latitude: 41.3198,
+        longitude: 19.8169,
     },
     {
-        id: 'h1',
+        id: 'ho1',
         cityId: 'tirana',
         categoryId: 'hotels',
         name: 'Maritim Hotel Plaza',
@@ -78,11 +86,13 @@ export const places = [
             'https://placehold.co/800x500/E5DDD5/222222?text=Maritim+Hotel+Plaza',
             'https://placehold.co/800x500/E5DDD5/222222?text=Maritim+Hotel+Plaza',
             'https://placehold.co/800x500/E5DDD5/222222?text=Maritim+Hotel+Plaza',
-        ]
+        ],
+        latitude: 41.3254,
+        longitude: 19.8228,
     },
 
     {
-        id: 'h2',
+        id: 'ho2',
         cityId: 'tirana',
         categoryId: 'hotels',
         name: 'The Plaza Tirana',
@@ -95,10 +105,12 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Plaza+Tirana',
             'https://placehold.co/800x500/EADBC8/222222?text=Plaza+Tirana',
             'https://placehold.co/800x500/EADBC8/222222?text=Plaza+Tirana',
-        ]
+        ],
+        latitude: 41.3254,
+        longitude: 19.8228,
     },
     {
-        id: 'h3',
+        id: 'ho3',
         cityId: 'tirana',
         categoryId: 'hotels',
         name: 'Rogner Hotel Tirana',
@@ -111,12 +123,14 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Rogner',
             'https://placehold.co/800x500/EADBC8/222222?text=Rogner',
             'https://placehold.co/800x500/EADBC8/222222?text=Rogner',
-        ]
+        ],
+        latitude: 41.3192,
+        longitude: 19.8162,
     },
 
     // ================= SHKODER =================
     {
-        id: 'r3',
+        id: 're3',
         cityId: 'shkoder',
         categoryId: 'restaurants',
         name: 'Tradita Geg & Tosk',
@@ -129,10 +143,12 @@ export const places = [
             'https://placehold.co/800x500/E8D7C7/222222?text=Tradita+Geg+%26+Tosk',
             'https://placehold.co/800x500/E8D7C7/222222?text=Tradita+Geg+%26+Tosk',
             'https://placehold.co/800x500/E8D7C7/222222?text=Tradita+Geg+%26+Tosk',
-        ]
+        ],
+        latitude: 42.0677,
+        longitude: 19.5124,
     },
     {
-        id: 'c2',
+        id: 'ca2',
         cityId: 'shkoder',
         categoryId: 'cafes',
         name: 'Pasta e Vino',
@@ -145,10 +161,12 @@ export const places = [
             'https://placehold.co/800x500/D8C9B6/222222?text=Pasta+e+Vino',
             'https://placehold.co/800x500/D8C9B6/222222?text=Pasta+e+Vino',
             'https://placehold.co/800x500/D8C9B6/222222?text=Pasta+e+Vino',
-        ]
+        ],
+        latitude: 42.0689,
+        longitude: 19.5137,
     },
     {
-        id: 'b2',
+        id: 'ba2',
         cityId: 'shkoder',
         categoryId: 'bars',
         name: 'San Francisco Bar',
@@ -161,10 +179,12 @@ export const places = [
             'https://placehold.co/800x500/CFC4B4/222222?text=San+Francisco+Bar',
             'https://placehold.co/800x500/CFC4B4/222222?text=San+Francisco+Bar',
             'https://placehold.co/800x500/CFC4B4/222222?text=San+Francisco+Bar',
-        ]
+        ],
+        latitude: 42.0697,
+        longitude: 19.5119,
     },
     {
-        id: 'h4',
+        id: 'ho4',
         cityId: 'shkoder',
         categoryId: 'hotels',
         name: 'Hotel Colosseo',
@@ -177,12 +197,14 @@ export const places = [
             'https://placehold.co/800x500/E7E0D8/222222?text=Hotel+Colosseo',
             'https://placehold.co/800x500/E7E0D8/222222?text=Hotel+Colosseo',
             'https://placehold.co/800x500/E7E0D8/222222?text=Hotel+Colosseo',
-        ]
+        ],
+        latitude: 42.067585,
+        longitude: 19.514582,
     },
 
     // ================= VLORE =================
     {
-        id: 'r4',
+        id: 're4',
         cityId: 'vlore',
         categoryId: 'restaurants',
         name: 'Solem Restaurant',
@@ -195,10 +217,12 @@ export const places = [
             'https://placehold.co/800x500/CFE8F7/222222?text=Solem+Restaurant',
             'https://placehold.co/800x500/CFE8F7/222222?text=Solem+Restaurant',
             'https://placehold.co/800x500/CFE8F7/222222?text=Solem+Restaurant',
-        ]
+        ],
+        latitude: 40.4418,
+        longitude: 19.4897,
     },
     {
-        id: 'c3',
+        id: 'ca3',
         cityId: 'vlore',
         categoryId: 'cafes',
         name: 'Lungo Mare Café',
@@ -211,11 +235,13 @@ export const places = [
             'https://placehold.co/800x500/D9EEF7/222222?text=Lungo+Mare+Cafe',
             'https://placehold.co/800x500/D9EEF7/222222?text=Lungo+Mare+Cafe',
             'https://placehold.co/800x500/D9EEF7/222222?text=Lungo+Mare+Cafe',
-        ]
+        ],
+        latitude: 40.4387,
+        longitude: 19.4945,
     },
 
     {
-        id: 'h5',
+        id: 'ho5',
         cityId: 'vlore',
         categoryId: 'hotels',
         name: 'Hotel Liro',
@@ -228,10 +254,12 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Liro',
             'https://placehold.co/800x500/EADBC8/222222?text=Liro',
             'https://placehold.co/800x500/EADBC8/222222?text=Liro',
-        ]
+        ],
+        latitude: 40.4136,
+        longitude: 19.4899,
     },
     {
-        id: 'h6',
+        id: 'ho6',
         cityId: 'vlore',
         categoryId: 'hotels',
         name: 'Regina City Hotel',
@@ -244,10 +272,12 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Regina',
             'https://placehold.co/800x500/EADBC8/222222?text=Regina',
             'https://placehold.co/800x500/EADBC8/222222?text=Regina',
-        ]
+        ],
+        latitude: 40.4389,
+        longitude: 19.4942,
     },
     {
-        id: 'b3',
+        id: 'ba3',
         cityId: 'vlore',
         categoryId: 'bars',
         name: 'Sky Lounge Vlora',
@@ -260,10 +290,12 @@ export const places = [
             'https://placehold.co/800x500/BEDAE8/222222?text=Sky+Lounge+Vlora',
             'https://placehold.co/800x500/BEDAE8/222222?text=Sky+Lounge+Vlora',
             'https://placehold.co/800x500/BEDAE8/222222?text=Sky+Lounge+Vlora',
-        ]
+        ],
+        latitude: 40.4409,
+        longitude: 19.4939,
     },
     {
-        id: 'h7',
+        id: 'ho7',
         cityId: 'vlore',
         categoryId: 'hotels',
         name: 'Hotel Partner',
@@ -276,12 +308,14 @@ export const places = [
             'https://placehold.co/800x500/E3F0F8/222222?text=Hotel+Partner',
             'https://placehold.co/800x500/E3F0F8/222222?text=Hotel+Partner',
             'https://placehold.co/800x500/E3F0F8/222222?text=Hotel+Partner',
-        ]
+        ],
+        latitude: 40.45455,
+        longitude: 19.48766,
     },
 
 
     {
-        id: 'b4',
+        id: 'be4',
         cityId: 'vlore',
         categoryId: 'beaches',
         name: 'Radhimë Beach',
@@ -294,10 +328,12 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Radhime',
             'https://placehold.co/800x500/89CFF0/222222?text=Radhime',
             'https://placehold.co/800x500/89CFF0/222222?text=Radhime',
-        ]
+        ],
+        latitude: 40.3626,
+        longitude: 19.4796,
     },
     {
-        id: 'b5',
+        id: 'be5',
         cityId: 'vlore',
         categoryId: 'beaches',
         name: 'Orikum Beach',
@@ -310,12 +346,14 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Orikum',
             'https://placehold.co/800x500/89CFF0/222222?text=Orikum',
             'https://placehold.co/800x500/89CFF0/222222?text=Orikum',
-        ]
+        ],
+        latitude: 40.3256,
+        longitude: 19.4718,
     },
 
     // ================= DURRES =================
     {
-        id: 'r5',
+        id: 're5',
         cityId: 'durres',
         categoryId: 'restaurants',
         name: 'Spaghetteria Luli',
@@ -328,10 +366,13 @@ export const places = [
             'https://placehold.co/800x500/F2DFC8/222222?text=Spaghetteria+Luli',
             'https://placehold.co/800x500/F2DFC8/222222?text=Spaghetteria+Luli',
             'https://placehold.co/800x500/F2DFC8/222222?text=Spaghetteria+Luli',
-        ]
+        ],
+        latitude: 41.3112,
+        longitude: 19.4408,
+
     },
     {
-        id: 'c4',
+        id: 'ca4',
         cityId: 'durres',
         categoryId: 'cafes',
         name: 'Café del Mar',
@@ -344,10 +385,12 @@ export const places = [
             'https://placehold.co/800x500/E5D4BC/222222?text=Cafe+del+Mar',
             'https://placehold.co/800x500/E5D4BC/222222?text=Cafe+del+Mar',
             'https://placehold.co/800x500/E5D4BC/222222?text=Cafe+del+Mar',
-        ]
+        ],
+        latitude: 41.3094,
+        longitude: 19.4782,
     },
     {
-        id: 'b6',
+        id: 'ba6',
         cityId: 'durres',
         categoryId: 'bars',
         name: 'Cinco Cavalli',
@@ -360,10 +403,12 @@ export const places = [
             'https://placehold.co/800x500/DCC6A8/222222?text=Cinco+Cavalli',
             'https://placehold.co/800x500/DCC6A8/222222?text=Cinco+Cavalli',
             'https://placehold.co/800x500/DCC6A8/222222?text=Cinco+Cavalli',
-        ]
+        ],
+        latitude: 41.2921,
+        longitude: 19.5106,
     },
     {
-        id: 'h8',
+        id: 'ho8',
         cityId: 'durres',
         categoryId: 'hotels',
         name: 'Adriatik Hotel',
@@ -376,10 +421,12 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Adriatik',
             'https://placehold.co/800x500/EADBC8/222222?text=Adriatik',
             'https://placehold.co/800x500/EADBC8/222222?text=Adriatik',
-        ]
+        ],
+        latitude: 41.3037,
+        longitude: 19.4825,
     },
     {
-        id: 'h9',
+        id: 'ho9',
         cityId: 'durres',
         categoryId: 'hotels',
         name: 'Palace Hotel & Spa',
@@ -392,10 +439,12 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Palace',
             'https://placehold.co/800x500/EADBC8/222222?text=Palace',
             'https://placehold.co/800x500/EADBC8/222222?text=Palace',
-        ]
+        ],
+        latitude: 41.31389,
+        longitude: 19.47389,
     },
     {
-        id: 'h10',
+        id: 'ho10',
         cityId: 'shengjin',
         categoryId: 'hotels',
         name: 'Hotel Frojd',
@@ -408,11 +457,14 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Frojd',
             'https://placehold.co/800x500/EADBC8/222222?text=Frojd',
             'https://placehold.co/800x500/EADBC8/222222?text=Frojd',
-        ]
+        ],
+        latitude: 41.8139,
+        longitude: 19.5931,
+
     },
 
     {
-        id: 'b7',
+        id: 'be7',
         cityId: 'durres',
         categoryId: 'beaches',
         name: 'Durrës Beach',
@@ -425,10 +477,12 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Durres',
             'https://placehold.co/800x500/89CFF0/222222?text=Durres',
             'https://placehold.co/800x500/89CFF0/222222?text=Durres',
-        ]
+        ],
+        latitude: 41.3133,
+        longitude: 19.4562,
     },
     {
-        id: 'b8',
+        id: 'be8',
         cityId: 'durres',
         categoryId: 'beaches',
         name: 'Golem Beach',
@@ -441,10 +495,12 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Golem',
             'https://placehold.co/800x500/89CFF0/222222?text=Golem',
             'https://placehold.co/800x500/89CFF0/222222?text=Golem',
-        ]
+        ],
+        latitude: 41.2458,
+        longitude: 19.5217,
     },
     {
-        id: 'b9',
+        id: 'be9',
         cityId: 'shengjin',
         categoryId: 'beaches',
         name: 'Shëngjin Beach',
@@ -457,10 +513,12 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Shengjin',
             'https://placehold.co/800x500/89CFF0/222222?text=Shengjin',
             'https://placehold.co/800x500/89CFF0/222222?text=Shengjin',
-        ]
+        ],
+        latitude: 41.8131,
+        longitude: 19.5938,
     },
     {
-        id: 'b10',
+        id: 'be10',
         cityId: 'velipoje',
         categoryId: 'beaches',
         name: 'Velipojë Beach',
@@ -474,12 +532,14 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Velipoje',
             'https://placehold.co/800x500/89CFF0/222222?text=Velipoje',
             'https://placehold.co/800x500/89CFF0/222222?text=Velipoje',
-        ]
+        ],
+        latitude: 41.8624,
+        longitude: 19.4185,
     },
 
     // ================= KSAMIL =================
     {
-        id: 'r6',
+        id: 're6',
         cityId: 'ksamil',
         categoryId: 'restaurants',
         name: 'Guva Restaurant',
@@ -492,10 +552,12 @@ export const places = [
             'https://placehold.co/800x500/C7F0F2/222222?text=Guva+Restaurant',
             'https://placehold.co/800x500/C7F0F2/222222?text=Guva+Restaurant',
             'https://placehold.co/800x500/C7F0F2/222222?text=Guva+Restaurant',
-        ]
+        ],
+        latitude: 39.7688,
+        longitude: 20.0025,
     },
     {
-        id: 'c5',
+        id: 'ca5',
         cityId: 'ksamil',
         categoryId: 'cafes',
         name: 'Island Café',
@@ -508,10 +570,12 @@ export const places = [
             'https://placehold.co/800x500/D8F5F6/222222?text=Island+Cafe',
             'https://placehold.co/800x500/D8F5F6/222222?text=Island+Cafe',
             'https://placehold.co/800x500/D8F5F6/222222?text=Island+Cafe',
-        ]
+        ],
+        latitude: 39.7682,
+        longitude: 20.0018,
     },
     {
-        id: 'b11',
+        id: 'ba11',
         cityId: 'ksamil',
         categoryId: 'bars',
         name: 'Bianco Lounge Bar',
@@ -524,10 +588,13 @@ export const places = [
             'https://placehold.co/800x500/B9E7EA/222222?text=Bianco+Lounge+Bar',
             'https://placehold.co/800x500/B9E7EA/222222?text=Bianco+Lounge+Bar',
             'https://placehold.co/800x500/B9E7EA/222222?text=Bianco+Lounge+Bar',
-        ]
+        ],
+        latitude: 39.7686,
+        longitude: 20.0034,
+
     },
     {
-        id: 'h11',
+        id: 'ho11',
         cityId: 'ksamil',
         categoryId: 'hotels',
         name: 'Hotel Luxury Ksamil',
@@ -540,12 +607,14 @@ export const places = [
             'https://placehold.co/800x500/E6FAFB/222222?text=Hotel+Luxury+Ksamil',
             'https://placehold.co/800x500/E6FAFB/222222?text=Hotel+Luxury+Ksamil',
             'https://placehold.co/800x500/E6FAFB/222222?text=Hotel+Luxury+Ksamil',
-        ]
+        ],
+        latitude: 39.7699,
+        longitude: 20.0027,
     },
 
 
     {
-        id: 'b12',
+        id: 'be12',
         cityId: 'ksamil',
         categoryId: 'beaches',
         name: 'Ksamil Beach',
@@ -558,10 +627,12 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Ksamil+Beach',
             'https://placehold.co/800x500/89CFF0/222222?text=Ksamil+Beach',
             'https://placehold.co/800x500/89CFF0/222222?text=Ksamil+Beach',
-        ]
+        ],
+        latitude: 39.7689,
+        longitude: 20.0031,
     },
     {
-        id: 'b13',
+        id: 'be13',
         cityId: 'ksamil',
         categoryId: 'beaches',
         name: 'Pulebardha Beach',
@@ -574,10 +645,12 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Pulebardha',
             'https://placehold.co/800x500/89CFF0/222222?text=Pulebardha',
             'https://placehold.co/800x500/89CFF0/222222?text=Pulebardha',
-        ]
+        ],
+        latitude: 39.7537,
+        longitude: 20.0195,
     },
     {
-        id: 'b14',
+        id: 'be14',
         cityId: 'saranda',
         categoryId: 'beaches',
         name: 'Mirror Beach (Plazhi Pasqyra)',
@@ -590,12 +663,14 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Mirror+Beach',
             'https://placehold.co/800x500/89CFF0/222222?text=Mirror+Beach',
             'https://placehold.co/800x500/89CFF0/222222?text=Mirror+Beach',
-        ]
+        ],
+        latitude: 39.7496,
+        longitude: 20.0209,
     },
 
     // ================= LEZHE =================
     {
-        id: 'r7',
+        id: 're7',
         cityId: 'lezhe',
         categoryId: 'restaurants',
         name: 'Mrizi i Zanave',
@@ -608,10 +683,12 @@ export const places = [
             'https://placehold.co/800x500/DCE7C2/222222?text=Mrizi+i+Zanave',
             'https://placehold.co/800x500/DCE7C2/222222?text=Mrizi+i+Zanave',
             'https://placehold.co/800x500/DCE7C2/222222?text=Mrizi+i+Zanave',
-        ]
+        ],
+        latitude: 41.89923,
+        longitude: 19.67365,
     },
     {
-        id: 'c6',
+        id: 'ca6',
         cityId: 'lezhe',
         categoryId: 'cafes',
         name: 'Lezha Coffee House',
@@ -624,10 +701,12 @@ export const places = [
             'https://placehold.co/800x500/E8EFCF/222222?text=Lezha+Coffee+House',
             'https://placehold.co/800x500/E8EFCF/222222?text=Lezha+Coffee+House',
             'https://placehold.co/800x500/E8EFCF/222222?text=Lezha+Coffee+House',
-        ]
+        ],
+        latitude: 41.7836,
+        longitude: 19.6438,
     },
     {
-        id: 'b15',
+        id: 'ba15',
         cityId: 'lezhe',
         categoryId: 'bars',
         name: 'Bar Infinity',
@@ -640,10 +719,12 @@ export const places = [
             'https://placehold.co/800x500/CFD9B3/222222?text=Bar+Infinity',
             'https://placehold.co/800x500/CFD9B3/222222?text=Bar+Infinity',
             'https://placehold.co/800x500/CFD9B3/222222?text=Bar+Infinity',
-        ]
+        ],
+        latitude: 41.7844,
+        longitude: 19.6451,
     },
     {
-        id: 'h12',
+        id: 'ho12',
         cityId: 'lezhe',
         categoryId: 'hotels',
         name: 'Hotel Liss',
@@ -656,12 +737,14 @@ export const places = [
             'https://placehold.co/800x500/F0F5E6/222222?text=Hotel+Liss',
             'https://placehold.co/800x500/F0F5E6/222222?text=Hotel+Liss',
             'https://placehold.co/800x500/F0F5E6/222222?text=Hotel+Liss',
-        ]
+        ],
+        latitude: 41.7860,
+        longitude: 19.6450,
     },
 
     // ================= SARANDA =================
     {
-        id: 'r8',
+        id: 're8',
         cityId: 'saranda',
         categoryId: 'restaurants',
         name: 'Haxhi Restaurant',
@@ -674,10 +757,12 @@ export const places = [
             'https://placehold.co/800x500/CBE7F5/222222?text=Haxhi+Restaurant',
             'https://placehold.co/800x500/CBE7F5/222222?text=Haxhi+Restaurant',
             'https://placehold.co/800x500/CBE7F5/222222?text=Haxhi+Restaurant',
-        ]
+        ],
+        latitude: 39.8757,
+        longitude: 20.0051,
     },
     {
-        id: 'c7',
+        id: 'ca7',
         cityId: 'saranda',
         categoryId: 'cafes',
         name: 'Jericho Café',
@@ -689,10 +774,14 @@ export const places = [
             'https://placehold.co/800x500/DBEEF8/222222?text=Jericho+Cafe',
             'https://placehold.co/800x500/DBEEF8/222222?text=Jericho+Cafe',
             'https://placehold.co/800x500/DBEEF8/222222?text=Jericho+Cafe',
-            'https://placehold.co/800x500/DBEEF8/222222?text=Jericho+Cafe']
+            'https://placehold.co/800x500/DBEEF8/222222?text=Jericho+Cafe'
+        ],
+        latitude: 39.8752,
+        longitude: 20.0042,
+
     },
     {
-        id: 'b16',
+        id: 'ba16',
         cityId: 'saranda',
         categoryId: 'bars',
         name: 'Mango Beach Club',
@@ -704,10 +793,13 @@ export const places = [
             'https://placehold.co/800x500/B7D9EE/222222?text=Mango+Beach+Club',
             'https://placehold.co/800x500/B7D9EE/222222?text=Mango+Beach+Club',
             'https://placehold.co/800x500/B7D9EE/222222?text=Mango+Beach+Club',
-            'https://placehold.co/800x500/B7D9EE/222222?text=Mango+Beach+Club']
+            'https://placehold.co/800x500/B7D9EE/222222?text=Mango+Beach+Club'
+        ],
+        latitude: 39.85352,
+        longitude: 20.02019,
     },
     {
-        id: 'h13',
+        id: 'ho13',
         cityId: 'saranda',
         categoryId: 'hotels',
         name: 'Bougainville Bay Hotel',
@@ -719,10 +811,13 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Bougainville',
             'https://placehold.co/800x500/EADBC8/222222?text=Bougainville',
             'https://placehold.co/800x500/EADBC8/222222?text=Bougainville',
-            'https://placehold.co/800x500/EADBC8/222222?text=Bougainville']
+            'https://placehold.co/800x500/EADBC8/222222?text=Bougainville'
+        ],
+        latitude: 39.8609,
+        longitude: 20.0215,
     },
     {
-        id: 'h14',
+        id: 'ho14',
         cityId: 'saranda',
         categoryId: 'hotels',
         name: 'Santa Quaranta Premium Resort',
@@ -734,13 +829,16 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Santa+Quaranta',
             'https://placehold.co/800x500/EADBC8/222222?text=Santa+Quaranta',
             'https://placehold.co/800x500/EADBC8/222222?text=Santa+Quaranta',
-            'https://placehold.co/800x500/EADBC8/222222?text=Santa+Quaranta']
+            'https://placehold.co/800x500/EADBC8/222222?text=Santa+Quaranta'
+        ],
+        latitude: 39.8576,
+        longitude: 20.0244,
     },
     
 
     // ================= DHERMI =================
     {
-        id: 'b16',
+        id: 'be16',
         cityId: 'dhermi',
         categoryId: 'beaches',
         name: 'Dhërmi Beach',
@@ -752,10 +850,13 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Dhermi',
             'https://placehold.co/800x500/EADBC8/222222?text=Dhermi',
             'https://placehold.co/800x500/EADBC8/222222?text=Dhermi',
-            'https://placehold.co/800x500/EADBC8/222222?text=Dhermi']
+            'https://placehold.co/800x500/EADBC8/222222?text=Dhermi'
+        ],
+        latitude: 40.14196,
+        longitude: 19.63861,
     },
     {
-        id: 'b17',
+        id: 'be17',
         cityId: 'dhermi',
         categoryId: 'beaches',
         name: 'Drymades Beach',
@@ -767,10 +868,13 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Drymades',
             'https://placehold.co/800x500/89CFF0/222222?text=Drymades',
             'https://placehold.co/800x500/89CFF0/222222?text=Drymades',
-            'https://placehold.co/800x500/89CFF0/222222?text=Drymades']
+            'https://placehold.co/800x500/89CFF0/222222?text=Drymades'
+        ],
+        latitude: 40.1625,
+        longitude: 19.6348,
     },
     {
-        id: 'b18',
+        id: 'be18',
         cityId: 'himare',
         categoryId: 'beaches',
         name: 'Jale Beach',
@@ -782,10 +886,13 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Jale',
             'https://placehold.co/800x500/89CFF0/222222?text=Jale',
             'https://placehold.co/800x500/89CFF0/222222?text=Jale',
-            'https://placehold.co/800x500/89CFF0/222222?text=Jale']
+            'https://placehold.co/800x500/89CFF0/222222?text=Jale'
+        ],
+        latitude: 40.1148,
+        longitude: 19.7298,
     },
     {
-        id: 'b19',
+        id: 'be19',
         cityId: 'himare',
         categoryId: 'beaches',
         name: 'Gjipe Beach',
@@ -797,11 +904,14 @@ export const places = [
             'https://placehold.co/800x500/89CFF0/222222?text=Gjipe',
             'https://placehold.co/800x500/89CFF0/222222?text=Gjipe',
             'https://placehold.co/800x500/89CFF0/222222?text=Gjipe',
-            'https://placehold.co/800x500/89CFF0/222222?text=Gjipe']
+            'https://placehold.co/800x500/89CFF0/222222?text=Gjipe'
+        ],
+        latitude: 40.1296,
+        longitude: 19.6758,
     },
 
     {
-        id: 'h15',
+        id: 'ho15',
         cityId: 'dhermi',
         categoryId: 'hotels',
         name: 'Drymades Inn Resort',
@@ -813,10 +923,13 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Drymades+Inn',
             'https://placehold.co/800x500/EADBC8/222222?text=Drymades+Inn',
             'https://placehold.co/800x500/EADBC8/222222?text=Drymades+Inn',
-            'https://placehold.co/800x500/EADBC8/222222?text=Drymades+Inn']
+            'https://placehold.co/800x500/EADBC8/222222?text=Drymades+Inn'
+        ],
+        latitude: 40.1631,
+        longitude: 19.6353,
     },
     {
-        id: 'h16',
+        id: 'ho16',
         cityId: 'himare',
         categoryId: 'hotels',
         name: 'Rapos Resort Hotel',
@@ -828,10 +941,13 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Rapos',
             'https://placehold.co/800x500/EADBC8/222222?text=Rapos',
             'https://placehold.co/800x500/EADBC8/222222?text=Rapos',
-            'https://placehold.co/800x500/EADBC8/222222?text=Rapos']
+            'https://placehold.co/800x500/EADBC8/222222?text=Rapos'
+        ],
+        latitude: 40.1014,
+        longitude: 19.7448,
     },
     {
-        id: 'h17',
+        id: 'ho17',
         cityId: 'dhermi',
         categoryId: 'hotels',
         name: 'Empire Beach Resort',
@@ -843,6 +959,9 @@ export const places = [
             'https://placehold.co/800x500/EADBC8/222222?text=Empire',
             'https://placehold.co/800x500/EADBC8/222222?text=Empire',
             'https://placehold.co/800x500/EADBC8/222222?text=Empire',
-            'https://placehold.co/800x500/EADBC8/222222?text=Empire']
+            'https://placehold.co/800x500/EADBC8/222222?text=Empire'
+        ],
+        latitude: 40.1504,
+        longitude: 19.6370,
     },
 ];
