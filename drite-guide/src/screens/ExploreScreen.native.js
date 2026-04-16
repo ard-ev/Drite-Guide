@@ -52,6 +52,7 @@ export default function ExploreScreen() {
         'korca',
         'berat',
         'lezhe',
+        'kruja'
     ];
 
     useEffect(() => {

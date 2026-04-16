@@ -74,6 +74,13 @@ export const cities = [
         name: 'Saranda',
         image: require('../../assets/cities/lezhe.jpg'),
     },
+  {
+        id: 'kruja',
+        name: 'Kruja',
+        image: require('../../assets/cities/kruja.jpg'),
+    },
+
+
     {
         id: 'himare',
         name: 'Himare',
