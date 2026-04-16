@@ -85,8 +85,8 @@ export default function ExploreScreen() {
       });
 
       setUserLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
       });
     } catch (error) {
       console.log('Error getting user location:', error);
