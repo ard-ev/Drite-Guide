@@ -96,11 +96,13 @@ export default function SavedScreen() {
                   }
                 >
                   <Image
-                    source={{
-                      uri:
-                        place.image ||
-                        'https://placehold.co/600x400/E5E7EB/222222?text=No+Image',
-                    }}
+                    source={
+                      typeof place.image === 'string'
+                        ? { uri: place.image }
+                        : place.image
+                          ? place.image
+                          : { uri: 'https://placehold.co/600x400/E5E7EB/222222?text=No+Image' }
+                    }
                     style={styles.placeImage}
                     resizeMode="cover"
                   />
@@ -127,7 +129,7 @@ export default function SavedScreen() {
                     activeOpacity={0.8}
                     onPress={() => removeSavedPlace(place.id)}
                   >
-                    <Ionicons name="trash-outline" size={20} color="#9CA3AF" />
+                    <Ionicons name="trash-outline" size={20} color="#d51e1e" />
                   </TouchableOpacity>
                 </TouchableOpacity>
               ))}

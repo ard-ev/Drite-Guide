@@ -69,7 +69,7 @@ export default function PlaceDetailScreen({ route }) {
         ? [place.image]
         : ['https://placehold.co/1200x800/E5E7EB/222222?text=No+Image'];
 
-  const phoneNumber = place.phone || '+355000000000';
+  const phoneNumber = place.phone || 'n/A';
   const address = place.address || `${city?.name || 'Albania'} Center`;
   const latitude = place.latitude ?? null;
   const longitude = place.longitude ?? null;
@@ -198,7 +198,7 @@ export default function PlaceDetailScreen({ route }) {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>About</Text>
+            <Text style={styles.cardTitle}>Description</Text>
             <Text style={styles.description}>
               {place.description || 'No description available for this place yet.'}
             </Text>
