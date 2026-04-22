@@ -29,6 +29,11 @@ const FALLBACK_REGION = {
     longitudeDelta: 1.8,
 };
 
+const ZOOM_LEVELS = {
+    DOTS_ONLY: 1.2,
+    PINS_ONLY: 0.32,
+};
+
 export default function ExploreScreen() {
     const navigation = useNavigation();
     const mapRef = useRef(null);
@@ -38,6 +43,7 @@ export default function ExploreScreen() {
     const [selectedPlace, setSelectedPlace] = useState(null);
     const [showPlacePreview, setShowPlacePreview] = useState(false);
     const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+    const [mapRegion, setMapRegion] = useState(FALLBACK_REGION);
 
     const allowedCityIds = [
         'tirana',
@@ -80,10 +86,14 @@ export default function ExploreScreen() {
 
             if (status !== 'granted') {
                 setLocationPermissionDenied(true);
-                setUserLocation({
+
+                const fallbackLocation = {
                     latitude: 41.3275,
                     longitude: 19.8187,
-                });
+                };
+
+                setUserLocation(fallbackLocation);
+                setMapRegion(FALLBACK_REGION);
                 return;
             }
 
@@ -93,17 +103,28 @@ export default function ExploreScreen() {
                 accuracy: Location.Accuracy.Balanced,
             });
 
-            setUserLocation({
+            const nextLocation = {
                 latitude: currentLocation.coords.latitude,
                 longitude: currentLocation.coords.longitude,
+            };
+
+            setUserLocation(nextLocation);
+            setMapRegion({
+                latitude: nextLocation.latitude,
+                longitude: nextLocation.longitude,
+                latitudeDelta: 0.18,
+                longitudeDelta: 0.18,
             });
         } catch (error) {
             console.log('Error getting user location:', error);
 
-            setUserLocation({
+            const fallbackLocation = {
                 latitude: 41.3275,
                 longitude: 19.8187,
-            });
+            };
+
+            setUserLocation(fallbackLocation);
+            setMapRegion(FALLBACK_REGION);
         }
     };
 
@@ -188,16 +209,17 @@ export default function ExploreScreen() {
                 return;
             }
 
+            const targetRegion = {
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude,
+                latitudeDelta: 0.14,
+                longitudeDelta: 0.14,
+            };
+
+            setMapRegion(targetRegion);
+
             if (mapRef.current) {
-                mapRef.current.animateToRegion(
-                    {
-                        latitude: userLocation.latitude,
-                        longitude: userLocation.longitude,
-                        latitudeDelta: 0.14,
-                        longitudeDelta: 0.14,
-                    },
-                    700
-                );
+                mapRef.current.animateToRegion(targetRegion, 700);
             }
         } catch (error) {
             console.log('Error centering on location:', error);
@@ -226,6 +248,63 @@ export default function ExploreScreen() {
         setTimeout(() => {
             navigation.navigate('PlaceDetails', { placeId });
         }, 150);
+    };
+
+    const handleRegionChangeComplete = (region) => {
+        setMapRegion(region);
+    };
+
+    const markerDisplayMode = useMemo(() => {
+        const currentDelta = mapRegion?.latitudeDelta ?? FALLBACK_REGION.latitudeDelta;
+
+        if (currentDelta > ZOOM_LEVELS.DOTS_ONLY) {
+            return 'dots';
+        }
+
+        if (currentDelta > ZOOM_LEVELS.PINS_ONLY) {
+            return 'pins';
+        }
+
+        return 'labels';
+    }, [mapRegion]);
+
+    const renderMarkerContent = (place) => {
+        if (markerDisplayMode === 'dots') {
+            return (
+                <View style={styles.dotMarkerWrapper}>
+                    <View style={styles.dotMarker} />
+                </View>
+            );
+        }
+
+        if (markerDisplayMode === 'pins') {
+            return (
+                <View style={styles.pinOnlyMarkerWrapper}>
+                    <Ionicons name="location-sharp" size={34} color="#D62828" />
+                </View>
+            );
+        }
+
+        return (
+            <View style={styles.customMarkerWrapper}>
+                <View style={styles.customMarkerLabel}>
+                    <Text
+                        style={styles.customMarkerLabelText}
+                        numberOfLines={1}
+                    >
+                        {place.name}
+                    </Text>
+                </View>
+
+                <View style={styles.customMarkerPin}>
+                    <Ionicons
+                        name="location-sharp"
+                        size={34}
+                        color="#D62828"
+                    />
+                </View>
+            </View>
+        );
     };
 
     const renderCityCard = (city) => {
@@ -376,6 +455,7 @@ export default function ExploreScreen() {
                                 showsCompass={false}
                                 loadingEnabled={true}
                                 onMapReady={centerOnUserLocation}
+                                onRegionChangeComplete={handleRegionChangeComplete}
                                 onPress={() => {
                                     if (showPlacePreview) {
                                         closePlacePreview();
@@ -389,29 +469,14 @@ export default function ExploreScreen() {
                                             latitude: place.latitude,
                                             longitude: place.longitude,
                                         }}
+                                        anchor={{ x: 0.5, y: 1 }}
+                                        tracksViewChanges={false}
                                         onPress={(e) => {
                                             e.stopPropagation?.();
                                             handleMarkerPress(place);
                                         }}
                                     >
-                                        <View style={styles.customMarkerWrapper}>
-                                            <View style={styles.customMarkerLabel}>
-                                                <Text
-                                                    style={styles.customMarkerLabelText}
-                                                    numberOfLines={1}
-                                                >
-                                                    {place.name}
-                                                </Text>
-                                            </View>
-
-                                            <View style={styles.customMarkerPin}>
-                                                <Ionicons
-                                                    name="location-sharp"
-                                                    size={34}
-                                                    color="#D62828"
-                                                />
-                                            </View>
-                                        </View>
+                                        {renderMarkerContent(place)}
                                     </Marker>
                                 ))}
                             </MapView>
@@ -916,6 +981,30 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '700',
         color: colors.black,
+    },
+
+    dotMarkerWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    dotMarker: {
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: '#D62828',
+        borderWidth: 2,
+        borderColor: colors.white,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.18,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+
+    pinOnlyMarkerWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 
     customMarkerWrapper: {

@@ -93,25 +93,20 @@ export default function PlaceDetailScreen({ route }) {
     Linking.openURL(url);
   };
 
+  
+
   const handleNavigate = async () => {
-    let url = '';
+    try {
+      if (!place?.googleMapsLink) {
+        Alert.alert('Kein Link', 'Für diesen Ort ist kein Kartenlink hinterlegt.');
+        return;
+      }
 
-    if (latitude !== null && longitude !== null) {
-      url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-    } else {
-      url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        `${place.name}, ${address}`
-      )}`;
+      await Linking.openURL(place.googleMapsLink);
+    } catch (error) {
+      console.log('Navigation error:', error);
+      Alert.alert('Fehler', 'Karte konnte nicht geöffnet werden.');
     }
-
-    const supported = await Linking.canOpenURL(url);
-
-    if (!supported) {
-      Alert.alert('Navigation unavailable', 'Maps could not be opened on this device.');
-      return;
-    }
-
-    Linking.openURL(url);
   };
 
   const handleToggleSaved = () => {
