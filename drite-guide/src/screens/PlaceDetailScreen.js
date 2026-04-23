@@ -12,16 +12,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { places } from '../data/places';
-import { cities } from '../data/cities';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { useAppData } from '../context/AppDataContext';
+import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 
 export default function PlaceDetailScreen({ route }) {
   const { placeId } = route.params || {};
   const { getSavedPlaces, savePlace, removeSavedPlace } = useAuth();
+  const { getPlaceById, getCityById } = useAppData();
 
-  const place = places.find((p) => p.id === placeId);
+  const place = getPlaceById(placeId);
   const savedPlaces = getSavedPlaces() || [];
   const isSaved = savedPlaces.some((item) => item.id === placeId);
 
@@ -39,28 +40,7 @@ export default function PlaceDetailScreen({ route }) {
     );
   }
 
-  const city = cities.find((c) => c.id === place.cityId);
-
-  const getCategoryLabel = (categoryId) => {
-    const categoryLabels = {
-      restaurants: 'Restaurant',
-      cafes: 'Café',
-      bars: 'Bar',
-      hotels: 'Hotel',
-      beaches: 'Beach',
-      historical: 'Historical Site',
-      hidden_gems: 'Hidden Gem',
-      hiddengems: 'Hidden Gem',
-      mosques: 'Mosque',
-      churches: 'Church',
-      museums: 'Museum',
-      bunkers: 'Bunker',
-      adventures: 'Adventure',
-      governmentservices: 'Government Service',
-    };
-
-    return categoryLabels[categoryId] || categoryId || 'Place';
-  };
+  const city = getCityById(place.cityId);
 
   const imageGallery =
     Array.isArray(place.images) && place.images.length > 0
@@ -73,13 +53,6 @@ export default function PlaceDetailScreen({ route }) {
   const address = place.address || `${city?.name || 'Albania'} Center`;
   const latitude = place.latitude ?? null;
   const longitude = place.longitude ?? null;
-
-  const getImageSource = (image) => {
-    if (typeof image === 'string') {
-      return { uri: image };
-    }
-    return image;
-  };
 
   const handleCall = async () => {
     const url = `tel:${phoneNumber}`;
@@ -97,12 +70,12 @@ export default function PlaceDetailScreen({ route }) {
 
   const handleNavigate = async () => {
     try {
-      if (!place?.googleMapsLink) {
+      if (!place?.google_maps_link) {
         Alert.alert('Kein Link', 'Für diesen Ort ist kein Kartenlink hinterlegt.');
         return;
       }
 
-      await Linking.openURL(place.googleMapsLink);
+      await Linking.openURL(place.google_maps_link);
     } catch (error) {
       console.log('Navigation error:', error);
       Alert.alert('Fehler', 'Karte konnte nicht geöffnet werden.');
@@ -167,7 +140,7 @@ export default function PlaceDetailScreen({ route }) {
             <View style={styles.categoryBadge}>
               <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
               <Text style={styles.categoryLabel}>
-                {getCategoryLabel(place.categoryId)}
+                {getCategoryLabel(place.categoryId, place.categoryName)}
               </Text>
             </View>
 

@@ -19,21 +19,21 @@ import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen() {
     const navigation = useNavigation();
-    const { login } = useAuth();
+    const { login, isBootstrapping } = useAuth();
 
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleLogin = () => {
-        const result = login(identifier, password);
+    const handleLogin = async () => {
+        const result = await login(identifier, password);
 
         if (!result.success) {
             Alert.alert('Login failed', result.message);
             return;
         }
 
-        Alert.alert('Login successful', `Welcome back, ${result.user.firstName}!`, [
+        Alert.alert('Login successful', `Welcome back, ${result.user.first_name}!`, [
             {
                 text: 'Continue',
                 onPress: () => navigation.navigate('AccountMain'),
@@ -112,8 +112,11 @@ export default function LoginScreen() {
                                 style={styles.primaryButton}
                                 activeOpacity={0.88}
                                 onPress={handleLogin}
+                                disabled={isBootstrapping}
                             >
-                                <Text style={styles.primaryButtonText}>Log in</Text>
+                                <Text style={styles.primaryButtonText}>
+                                    {isBootstrapping ? 'Please wait...' : 'Log in'}
+                                </Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity

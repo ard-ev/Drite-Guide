@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeGetItem, safeSetItem } from '../utils/storage';
 
 export const FavoritesContext = createContext();
 
@@ -17,7 +17,7 @@ export function FavoritesProvider({ children }) {
 
   const loadFavorites = async () => {
     try {
-      const stored = await AsyncStorage.getItem(FAVORITES_KEY);
+      const stored = await safeGetItem(FAVORITES_KEY);
       if (stored) {
         setFavorites(JSON.parse(stored));
       }
@@ -34,7 +34,7 @@ export function FavoritesProvider({ children }) {
   const saveFavorites = async (newFavorites) => {
     try {
       if (storageAvailable.current) {
-        await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(newFavorites));
+        await safeSetItem(FAVORITES_KEY, JSON.stringify(newFavorites));
       }
       setFavorites(newFavorites);
     } catch (error) {

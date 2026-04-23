@@ -11,25 +11,23 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { places } from '../data/places';
-import { cities } from '../data/cities';
 import colors from '../theme/colors';
+import { useAppData } from '../context/AppDataContext';
+import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 
 export default function CityPlacesScreen() {
     const navigation = useNavigation();
     const route = useRoute();
+    const { places, getCityById } = useAppData();
 
     const cityId = route.params?.cityId;
-    const city = cities.find((item) => item.id === cityId);
+    const city = getCityById(cityId);
+    const matchesCity = (place) =>
+        place.cityId === cityId ||
+        String(place.cityId) === String(cityId) ||
+        place.legacyId === cityId;
 
-    const filteredPlaces = places.filter((place) => place.cityId === cityId);
-
-    const getImageSource = (image) => {
-        if (typeof image === 'string') {
-            return { uri: image };
-        }
-        return image;
-    };
+    const filteredPlaces = places.filter(matchesCity);
 
     const handlePlacePress = (place) => {
         navigation.navigate('PlaceDetails', {
@@ -66,9 +64,7 @@ export default function CityPlacesScreen() {
                     </View>
 
                     <Text style={styles.placeCategory}>
-                        {place.categoryId
-                            ? place.categoryId.charAt(0).toUpperCase() + place.categoryId.slice(1)
-                            : 'Place'}
+                        {getCategoryLabel(place.categoryId, place.categoryName)}
                     </Text>
 
                     <Text style={styles.placeDescription} numberOfLines={2}>

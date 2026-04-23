@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,38 +13,35 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
-import { cities } from '../data/cities';
+import { useAppData } from '../context/AppDataContext';
+import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 
 export default function SavedScreen() {
   const navigation = useNavigation();
-  const { currentUser, isLoggedIn, getSavedPlaces, removeSavedPlace } = useAuth();
+  const {
+    currentUser,
+    isLoggedIn,
+    getSavedPlaces,
+    getTrips,
+    removeSavedPlace,
+  } = useAuth();
+  const { getCityById, getPlaceById } = useAppData();
 
   const savedPlaces = getSavedPlaces() || [];
+  const trips = getTrips() || [];
+  const [selectedTab, setSelectedTab] = useState('places');
+
+  const activeTab = isLoggedIn ? selectedTab : 'places';
 
   const getCityName = (cityId) => {
-    return cities.find((city) => city.id === cityId)?.name || 'Unknown city';
+    return getCityById(cityId)?.name || 'Unknown city';
   };
 
-  const getCategoryLabel = (categoryId) => {
-    const categoryLabels = {
-      restaurants: 'Restaurant',
-      cafes: 'Café',
-      bars: 'Bar',
-      hotels: 'Hotel',
-      beaches: 'Beach',
-      historical: 'Historical Site',
-      hidden_gems: 'Hidden Gem',
-      hiddengems: 'Hidden Gem',
-      mosques: 'Mosque',
-      churches: 'Church',
-      museums: 'Museum',
-      bunkers: 'Bunker',
-      adventures: 'Adventure',
-      governmentservices: 'Government Service',
-    };
-
-    return categoryLabels[categoryId] || categoryId || 'Place';
-  };
+  const tripSummary = useMemo(
+    () =>
+      `${trips.length} ${trips.length === 1 ? 'planned trip' : 'planned trips'}`,
+    [trips]
+  );
 
   return (
     <View style={styles.screen}>
@@ -62,17 +59,93 @@ export default function SavedScreen() {
 
           <View style={styles.infoCard}>
             <Text style={styles.infoTitle}>
-              {isLoggedIn ? 'Your saved places' : 'Saved on this device'}
+              {isLoggedIn
+                ? activeTab === 'trips'
+                  ? 'Your planned trips'
+                  : 'Your saved places'
+                : 'Saved places on this device'}
             </Text>
 
             <Text style={styles.infoSubtitle}>
               {isLoggedIn
                 ? `You are logged in as @${currentUser?.username}.`
-                : 'You can save places without an account. Later you can sign up to sync them.'}
+                : 'Without an account you can still save places on this device.'}
             </Text>
           </View>
 
-          {savedPlaces.length === 0 ? (
+          {isLoggedIn ? (
+            <View style={styles.segmentedControl}>
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  activeTab === 'places' && styles.segmentButtonActive,
+                ]}
+                activeOpacity={0.88}
+                onPress={() => setSelectedTab('places')}
+              >
+                <Text
+                  style={[
+                    styles.segmentButtonText,
+                    activeTab === 'places' && styles.segmentButtonTextActive,
+                  ]}
+                >
+                  Places
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  activeTab === 'trips' && styles.segmentButtonActive,
+                ]}
+                activeOpacity={0.88}
+                onPress={() => setSelectedTab('trips')}
+              >
+                <Text
+                  style={[
+                    styles.segmentButtonText,
+                    activeTab === 'trips' && styles.segmentButtonTextActive,
+                  ]}
+                >
+                  Trips
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {activeTab === 'trips' ? (
+            trips.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Ionicons name="map-outline" size={54} color="#A1A1AA" />
+                <Text style={styles.emptyTitle}>No trips planned yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  {tripSummary}. Once you create a trip, it will appear here.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Planned trips</Text>
+
+                {trips.map((trip) => (
+                  <View key={trip.id} style={styles.tripCard}>
+                    <View style={styles.tripBadge}>
+                      <Ionicons name="airplane-outline" size={16} color={colors.primary} />
+                    </View>
+
+                    <View style={styles.tripContent}>
+                      <Text style={styles.tripTitle}>{trip.title}</Text>
+                      <Text style={styles.tripDescription} numberOfLines={2}>
+                        {trip.description || 'No description added yet.'}
+                      </Text>
+                      <Text style={styles.tripMeta}>
+                        {trip.start_date} - {trip.end_date}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )
+          ) : savedPlaces.length === 0 ? (
             <View style={styles.emptyCard}>
               <Ionicons name="bookmark-outline" size={54} color="#A1A1AA" />
               <Text style={styles.emptyTitle}>No saved places yet</Text>
@@ -84,7 +157,10 @@ export default function SavedScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Saved places</Text>
 
-              {savedPlaces.map((place) => (
+              {savedPlaces.map((savedPlace) => {
+                const place = getPlaceById(savedPlace.id) || savedPlace;
+
+                return (
                 <TouchableOpacity
                   key={place.id}
                   style={styles.placeCard}
@@ -96,13 +172,7 @@ export default function SavedScreen() {
                   }
                 >
                   <Image
-                    source={
-                      typeof place.image === 'string'
-                        ? { uri: place.image }
-                        : place.image
-                          ? place.image
-                          : { uri: 'https://placehold.co/600x400/E5E7EB/222222?text=No+Image' }
-                    }
+                    source={getImageSource(place.image)}
                     style={styles.placeImage}
                     resizeMode="cover"
                   />
@@ -113,7 +183,7 @@ export default function SavedScreen() {
                     </Text>
 
                     <Text style={styles.placeMeta} numberOfLines={1}>
-                      {getCategoryLabel(place.categoryId)} • {getCityName(place.cityId)}
+                      {getCategoryLabel(place.categoryId, place.categoryName)} • {getCityName(place.cityId)}
                     </Text>
 
                     {place.rating ? (
@@ -132,7 +202,7 @@ export default function SavedScreen() {
                     <Ionicons name="trash-outline" size={20} color="#d51e1e" />
                   </TouchableOpacity>
                 </TouchableOpacity>
-              ))}
+              )})}
             </View>
           )}
         </ScrollView>
@@ -194,6 +264,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: '#6B7280',
+  },
+
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 6,
+    marginBottom: 16,
+  },
+
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+
+  segmentButtonActive: {
+    backgroundColor: '#FDECEC',
+  },
+
+  segmentButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
+
+  segmentButtonTextActive: {
+    color: colors.primary,
   },
 
   emptyCard: {
@@ -294,5 +393,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F9FAFB',
+  },
+
+  tripCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+
+  tripBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#FDECEC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  tripContent: {
+    flex: 1,
+  },
+
+  tripTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#222222',
+  },
+
+  tripDescription: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#6B7280',
+  },
+
+  tripMeta: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });

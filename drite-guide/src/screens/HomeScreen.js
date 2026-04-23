@@ -8,30 +8,70 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  Keyboard,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import colors from '../theme/colors';
-import { places } from '../data/places';
-import { cities } from '../data/cities';
+import { useAppData } from '../context/AppDataContext';
+import { toAbsoluteAssetUrl } from '../config/api';
+import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
+import { api } from '../services/api';
 
 const { width: screenWidth } = Dimensions.get('window');
 const HERO_WIDTH = screenWidth - 40;
 const HERO_COUNT = 2;
 const VIDEO_HERO_INDEX = 1;
+const CATEGORY_PRIORITY = [
+  'restaurants',
+  'hotels',
+  'cafes',
+  'bars',
+  'beaches',
+  'historicalsites',
+  'hidden_gems',
+  'government_help',
+  'governmenthelp',
+  'governmentservices',
+];
+const CATEGORY_SUBTITLES = {
+  restaurants: 'Traditional and modern dining spots',
+  hotels: 'Stay close to the best destinations',
+  bars: 'Cocktails, music and nightlife vibes',
+  cafes: 'Coffee breaks and cozy corners',
+  beaches: 'Sunny coastlines and crystal water',
+  historical: 'Castles, ruins and heritage places',
+  historicalsites: 'Castles, ruins and heritage places',
+  hidden_gems: 'Lesser-known local favorites',
+  hiddengems: 'Lesser-known local favorites',
+  government_help: 'Banks, offices and public help points',
+  governmenthelp: 'Helpful public services and support',
+  mosques: 'Beautiful Islamic landmarks',
+  churches: 'Historic churches and sacred sites',
+  religious_sites: 'Mosques, churches and sacred places',
+  religioussites: 'Mosques, churches and sacred places',
+  clubs: 'Late-night venues and party spots',
+  museums: 'Culture, art and local history',
+  bunkers: 'Unique Cold War era locations',
+  adventures: 'Outdoor action and active escapes',
+  governmentservices: 'Useful public service locations',
+};
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const heroScrollRef = useRef(null);
+  const { categories, places, cities, errorMessage } = useAppData();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const [userSuggestions, setUserSuggestions] = useState([]);
+  const [userResults, setUserResults] = useState([]);
 
   const heroVideoPlayer = useVideoPlayer(
     require('../../assets/videos/albania-hero.mp4'),
@@ -71,111 +111,71 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [hasSearched]);
 
-  const categories = [
-    {
-      id: 'restaurants',
-      label: 'Restaurants',
-      subtitle: 'Top-rated places',
-      image: require('../../assets/catimg/restaurant.jpg'),
-    },
-    {
-      id: 'cafes',
-      label: 'Cafés',
-      subtitle: 'Relaxed spots',
-      image: require('../../assets/catimg/cafe.jpg'),
-    },
-    {
-      id: 'bars',
-      label: 'Bars',
-      subtitle: 'Drinks & nightlife',
-      image: require('../../assets/catimg/bars.jpg'),
-    },
-    {
-      id: 'hotels',
-      label: 'Hotels',
-      subtitle: 'Stay in comfort',
-      image: require('../../assets/catimg/hotels.jpg'),
-    },
-    {
-      id: 'beaches',
-      label: 'Beaches',
-      subtitle: 'Scenic views',
-      image: require('../../assets/catimg/beaches.jpg'),
-    },
-    {
-      id: 'mosques',
-      label: 'Religious Sites',
-      subtitle: 'Mosques, Churches etc.',
-      image: require('../../assets/catimg/religious.jpg'),
-    },
-    {
-      id: 'historical',
-      label: 'Historical Sites',
-      subtitle: 'Ancient places',
-      image: require('../../assets/catimg/historical.jpg'),
-    },
-    {
-      id: 'hiddengems',
-      label: 'Hidden Gems',
-      subtitle: 'Exclusive',
-      image: require('../../assets/catimg/hiddengems.jpg'),
-    },
-    {
-      id: 'museums',
-      label: 'Museums',
-      subtitle: 'History & Culture',
-      image: require('../../assets/catimg/museum.jpg'),
-    },
-    {
-      id: 'bunkers',
-      label: 'Bunkers',
-      subtitle: 'Find all Bunkers',
-      image: require('../../assets/catimg/bunkers.jpg'),
-    },
-    {
-      id: 'adventures',
-      label: 'Adventures',
-      subtitle: 'Out and About having Fun',
-      image: require('../../assets/catimg/adventures.jpg'),
-    },
-    {
-      id: 'governmentservices',
-      label: 'Government Services',
-      subtitle: 'Offices, Police, Embassies & more',
-      image: require('../../assets/catimg/governmentservices.jpg'),
-    },
-  ];
+  const normalizeCategoryKey = (value) =>
+    String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '');
+
+  const getCategoryKey = (category) => {
+    const candidates = [
+      category.legacyId,
+      category.id,
+      category.name,
+    ].map(normalizeCategoryKey);
+
+    const aliases = {
+      historical: 'historicalsites',
+      historicalsites: 'historicalsites',
+      hiddengems: 'hidden_gems',
+      religioussites: 'religious_sites',
+      government_help: 'government_help',
+      governmentservice: 'governmentservices',
+      governmentservices: 'governmentservices',
+      governmenthelp: 'governmenthelp',
+      mosques: 'religious_sites',
+      churches: 'religious_sites',
+    };
+
+    for (const candidate of candidates) {
+      if (CATEGORY_PRIORITY.includes(candidate)) {
+        return candidate;
+      }
+
+      if (aliases[candidate]) {
+        return aliases[candidate];
+      }
+    }
+
+    return candidates[0] || '';
+  };
+
+  const categoryCards = [...categories]
+    .sort((left, right) => {
+      const leftKey = getCategoryKey(left);
+      const rightKey = getCategoryKey(right);
+      const leftPriority = CATEGORY_PRIORITY.indexOf(leftKey);
+      const rightPriority = CATEGORY_PRIORITY.indexOf(rightKey);
+
+      if (leftPriority !== -1 || rightPriority !== -1) {
+        if (leftPriority === -1) return 1;
+        if (rightPriority === -1) return -1;
+        return leftPriority - rightPriority;
+      }
+
+      return String(left.name || '').localeCompare(String(right.name || ''));
+    })
+    .map((category) => ({
+      id: category.id,
+      label: category.name,
+      subtitle:
+        CATEGORY_SUBTITLES[getCategoryKey(category)] || 'Explore places in this category',
+      image: category.image,
+    }));
 
   const getCityName = (cityId) => {
     return cities.find((city) => city.id === cityId)?.name || 'Unknown City';
-  };
-
-  const getCategoryLabel = (categoryId) => {
-    const categoryLabels = {
-      restaurants: 'Restaurant',
-      cafes: 'Café',
-      bars: 'Bar',
-      hotels: 'Hotel',
-      beaches: 'Beach',
-      historical: 'Historical Site',
-      hidden_gems: 'Hidden Gem',
-      hiddengems: 'Hidden Gem',
-      mosques: 'Mosque',
-      churches: 'Church',
-      museums: 'Museum',
-      bunkers: 'Bunker',
-      adventures: 'Adventure',
-      governmentservices: 'Government Service',
-    };
-
-    return categoryLabels[categoryId] || categoryId;
-  };
-
-  const getImageSource = (image) => {
-    if (typeof image === 'string') {
-      return { uri: image };
-    }
-    return image;
   };
 
   const normalizeText = (text) => {
@@ -260,7 +260,7 @@ export default function HomeScreen() {
     return places
       .map((place) => {
         const cityName = getCityName(place.cityId);
-        const categoryLabel = getCategoryLabel(place.categoryId);
+        const categoryLabel = getCategoryLabel(place.categoryId, place.categoryName);
 
         const score = Math.max(
           getSimilarityScore(query, place.name),
@@ -283,7 +283,26 @@ export default function HomeScreen() {
       });
   };
 
-  const handleSearchInputChange = (text) => {
+  const searchUsers = async (query) => {
+    if (!query) {
+      setUserSuggestions([]);
+      return [];
+    }
+
+    try {
+      const response = await api.get('/users/search', {
+        params: { q: query },
+      });
+      const nextUsers = response.data || [];
+      setUserSuggestions(nextUsers.slice(0, 5));
+      return nextUsers;
+    } catch (error) {
+      setUserSuggestions([]);
+      return [];
+    }
+  };
+
+  const handleSearchInputChange = async (text) => {
     setSearchQuery(text);
     setHasSearched(false);
 
@@ -291,14 +310,16 @@ export default function HomeScreen() {
 
     if (!query) {
       setSuggestions([]);
+      setUserSuggestions([]);
       return;
     }
 
     const suggestionResults = buildSearchResults(query).slice(0, 5);
     setSuggestions(suggestionResults);
+    await searchUsers(query);
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     const query = normalizeText(searchQuery);
 
     if (!query) {
@@ -306,9 +327,12 @@ export default function HomeScreen() {
     }
 
     const filteredPlaces = buildSearchResults(query);
+    const filteredUsers = await searchUsers(query);
 
     setSearchResults(filteredPlaces);
+    setUserResults(filteredUsers);
     setSuggestions([]);
+    setUserSuggestions([]);
     setHasSearched(true);
     setSearchQuery('');
   };
@@ -325,7 +349,9 @@ export default function HomeScreen() {
 
   const clearSearchResults = () => {
     setSearchResults([]);
+    setUserResults([]);
     setSuggestions([]);
+    setUserSuggestions([]);
     setHasSearched(false);
     setSearchQuery('');
   };
@@ -345,6 +371,8 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onScrollBeginDrag={Keyboard.dismiss}
         >
           <View style={styles.headerRow}>
             <View style={styles.headerTextWrap}>
@@ -358,6 +386,12 @@ export default function HomeScreen() {
               resizeMode="cover"
             />
           </View>
+
+          {errorMessage ? (
+            <View style={styles.noResultsCard}>
+              <Text style={styles.noResultsText}>{errorMessage}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.searchWrapper}>
             <TextInput
@@ -379,15 +413,55 @@ export default function HomeScreen() {
           </View>
 
           {searchQuery.trim().length > 0 &&
-            suggestions.length > 0 &&
+            (suggestions.length > 0 || userSuggestions.length > 0) &&
             !hasSearched ? (
             <View style={styles.suggestionsBox}>
+              {userSuggestions.map((user, userIndex) => (
+                <TouchableOpacity
+                  key={`user-${user.id}`}
+                  style={[
+                    styles.suggestionItem,
+                    userIndex === userSuggestions.length - 1 &&
+                      suggestions.length === 0 &&
+                      styles.suggestionItemLast,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setSuggestions([]);
+                    setUserSuggestions([]);
+                    setSearchQuery('');
+                    navigation.navigate('Profile', {
+                      username: user.username,
+                      profile: user,
+                    });
+                  }}
+                >
+                  <View style={styles.userSuggestionAvatarWrap}>
+                    <Image
+                      source={{
+                        uri:
+                          toAbsoluteAssetUrl(user.profile_picture_path) ||
+                          'https://placehold.co/120x120/E5E7EB/222222?text=DG',
+                      }}
+                      style={styles.userSuggestionAvatar}
+                    />
+                  </View>
+                  <View style={styles.suggestionTextWrap}>
+                    <Text style={styles.suggestionTitle}>@{user.username}</Text>
+                    <Text style={styles.suggestionSubtitle}>
+                      {user.first_name} {user.last_name}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+
               {suggestions.map((item, index) => (
                 <TouchableOpacity
                   key={item.id}
                   style={[
                     styles.suggestionItem,
                     index === suggestions.length - 1 &&
+                    userSuggestions.length === 0 &&
                     styles.suggestionItemLast,
                   ]}
                   activeOpacity={0.85}
@@ -400,7 +474,7 @@ export default function HomeScreen() {
                   <View style={styles.suggestionTextWrap}>
                     <Text style={styles.suggestionTitle}>{item.name}</Text>
                     <Text style={styles.suggestionSubtitle}>
-                      {getCategoryLabel(item.categoryId)} •{' '}
+                      {getCategoryLabel(item.categoryId, item.categoryName)} •{' '}
                       {getCityName(item.cityId)}
                     </Text>
                   </View>
@@ -430,8 +504,44 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
 
-              {searchResults.length > 0 ? (
+              {userResults.length > 0 || searchResults.length > 0 ? (
                 <View>
+                  {userResults.length > 0 ? (
+                    <View style={styles.userResultsSection}>
+                      <Text style={styles.sectionTitleNoMargin}>Profiles</Text>
+                      {userResults.map((user) => (
+                        <TouchableOpacity
+                          key={`result-user-${user.id}`}
+                          style={styles.userResultCard}
+                          activeOpacity={0.85}
+                          onPress={() =>
+                            navigation.navigate('Profile', {
+                              username: user.username,
+                              profile: user,
+                            })
+                          }
+                        >
+                          <Image
+                            source={{
+                              uri:
+                                toAbsoluteAssetUrl(user.profile_picture_path) ||
+                                'https://placehold.co/120x120/E5E7EB/222222?text=DG',
+                            }}
+                            style={styles.userResultAvatar}
+                          />
+                          <View style={styles.userResultContent}>
+                            <Text style={styles.resultTitle}>
+                              {user.first_name} {user.last_name}
+                            </Text>
+                            <Text style={styles.resultSubtitle}>
+                              @{user.username} • {user.followers_count || 0} followers
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
+
                   {searchResults.map((place) => (
                     <TouchableOpacity
                       key={place.id}
@@ -454,7 +564,7 @@ export default function HomeScreen() {
                           <View style={styles.resultTextWrap}>
                             <Text style={styles.resultTitle}>{place.name}</Text>
                             <Text style={styles.resultSubtitle}>
-                              {getCategoryLabel(place.categoryId)} •{' '}
+                              {getCategoryLabel(place.categoryId, place.categoryName)} •{' '}
                               {getCityName(place.cityId)}
                             </Text>
                           </View>
@@ -538,7 +648,7 @@ export default function HomeScreen() {
                 <Text style={styles.sectionTitle}>Popular categories</Text>
 
                 <View style={styles.categoryGrid}>
-                  {categories.map((category) => (
+                  {categoryCards.map((category) => (
                     <TouchableOpacity
                       key={category.id}
                       style={styles.categoryCard}
@@ -546,7 +656,7 @@ export default function HomeScreen() {
                       onPress={() => handleCategoryPress(category)}
                     >
                       <Image
-                        source={category.image}
+                        source={getImageSource(category.image)}
                         style={styles.categoryImage}
                         resizeMode="cover"
                       />
@@ -683,6 +793,17 @@ const styles = StyleSheet.create({
   suggestionTextWrap: {
     flex: 1,
     marginRight: 12,
+  },
+
+  userSuggestionAvatarWrap: {
+    marginRight: 12,
+  },
+
+  userSuggestionAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#E5E7EB',
   },
 
   suggestionTitle: {
@@ -832,6 +953,36 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 14,
     elevation: 3,
+  },
+
+  userResultsSection: {
+    marginBottom: 16,
+  },
+
+  userResultCard: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    marginBottom: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+
+  userResultAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#E5E7EB',
+    marginRight: 14,
+  },
+
+  userResultContent: {
+    flex: 1,
   },
 
   resultImage: {

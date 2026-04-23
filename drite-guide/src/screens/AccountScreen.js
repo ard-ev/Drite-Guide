@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import {
     View,
     Text,
@@ -6,6 +8,9 @@ import {
     ScrollView,
     TouchableOpacity,
     Image,
+    Modal,
+    Pressable,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -16,13 +21,25 @@ import { useAuth } from '../context/AuthContext';
 
 export default function AccountScreen() {
     const navigation = useNavigation();
-    const { currentUser, isLoggedIn, logout } = useAuth();
+    const {
+        currentUser,
+        isLoggedIn,
+        logout,
+        getSavedPlaces,
+        getTrips,
+        uploadProfilePicture,
+        resetProfilePicture,
+        defaultProfilePicture,
+    } = useAuth();
+    const savedPlaces = getSavedPlaces() || [];
+    const trips = getTrips() || [];
+    const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
 
     const settingsSections = [
         {
             id: 'language',
             title: 'Language',
-            subtitle: 'English',
+            subtitle: currentUser?.preferred_language?.toUpperCase?.() || 'EN',
             icon: 'language-outline',
             screen: 'LanguageSettings',
         },
@@ -73,6 +90,85 @@ export default function AccountScreen() {
 
     const handleLogout = () => {
         logout();
+    };
+
+    const handlePickedAsset = async (asset) => {
+        const result = await uploadProfilePicture(asset);
+
+        if (!result.success) {
+            Alert.alert('Profile picture', result.message);
+            return;
+        }
+
+        setShowProfilePictureModal(false);
+    };
+
+    const handleResetProfilePicture = async () => {
+        const result = await resetProfilePicture();
+
+        if (!result.success) {
+            Alert.alert('Profile picture', result.message);
+            return;
+        }
+
+        setShowProfilePictureModal(false);
+    };
+
+    const pickFromLibrary = async () => {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+        if (!permission.granted) {
+            Alert.alert('Permission needed', 'Please allow photo library access.');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.85,
+        });
+
+        if (result.canceled || !result.assets?.[0]) {
+            return;
+        }
+
+        await handlePickedAsset(result.assets[0]);
+    };
+
+    const takePhoto = async () => {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+        if (!permission.granted) {
+            Alert.alert('Permission needed', 'Please allow camera access.');
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.85,
+        });
+
+        if (result.canceled || !result.assets?.[0]) {
+            return;
+        }
+
+        await handlePickedAsset(result.assets[0]);
+    };
+
+    const pickFromFiles = async () => {
+        const result = await DocumentPicker.getDocumentAsync({
+            type: ['image/jpeg', 'image/png', 'image/webp'],
+            multiple: false,
+            copyToCacheDirectory: true,
+        });
+
+        if (result.canceled || !result.assets?.[0]) {
+            return;
+        }
+
+        await handlePickedAsset(result.assets[0]);
     };
 
     const renderMenuItem = (item) => (
@@ -157,12 +253,25 @@ export default function AccountScreen() {
                         <>
                             <View style={styles.profileCard}>
                                 <Image
-                                    source={{ uri: 'https://i.pravatar.cc/160?img=12' }}
+                                    source={{
+                                        uri:
+                                            currentUser?.profile_picture_path ||
+                                            defaultProfilePicture,
+                                    }}
                                     style={styles.avatar}
                                 />
 
+                                <TouchableOpacity
+                                    style={styles.changePhotoButton}
+                                    activeOpacity={0.88}
+                                    onPress={() => setShowProfilePictureModal(true)}
+                                >
+                                    <Ionicons name="camera-outline" size={16} color={colors.primary} />
+                                    <Text style={styles.changePhotoButtonText}>Change photo</Text>
+                                </TouchableOpacity>
+
                                 <Text style={styles.profileName}>
-                                    {currentUser?.firstName} {currentUser?.lastName}
+                                    {currentUser?.first_name} {currentUser?.last_name}
                                 </Text>
 
                                 <Text style={styles.profileUsername}>
@@ -176,23 +285,21 @@ export default function AccountScreen() {
                                 <View style={styles.statsRow}>
                                     <View style={styles.statBox}>
                                         <Text style={styles.statValue}>
-                                            {currentUser?.savedPlaces?.length || 0}
+                                            {savedPlaces.length || 0}
                                         </Text>
                                         <Text style={styles.statLabel}>Saved</Text>
                                     </View>
 
                                     <View style={styles.statBox}>
-                                        <Text style={styles.statValue}>
-                                            {currentUser?.trips?.length || 0}
-                                        </Text>
+                                        <Text style={styles.statValue}>{trips.length}</Text>
                                         <Text style={styles.statLabel}>Trips</Text>
                                     </View>
 
                                     <View style={styles.statBox}>
                                         <Text style={styles.statValue}>
-                                            {currentUser?.visitedPlaces?.length || 0}
+                                            0
                                         </Text>
-                                        <Text style={styles.statLabel}>Visited</Text>
+                                        <Text style={styles.statLabel}>Followers</Text>
                                     </View>
                                 </View>
 
@@ -217,6 +324,60 @@ export default function AccountScreen() {
                         </>
                     )}
                 </ScrollView>
+
+                <Modal
+                    visible={showProfilePictureModal}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowProfilePictureModal(false)}
+                >
+                    <Pressable
+                        style={styles.modalBackdrop}
+                        onPress={() => setShowProfilePictureModal(false)}
+                    >
+                        <Pressable style={styles.modalCard} onPress={() => null}>
+                            <Text style={styles.modalTitle}>Choose profile picture</Text>
+                            <Text style={styles.modalSubtitle}>
+                                Add your own picture from your device.
+                            </Text>
+
+                            <TouchableOpacity
+                                style={styles.sourceButton}
+                                activeOpacity={0.88}
+                                onPress={pickFromLibrary}
+                            >
+                                <Ionicons name="images-outline" size={18} color={colors.primary} />
+                                <Text style={styles.sourceButtonText}>Choose from media library</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.sourceButton}
+                                activeOpacity={0.88}
+                                onPress={takePhoto}
+                            >
+                                <Ionicons name="camera-outline" size={18} color={colors.primary} />
+                                <Text style={styles.sourceButtonText}>Take photo with camera</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.sourceButton}
+                                activeOpacity={0.88}
+                                onPress={pickFromFiles}
+                            >
+                                <Ionicons name="document-outline" size={18} color={colors.primary} />
+                                <Text style={styles.sourceButtonText}>Choose from files</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.resetButton}
+                                activeOpacity={0.88}
+                                onPress={handleResetProfilePicture}
+                            >
+                                <Text style={styles.resetButtonText}>Use default picture</Text>
+                            </TouchableOpacity>
+                        </Pressable>
+                    </Pressable>
+                </Modal>
             </SafeAreaView>
         </View>
     );
@@ -349,6 +510,23 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
 
+    changePhotoButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FDECEC',
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginBottom: 12,
+        gap: 6,
+    },
+
+    changePhotoButtonText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: colors.primary,
+    },
+
     profileName: {
         fontSize: 22,
         fontWeight: '700',
@@ -470,5 +648,61 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#6B7280',
         lineHeight: 18,
+    },
+
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.28)',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+    },
+
+    modalCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 22,
+    },
+
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#222222',
+    },
+
+    modalSubtitle: {
+        marginTop: 6,
+        marginBottom: 18,
+        fontSize: 14,
+        lineHeight: 21,
+        color: '#6B7280',
+    },
+
+    sourceButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F9FAFB',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        marginBottom: 10,
+        gap: 10,
+    },
+
+    sourceButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#222222',
+    },
+
+    resetButton: {
+        marginTop: 8,
+        alignItems: 'center',
+        paddingVertical: 8,
+    },
+
+    resetButtonText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: colors.primary,
     },
 });

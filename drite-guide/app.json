@@ -28,6 +28,13 @@
     "plugins": [
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Drite Guide to access your photos so you can set a profile picture.",
+          "cameraPermission": "Allow Drite Guide to use your camera so you can take a profile picture."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
@@ -45,6 +52,9 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "apiBaseUrl": "http://192.168.1.110:8001/api/v1"
     }
   }
 }

@@ -10,6 +10,7 @@ import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import TermsConditionsScreen from '../screens/TermsConditionsScreen';
 import CookiePolicyScreen from '../screens/CookiePolicyScreen';
 import LegalNoticeScreen from '../screens/LegalNoticeScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -48,6 +49,7 @@ export default function AccountStackNavigator() {
                 name="LegalNotice"
                 component={LegalNoticeScreen}
             />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
         </Stack.Navigator>
     );
 }

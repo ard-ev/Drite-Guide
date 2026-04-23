@@ -36,6 +36,24 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Python backend
+__pycache__/
+*.py[cod]
+.venv/
+backend/.env
+backend/app/uploads/categories/*.jpg
+backend/app/uploads/categories/*.jpeg
+backend/app/uploads/categories/*.png
+backend/app/uploads/cities/*.jpg
+backend/app/uploads/cities/*.jpeg
+backend/app/uploads/cities/*.png
+backend/app/uploads/places/*.jpg
+backend/app/uploads/places/*.jpeg
+backend/app/uploads/places/*.png
+backend/app/uploads/profile_pictures/*.jpg
+backend/app/uploads/profile_pictures/*.jpeg
+backend/app/uploads/profile_pictures/*.png
+
 app-example
 
 # generated native folders

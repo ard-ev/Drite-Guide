@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import SplashScreenView from './src/screens/SplashScreen';
 import RootNavigator from './src/navigation/RootNavigator';
 import { AuthProvider } from './src/context/AuthContext';
+import { AppDataProvider } from './src/context/AppDataContext';
 
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
@@ -29,9 +30,11 @@ export default function App() {
   return (
     <View style={{ flex: 1 }}>
       <AuthProvider>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
+        <AppDataProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </AppDataProvider>
       </AuthProvider>
     </View>
   );

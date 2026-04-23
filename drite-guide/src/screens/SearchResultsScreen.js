@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,50 +13,35 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { places } from '../data/places';
-import { cities } from '../data/cities';
+
 import colors from '../theme/colors';
+import { useAppData } from '../context/AppDataContext';
+import { getCategoryLabel } from '../utils/placeMeta';
 
 export default function SearchResultsScreen({ route }) {
   const navigation = useNavigation();
+  const { places, cities } = useAppData();
   const initialQuery = route.params?.query || '';
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [showDropdown, setShowDropdown] = useState(initialQuery === '');
 
-  // Helper function to normalize text for matching (handles singular/plural)
   const normalizeForSearch = (text) => {
-    const normalized = text.toLowerCase().trim();
-    // Remove trailing 's' for plural matching
+    const normalized = String(text || '').toLowerCase().trim();
+
     if (normalized.endsWith('s')) {
       return [normalized, normalized.slice(0, -1)];
     }
-    // Add 's' for singular matching
-    return [normalized, normalized + 's'];
+
+    return [normalized, `${normalized}s`];
   };
 
   const textMatchesQuery = (text, query) => {
     const textVariants = normalizeForSearch(text);
     const queryVariants = normalizeForSearch(query);
-    
-    // Check if any variant of text matches any variant of query at the start
-    return textVariants.some(textVar =>
-      queryVariants.some(queryVar => textVar.startsWith(queryVar))
-    );
-  };
 
-  const getCategoryLabel = (categoryId) => {
-    const categoryLabels = {
-      restaurants: 'Restaurant',
-      cafes: 'Café',
-      bars: 'Bar',
-      hotels: 'Hotel',
-      beaches: 'Beach',
-      historical: 'Historical Site',
-      hidden_gems: 'Hidden Gem',
-      mosques: 'Mosque',
-      churches: 'Church',
-    };
-    return categoryLabels[categoryId] || categoryId;
+    return textVariants.some((textVar) =>
+      queryVariants.some((queryVar) => textVar.startsWith(queryVar))
+    );
   };
 
   const getCategoryEmoji = (categoryId) => {
@@ -71,10 +56,14 @@ export default function SearchResultsScreen({ route }) {
       mosques: '🕌',
       churches: '⛪',
     };
+
     return emojiMap[categoryId] || '📍';
   };
 
-  // Get suggestions for dropdown
+  const getCityName = (cityId) =>
+    cities.find((city) => city.id === cityId || city.legacyId === cityId)?.name ||
+    '';
+
   const suggestions = useMemo(() => {
     if (!searchQuery.trim()) {
       return [];
@@ -82,128 +71,117 @@ export default function SearchResultsScreen({ route }) {
 
     const query = searchQuery.toLowerCase().trim();
     const suggestionSet = new Map();
-
-    // Add matching cities
-    cities.forEach(city => {
-      if (city.name.toLowerCase().startsWith(query) || city.id.toLowerCase().startsWith(query)) {
-        suggestionSet.set(`city-${city.id}`, {
-          type: 'city',
-          id: city.id,
-          name: city.name,
-          label: city.name,
-          searchValue: city.name,
-        });
-      }
-    });
-
-    // Add matching places - prioritize exact category and name matches
     const categoryMatches = [];
     const nameMatches = [];
     const descriptionMatches = [];
 
-    places.forEach(place => {
-      const categoryLabel = getCategoryLabel(place.categoryId).toLowerCase();
-      const cityName = cities.find(c => c.id === place.cityId)?.name.toLowerCase() || '';
+    cities.forEach((city) => {
+      if (
+        city.name.toLowerCase().startsWith(query) ||
+        String(city.id).toLowerCase().startsWith(query)
+      ) {
+        suggestionSet.set(`city-${city.id}`, {
+          type: 'city',
+          id: city.id,
+          name: city.name,
+        });
+      }
+    });
 
-      // Check if it's a category search using normalized matching
+    places.forEach((place) => {
+      const categoryLabel = getCategoryLabel(
+        place.categoryId,
+        place.categoryName
+      ).toLowerCase();
+      const cityName = getCityName(place.cityId).toLowerCase();
+
       if (textMatchesQuery(categoryLabel, query)) {
         categoryMatches.push(place);
       } else if (place.name.toLowerCase().startsWith(query)) {
         nameMatches.push(place);
-      } else if (place.name.toLowerCase().includes(query) || cityName.includes(query)) {
+      } else if (
+        place.name.toLowerCase().includes(query) ||
+        cityName.includes(query)
+      ) {
         descriptionMatches.push(place);
       }
     });
 
-    // Sort categories by rating, then add to suggestions
-    categoryMatches.sort((a, b) => b.rating - a.rating);
-    categoryMatches.forEach(place => {
-      suggestionSet.set(`place-${place.id}`, {
-        type: 'place',
-        id: place.id,
-        name: place.name,
-        categoryId: place.categoryId,
-        rating: place.rating,
-        cityId: place.cityId,
-        description: place.description,
-      });
-    });
-
-    nameMatches.sort((a, b) => b.rating - a.rating);
-    nameMatches.forEach(place => {
-      suggestionSet.set(`place-${place.id}`, {
-        type: 'place',
-        id: place.id,
-        name: place.name,
-        categoryId: place.categoryId,
-        rating: place.rating,
-        cityId: place.cityId,
-        description: place.description,
-      });
-    });
-
-    descriptionMatches.sort((a, b) => b.rating - a.rating);
-    descriptionMatches.forEach(place => {
-      suggestionSet.set(`place-${place.id}`, {
-        type: 'place',
-        id: place.id,
-        name: place.name,
-        categoryId: place.categoryId,
-        rating: place.rating,
-        cityId: place.cityId,
-        description: place.description,
-      });
+    [categoryMatches, nameMatches, descriptionMatches].forEach((group) => {
+      group
+        .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
+        .forEach((place) => {
+          suggestionSet.set(`place-${place.id}`, {
+            type: 'place',
+            id: place.id,
+            name: place.name,
+            categoryId: place.categoryId,
+            categoryName: place.categoryName,
+            rating: place.rating,
+            cityId: place.cityId,
+            description: place.description,
+          });
+        });
     });
 
     return Array.from(suggestionSet.values()).slice(0, 15);
-  }, [searchQuery]);
+  }, [cities, places, searchQuery]);
 
-  // Get all results for scrollable display
   const allResults = useMemo(() => {
     if (!searchQuery.trim()) {
       return [];
     }
 
     const query = searchQuery.toLowerCase().trim();
-    
-    return places.filter(place => {
-      const categoryLabel = getCategoryLabel(place.categoryId).toLowerCase();
-      const cityName = cities.find(c => c.id === place.cityId)?.name.toLowerCase() || '';
-      
-      return (
-        textMatchesQuery(categoryLabel, query) ||
-        place.name.toLowerCase().includes(query) ||
-        place.description.toLowerCase().includes(query) ||
-        cityName.includes(query)
-      );
-    }).sort((a, b) => {
-      const categoryLabel = getCategoryLabel(a.categoryId).toLowerCase();
-      const queryVariants = normalizeForSearch(query);
-      
-      // Prioritize category matches
-      if (textMatchesQuery(categoryLabel, query) && !textMatchesQuery(getCategoryLabel(b.categoryId).toLowerCase(), query)) {
-        return -1;
-      }
-      if (!textMatchesQuery(categoryLabel, query) && textMatchesQuery(getCategoryLabel(b.categoryId).toLowerCase(), query)) {
-        return 1;
-      }
-      
-      // Then by rating
-      return b.rating - a.rating;
-    });
-  }, [searchQuery]);
+
+    return places
+      .filter((place) => {
+        const categoryLabel = getCategoryLabel(
+          place.categoryId,
+          place.categoryName
+        ).toLowerCase();
+        const cityName = getCityName(place.cityId).toLowerCase();
+
+        return (
+          textMatchesQuery(categoryLabel, query) ||
+          place.name.toLowerCase().includes(query) ||
+          String(place.description || '').toLowerCase().includes(query) ||
+          cityName.includes(query)
+        );
+      })
+      .sort((a, b) => {
+        const categoryLabelA = getCategoryLabel(
+          a.categoryId,
+          a.categoryName
+        ).toLowerCase();
+        const categoryLabelB = getCategoryLabel(
+          b.categoryId,
+          b.categoryName
+        ).toLowerCase();
+
+        if (
+          textMatchesQuery(categoryLabelA, query) &&
+          !textMatchesQuery(categoryLabelB, query)
+        ) {
+          return -1;
+        }
+
+        if (
+          !textMatchesQuery(categoryLabelA, query) &&
+          textMatchesQuery(categoryLabelB, query)
+        ) {
+          return 1;
+        }
+
+        return Number(b.rating || 0) - Number(a.rating || 0);
+      });
+  }, [places, searchQuery]);
 
   const handlePlacePress = (place) => {
     Keyboard.dismiss();
     navigation.navigate('PlaceDetails', {
       placeId: place.id,
     });
-  };
-
-  const handleCityPress = (city) => {
-    Keyboard.dismiss();
-    // Show all places in this city
-    setSearchQuery(city.name);
   };
 
   const renderSuggestionItem = ({ item }) => {
@@ -230,11 +208,11 @@ export default function SearchResultsScreen({ route }) {
       <TouchableOpacity
         style={styles.suggestionItem}
         activeOpacity={0.6}
-        onPress={() => {
-          handlePlacePress(item);
-        }}
+        onPress={() => handlePlacePress(item)}
       >
-        <Text style={styles.suggestionEmoji}>{getCategoryEmoji(item.categoryId)}</Text>
+        <Text style={styles.suggestionEmoji}>
+          {getCategoryEmoji(item.categoryId)}
+        </Text>
         <View style={styles.suggestionContent}>
           <Text style={styles.suggestionText}>{item.name}</Text>
           <View style={styles.suggestionMeta}>
@@ -243,7 +221,7 @@ export default function SearchResultsScreen({ route }) {
               <Text style={styles.ratingSmallText}>{item.rating}</Text>
             </View>
             <Text style={styles.suggestionSubtext}>
-              {getCategoryLabel(item.categoryId)}
+              {getCategoryLabel(item.categoryId, item.categoryName)}
             </Text>
           </View>
         </View>
@@ -260,10 +238,10 @@ export default function SearchResultsScreen({ route }) {
       <Text style={styles.resultEmoji}>{getCategoryEmoji(item.categoryId)}</Text>
       <View style={styles.resultContent}>
         <Text style={styles.resultName}>{item.name}</Text>
-        <Text style={styles.resultCategory}>{getCategoryLabel(item.categoryId)}</Text>
-        <Text style={styles.resultCity}>
-          {cities.find(c => c.id === item.cityId)?.name}
+        <Text style={styles.resultCategory}>
+          {getCategoryLabel(item.categoryId, item.categoryName)}
         </Text>
+        <Text style={styles.resultCity}>{getCityName(item.cityId)}</Text>
       </View>
       <View style={styles.resultRating}>
         <Ionicons name="star" size={16} color="#FCD34D" />
@@ -276,7 +254,6 @@ export default function SearchResultsScreen({ route }) {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -288,9 +265,13 @@ export default function SearchResultsScreen({ route }) {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Search Input */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
+        <Ionicons
+          name="search"
+          size={20}
+          color="#8E8E93"
+          style={styles.searchIcon}
+        />
         <TextInput
           style={styles.searchInput}
           placeholder="Search places, cities..."
@@ -307,7 +288,6 @@ export default function SearchResultsScreen({ route }) {
         ) : null}
       </View>
 
-      {/* Dropdown Suggestions - Only show when focused but no search query yet */}
       {showDropdown && !searchQuery.trim() && suggestions.length > 0 && (
         <View style={styles.dropdown}>
           <FlatList
@@ -320,25 +300,24 @@ export default function SearchResultsScreen({ route }) {
         </View>
       )}
 
-      {/* Search Results Section */}
       {searchQuery.trim() ? (
         <>
-          {/* Result Count */}
           {allResults.length > 0 && (
             <Text style={styles.resultsHeader}>
               {allResults.length} {allResults.length === 1 ? 'result' : 'results'}
             </Text>
           )}
 
-          {/* Scrollable Results List */}
           {allResults.length > 0 ? (
             <FlatList
               data={allResults}
               renderItem={renderResultItem}
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.resultsContent}
-              showsVerticalScrollIndicator={true}
+              showsVerticalScrollIndicator
               scrollIndicatorInsets={{ right: 1 }}
+              keyboardDismissMode="on-drag"
+              onScrollBeginDrag={Keyboard.dismiss}
             />
           ) : (
             <View style={styles.emptyState}>
@@ -351,14 +330,15 @@ export default function SearchResultsScreen({ route }) {
           )}
         </>
       ) : (
-        /* Default Suggestions (when search is empty) */
         <ScrollView
           style={styles.defaultSuggestionsContainer}
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+          onScrollBeginDrag={Keyboard.dismiss}
         >
           <Text style={styles.sectionTitle}>Popular Cities</Text>
           <View style={styles.citiesGrid}>
-            {cities.map(city => (
+            {cities.map((city) => (
               <TouchableOpacity
                 key={city.id}
                 style={styles.cityCard}
@@ -378,21 +358,21 @@ export default function SearchResultsScreen({ route }) {
             {[
               { id: 'beaches', label: 'Beaches', emoji: '🏖️' },
               { id: 'restaurants', label: 'Restaurants', emoji: '🍽️' },
-              { id: 'cafes', label: 'Cafés', emoji: '☕' },
+              { id: 'cafes', label: 'Cafes', emoji: '☕' },
               { id: 'bars', label: 'Bars', emoji: '🍸' },
               { id: 'hotels', label: 'Hotels', emoji: '🏨' },
               { id: 'historical', label: 'Historical', emoji: '📚' },
-            ].map(cat => (
+            ].map((category) => (
               <TouchableOpacity
-                key={cat.id}
+                key={category.id}
                 style={styles.categoryCard}
                 onPress={() => {
-                  setSearchQuery(cat.label);
+                  setSearchQuery(category.label);
                   setShowDropdown(false);
                 }}
               >
-                <Text style={styles.categoryCardEmoji}>{cat.emoji}</Text>
-                <Text style={styles.categoryCardText}>{cat.label}</Text>
+                <Text style={styles.categoryCardEmoji}>{category.emoji}</Text>
+                <Text style={styles.categoryCardText}>{category.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -514,17 +494,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#92400E',
-  },
-
-  noResultsContainer: {
-    paddingVertical: 40,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-
-  noResultsText: {
-    fontSize: 15,
-    color: '#D1D5DB',
   },
 
   defaultSuggestionsContainer: {

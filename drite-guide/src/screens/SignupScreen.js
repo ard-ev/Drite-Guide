@@ -31,8 +31,8 @@ export default function SignupScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const handleSignUp = () => {
-        const result = signup({
+    const handleSignUp = async () => {
+        const result = await signup({
             firstName,
             lastName,
             email,
@@ -48,7 +48,7 @@ export default function SignupScreen() {
 
         Alert.alert(
             'Account created',
-            `Welcome, ${result.user.firstName}! Your account has been created successfully.`,
+            result.message || `Welcome, ${result.user.first_name}! Your account has been created successfully.`,
             [
                 {
                     text: 'Continue',

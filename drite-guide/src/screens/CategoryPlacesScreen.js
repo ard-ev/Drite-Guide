@@ -11,51 +11,35 @@ import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { places } from '../data/places';
-import { cities } from '../data/cities';
 import colors from '../theme/colors';
+import { useAppData } from '../context/AppDataContext';
+import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 
 export default function CategoryPlacesScreen() {
     const navigation = useNavigation();
     const route = useRoute();
+    const { places, getCityById } = useAppData();
 
     const categoryId = route.params?.categoryId;
     const categoryLabel = route.params?.categoryLabel || 'Category';
+    const matchesCategory = (place) => {
+        if (categoryId === 'religious_sites') {
+            return ['religious_sites', 'mosques', 'churches'].includes(place.categoryId);
+        }
+
+        return (
+            place.categoryId === categoryId ||
+            String(place.categoryId) === String(categoryId) ||
+            place.legacyId === categoryId
+        );
+    };
 
     const getCityName = (cityId) => {
-        return cities.find((city) => city.id === cityId)?.name || 'Unknown City';
-    };
-
-    const getCategoryLabel = (id) => {
-        const categoryLabels = {
-            restaurants: 'Restaurant',
-            cafes: 'Café',
-            bars: 'Bar',
-            hotels: 'Hotel',
-            beaches: 'Beach',
-            historical: 'Historical Site',
-            hidden_gems: 'Hidden Gem',
-            hiddengems: 'Hidden Gem',
-            mosques: 'Mosque',
-            churches: 'Church',
-            museums: 'Museum',
-            bunkers: 'Bunker',
-            adventures: 'Adventure',
-            governmentservices: 'Government Service',
-        };
-
-        return categoryLabels[id] || id || 'Place';
-    };
-
-    const getImageSource = (image) => {
-        if (typeof image === 'string') {
-            return { uri: image };
-        }
-        return image;
+        return getCityById(cityId)?.name || 'Unknown City';
     };
 
     const filteredPlaces = places
-        .filter((place) => place.categoryId === categoryId)
+        .filter(matchesCategory)
         .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
 
     const handlePlacePress = (place) => {
@@ -110,7 +94,7 @@ export default function CategoryPlacesScreen() {
                                         </View>
 
                                         <Text style={styles.placeCategory}>
-                                            {getCategoryLabel(place.categoryId)} • {getCityName(place.cityId)}
+                                            {getCategoryLabel(place.categoryId, place.categoryName)} • {getCityName(place.cityId)}
                                         </Text>
 
                                         <Text style={styles.placeDescription} numberOfLines={2}>

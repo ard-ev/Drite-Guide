@@ -18,9 +18,9 @@ import { WebView } from 'react-native-webview';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 
-import { places } from '../data/places';
-import { cities } from '../data/cities';
 import colors from '../theme/colors';
+import { useAppData } from '../context/AppDataContext';
+import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 
 const FALLBACK_REGION = {
     latitude: 41.3275,
@@ -37,6 +37,7 @@ const ZOOM_LEVELS = {
 export default function ExploreScreen() {
     const navigation = useNavigation();
     const mapRef = useRef(null);
+    const { places, cities } = useAppData();
 
     const [showMapExpanded, setShowMapExpanded] = useState(false);
     const [userLocation, setUserLocation] = useState(null);
@@ -44,22 +45,6 @@ export default function ExploreScreen() {
     const [showPlacePreview, setShowPlacePreview] = useState(false);
     const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
     const [mapRegion, setMapRegion] = useState(FALLBACK_REGION);
-
-    const allowedCityIds = [
-        'tirana',
-        'durres',
-        'shkoder',
-        'vlore',
-        'ksamil',
-        'dhermi',
-        'lin',
-        'theth',
-        'gjirokaster',
-        'korca',
-        'berat',
-        'lezhe',
-        'kruja'
-    ];
 
     useEffect(() => {
         getUserLocation();
@@ -70,15 +55,7 @@ export default function ExploreScreen() {
             acc[city.id] = city;
             return acc;
         }, {});
-    }, []);
-
-    const formatCategory = (categoryId) => {
-        if (!categoryId) return 'Place';
-
-        return categoryId
-            .replace(/[-_]/g, ' ')
-            .replace(/\b\w/g, (char) => char.toUpperCase());
-    };
+    }, [cities]);
 
     const getUserLocation = async () => {
         try {
@@ -129,11 +106,14 @@ export default function ExploreScreen() {
     };
 
     const visibleCities = useMemo(() => {
-        return cities.filter((city) => allowedCityIds.includes(city.id));
-    }, []);
+        return cities;
+    }, [cities]);
+
+    const idsMatch = (left, right) =>
+        left === right || String(left) === String(right);
 
     const getPlacesCount = (cityId) => {
-        return places.filter((place) => place.cityId === cityId).length;
+        return places.filter((place) => idsMatch(place.cityId, cityId)).length;
     };
 
     const handleCityPress = (cityId) => {
@@ -174,7 +154,7 @@ export default function ExploreScreen() {
                 typeof place.latitude === 'number' &&
                 typeof place.longitude === 'number'
         );
-    }, []);
+    }, [places]);
 
     const nearbyPlaces = useMemo(() => {
         if (!userLocation) {
@@ -318,7 +298,7 @@ export default function ExploreScreen() {
                 onPress={() => handleCityPress(city.id)}
             >
                 <ImageBackground
-                    source={city.image}
+                    source={getImageSource(city.image)}
                     style={styles.cityImage}
                     imageStyle={styles.cityImageStyle}
                     resizeMode="cover"
@@ -379,9 +359,24 @@ export default function ExploreScreen() {
             maxZoom: 19
           }).addTo(map);
 
-          L.marker([41.3275, 19.8187]).addTo(map);
-          L.marker([41.323, 19.441]).addTo(map);
-          L.marker([40.15, 19.638]).addTo(map);
+          const markers = ${JSON.stringify(
+              placesWithCoordinates.slice(0, 80).map((place) => ({
+                  latitude: place.latitude,
+                  longitude: place.longitude,
+                  name: place.name,
+              }))
+          )};
+
+          markers.forEach((marker) => {
+            L.marker([marker.latitude, marker.longitude]).addTo(map);
+          });
+
+          if (markers.length > 0) {
+            const bounds = L.latLngBounds(
+              markers.map((marker) => [marker.latitude, marker.longitude])
+            );
+            map.fitBounds(bounds, { padding: [24, 24] });
+          }
         </script>
       </body>
     </html>
@@ -389,7 +384,7 @@ export default function ExploreScreen() {
 
     const selectedCity = selectedPlace ? cityMap[selectedPlace.cityId] : null;
     const selectedCategory = selectedPlace
-        ? formatCategory(selectedPlace.categoryId)
+        ? getCategoryLabel(selectedPlace.categoryId, selectedPlace.categoryName)
         : 'Place';
 
     return (
@@ -566,7 +561,7 @@ export default function ExploreScreen() {
 
                                         {selectedPlace.image && (
                                             <Image
-                                                source={selectedPlace.image}
+                                                source={getImageSource(selectedPlace.image)}
                                                 style={styles.placePreviewImage}
                                                 resizeMode="cover"
                                             />
