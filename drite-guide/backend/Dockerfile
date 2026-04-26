@@ -15,4 +15,6 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY . /app
 RUN sed -i 's/\r$//' /app/start.sh
 
+EXPOSE 8080
+
 CMD ["sh", "start.sh"]
