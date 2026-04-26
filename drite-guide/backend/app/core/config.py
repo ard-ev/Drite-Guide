@@ -2,7 +2,7 @@ from functools import lru_cache
 import logging
 from os import getenv
 from pathlib import Path
-from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -127,7 +127,8 @@ def build_database_url_from_pg_env() -> str | None:
     if not host or not password:
         return None
 
-    username = getenv("PGUSER") or getenv("POSTGRES_USER") or "postgres"
+    username = unquote(getenv("PGUSER") or getenv("POSTGRES_USER") or "postgres")
+    password = unquote(password)
     port = getenv("PGPORT") or getenv("POSTGRES_PORT") or "5432"
     database = (
         getenv("PGDATABASE")
@@ -137,7 +138,7 @@ def build_database_url_from_pg_env() -> str | None:
     )
 
     return (
-        f"postgresql://{quote(username)}:{quote(password)}"
+        f"postgresql://{quote(username, safe='')}:{quote(password, safe='')}"
         f"@{host}:{port}/{quote(database)}"
     )
 
