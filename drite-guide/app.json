@@ -54,7 +54,7 @@
       "reactCompiler": true
     },
     "extra": {
-      "apiBaseUrl": "https://drite-guide-production.up.railway.app/api/v1"
+      "apiBaseUrl": "https://drite-guide-api-production.up.railway.app/api/v1"
     }
   }
 }

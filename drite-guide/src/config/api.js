@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 
-const PRODUCTION_API_BASE_URL = 'https://drite-guide-production.up.railway.app/api/v1';
+const PRODUCTION_API_BASE_URL = 'https://drite-guide-api-production.up.railway.app/api/v1';
 
 const configuredBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl || PRODUCTION_API_BASE_URL;
 
