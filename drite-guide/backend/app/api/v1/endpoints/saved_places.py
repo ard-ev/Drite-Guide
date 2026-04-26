@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -70,5 +72,3 @@ async def delete_saved_place(place_id: UUID, db: DBSession, current_user: User =
     await db.delete(saved)
     await db.commit()
     return MessageResponse(message="Saved place removed.")
-from uuid import UUID
-
