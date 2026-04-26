@@ -50,16 +50,13 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def normalize_database_urls(self) -> "Settings":
         railway_database_url = (
-            getenv("DATABASE_URL")
-            or getenv("DATABASE_PRIVATE_URL")
+            getenv("DATABASE_PRIVATE_URL")
             or getenv("DATABASE_PUBLIC_URL")
             or getenv("POSTGRES_URL")
             or build_database_url_from_pg_env()
+            or getenv("DATABASE_URL")
         )
-        if (
-            self.DATABASE_URL == Settings.model_fields["DATABASE_URL"].default
-            and railway_database_url
-        ):
+        if railway_database_url:
             self.DATABASE_URL = railway_database_url
 
         self.DATABASE_URL = normalize_database_url(self.DATABASE_URL, "async")
