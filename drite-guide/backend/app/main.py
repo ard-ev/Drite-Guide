@@ -1,7 +1,9 @@
 from pathlib import Path
 import logging
+from os import getenv
 
 from fastapi import FastAPI
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -35,6 +37,18 @@ def create_application() -> FastAPI:
     app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        logger.warning("Incoming request: %s %s", request.method, request.url.path)
+        response = await call_next(request)
+        logger.warning(
+            "Finished request: %s %s -> %s",
+            request.method,
+            request.url.path,
+            response.status_code,
+        )
+        return response
+
     @app.get("/", tags=["health"])
     def root() -> dict[str, str]:
         return {"status": "ok", "service": settings.APP_NAME}
@@ -56,6 +70,16 @@ def create_application() -> FastAPI:
             logger.exception("Database healthcheck failed.")
             return {"status": "error", "detail": str(error)}
         return {"status": "ok"}
+
+    @app.get("/debug/runtime", tags=["health"])
+    def runtime_debug() -> dict[str, str | None]:
+        return {
+            "status": "ok",
+            "service": settings.APP_NAME,
+            "api_prefix": settings.API_V1_PREFIX,
+            "port": getenv("PORT"),
+            "database_host": settings.DATABASE_URL.split("@")[-1].split("/")[0],
+        }
 
     return app
 
