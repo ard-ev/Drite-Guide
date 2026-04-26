@@ -17,6 +17,11 @@ depends_on = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "user_follows" in inspector.get_table_names():
+        return
+
     op.create_table(
         "user_follows",
         sa.Column("follower_user_id", postgresql.UUID(as_uuid=True), nullable=False),
@@ -31,4 +36,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "user_follows" not in inspector.get_table_names():
+        return
+
     op.drop_table("user_follows")

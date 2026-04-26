@@ -1,11 +1,16 @@
 from functools import lru_cache
+import logging
+from os import getenv
 from pathlib import Path
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 from pydantic import Field
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -41,6 +46,70 @@ class Settings(BaseSettings):
     CATEGORY_UPLOADS_DIR: str = "categories"
 
     FRONTEND_BASE_URL: str = "http://localhost:8081"
+
+    @model_validator(mode="after")
+    def normalize_database_urls(self) -> "Settings":
+        railway_database_url = (
+            getenv("DATABASE_URL")
+            or getenv("DATABASE_PRIVATE_URL")
+            or getenv("DATABASE_PUBLIC_URL")
+            or getenv("POSTGRES_URL")
+            or build_database_url_from_pg_env()
+        )
+        if (
+            self.DATABASE_URL == Settings.model_fields["DATABASE_URL"].default
+            and railway_database_url
+        ):
+            self.DATABASE_URL = railway_database_url
+
+        self.DATABASE_URL = normalize_database_url(self.DATABASE_URL, "async")
+
+        if self.SYNC_DATABASE_URL == Settings.model_fields["SYNC_DATABASE_URL"].default:
+            self.SYNC_DATABASE_URL = self.DATABASE_URL
+
+        self.SYNC_DATABASE_URL = normalize_database_url(self.SYNC_DATABASE_URL, "sync")
+        logger.warning("Database configured for host: %s", safe_database_host(self.DATABASE_URL))
+
+        return self
+
+
+def safe_database_host(url: str) -> str:
+    split = urlsplit(url)
+    return split.hostname or "unknown"
+
+
+def normalize_database_url(url: str, mode: str) -> str:
+    split = urlsplit(url)
+    scheme = split.scheme
+    if scheme in {"postgres", "postgresql"}:
+        scheme = "postgresql+asyncpg" if mode == "async" else "postgresql+psycopg"
+    elif mode == "async" and scheme == "postgresql+psycopg":
+        scheme = "postgresql+asyncpg"
+    elif mode == "sync" and scheme == "postgresql+asyncpg":
+        scheme = "postgresql+psycopg"
+
+    query_items = [
+        (key, value)
+        for key, value in parse_qsl(split.query, keep_blank_values=True)
+        if key.lower() != "sslmode"
+    ]
+    query = urlencode(query_items)
+    return urlunsplit((scheme, split.netloc, split.path, query, split.fragment))
+
+
+def build_database_url_from_pg_env() -> str | None:
+    host = getenv("PGHOST") or getenv("POSTGRES_HOST")
+    password = getenv("PGPASSWORD") or getenv("POSTGRES_PASSWORD")
+    if not host or not password:
+        return None
+
+    username = getenv("PGUSER") or getenv("POSTGRES_USER") or "postgres"
+    port = getenv("PGPORT") or getenv("POSTGRES_PORT") or "5432"
+    database = getenv("PGDATABASE") or getenv("POSTGRES_DB") or getenv("POSTGRES_DATABASE") or "railway"
+    return (
+        f"postgresql://{quote(username)}:{quote(password)}"
+        f"@{host}:{port}/{quote(database)}"
+    )
 
 
 @lru_cache

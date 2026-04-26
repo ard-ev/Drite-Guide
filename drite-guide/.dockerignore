@@ -1,0 +1,9 @@
+node_modules
+.expo
+.git
+backend/.venv
+backend/.env
+**/__pycache__
+**/*.pyc
+dist
+web-build

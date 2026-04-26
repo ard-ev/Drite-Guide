@@ -1,14 +1,18 @@
 from pathlib import Path
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.api.router import api_router
 from app.core.config import settings
 from app.db.base import Base
 from app.db.init_db import ensure_upload_directories
 from app.db.session import engine
+
+logger = logging.getLogger(__name__)
 
 
 def create_application() -> FastAPI:
@@ -34,11 +38,32 @@ def create_application() -> FastAPI:
 
     @app.on_event("startup")
     async def ensure_database_tables() -> None:
-        async with engine.begin() as connection:
-            await connection.run_sync(Base.metadata.create_all)
+        try:
+            async with engine.begin() as connection:
+                await connection.run_sync(Base.metadata.create_all)
+        except Exception:
+            logger.exception("Database startup preparation failed.")
+
+    @app.get("/", tags=["health"])
+    def root() -> dict[str, str]:
+        return {"status": "ok", "service": settings.APP_NAME}
 
     @app.get("/health", tags=["health"])
     def healthcheck() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.get(f"{settings.API_V1_PREFIX}/health", tags=["health"])
+    def api_healthcheck() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.get("/health/db", tags=["health"])
+    async def database_healthcheck() -> dict[str, str]:
+        try:
+            async with engine.begin() as connection:
+                await connection.execute(text("SELECT 1"))
+        except Exception as error:
+            logger.exception("Database healthcheck failed.")
+            return {"status": "error", "detail": str(error)}
         return {"status": "ok"}
 
     return app
