@@ -8,7 +8,6 @@ from sqlalchemy import text
 
 from app.api.router import api_router
 from app.core.config import settings
-from app.db.base import Base
 from app.db.init_db import ensure_upload_directories
 from app.db.session import engine
 
@@ -35,14 +34,6 @@ def create_application() -> FastAPI:
     uploads_dir = Path(settings.UPLOAD_DIR)
     app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
-
-    @app.on_event("startup")
-    async def ensure_database_tables() -> None:
-        try:
-            async with engine.begin() as connection:
-                await connection.run_sync(Base.metadata.create_all)
-        except Exception:
-            logger.exception("Database startup preparation failed.")
 
     @app.get("/", tags=["health"])
     def root() -> dict[str, str]:
