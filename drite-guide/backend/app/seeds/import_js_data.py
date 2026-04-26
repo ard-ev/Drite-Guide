@@ -21,7 +21,12 @@ from app.seeds.seed_data import CATEGORY_IMAGE_MAP, CITY_METADATA, DEFAULT_ADMIN
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 PROJECT_ROOT = BASE_DIR.parent
-DATA_DIR = PROJECT_ROOT / "src" / "data"
+DATA_DIR_CANDIDATES = (
+    PROJECT_ROOT / "src" / "data",
+    BASE_DIR / "src" / "data",
+    BASE_DIR / "app" / "seeds" / "data",
+)
+DATA_DIR = next((path for path in DATA_DIR_CANDIDATES if path.exists()), DATA_DIR_CANDIDATES[-1])
 UPLOADS_ROOT = Path(settings.UPLOAD_DIR)
 
 
