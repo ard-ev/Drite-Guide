@@ -6,7 +6,12 @@ import React, {
   useState,
 } from 'react';
 
-import { api, extractApiErrorMessage, setAuthToken } from '../services/api';
+import {
+  api,
+  extractApiErrorMessage,
+  setApiLanguage,
+  setAuthToken,
+} from '../services/api';
 import { normalizePlace, normalizeUser } from '../services/transformers';
 import { safeGetItem, safeRemoveItem, safeSetItem } from '../utils/storage';
 
@@ -15,6 +20,16 @@ const AuthContext = createContext(null);
 const ACCESS_TOKEN_KEY = '@drite_guide_access_token';
 const REFRESH_TOKEN_KEY = '@drite_guide_refresh_token';
 const GUEST_SAVED_PLACES_KEY = '@drite_guide_guest_saved_places';
+const LANGUAGE_KEY = '@drite_guide_language';
+
+const FALLBACK_LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'sq', name: 'Albanian' },
+  { code: 'de', name: 'German' },
+  { code: 'es', name: 'Spanish' },
+  { code: 'it', name: 'Italian' },
+  { code: 'fr', name: 'French' },
+];
 
 const DEFAULT_PROFILE_PICTURE =
   'https://placehold.co/240x240/E5E7EB/222222?text=DG';
@@ -33,6 +48,8 @@ export function AuthProvider({ children }) {
   const [savedPlaces, setSavedPlaces] = useState([]);
   const [guestSavedPlaces, setGuestSavedPlaces] = useState([]);
   const [trips, setTrips] = useState([]);
+  const [languages, setLanguages] = useState(FALLBACK_LANGUAGES);
+  const [currentLanguage, setCurrentLanguageState] = useState('en');
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   const isLoggedIn = !!currentUser;
@@ -71,6 +88,28 @@ export function AuthProvider({ children }) {
 
   const setRefreshToken = (token) => {
     setRefreshTokenState(token);
+  };
+
+  const applyLanguage = async (languageCode) => {
+    const nextLanguage = languageCode || 'en';
+    setCurrentLanguageState(nextLanguage);
+    setApiLanguage(nextLanguage);
+    await safeSetItem(LANGUAGE_KEY, nextLanguage);
+  };
+
+  const loadLanguages = async () => {
+    try {
+      const response = await api.get('/languages');
+      const nextLanguages = Array.isArray(response.data) && response.data.length > 0
+        ? response.data
+        : FALLBACK_LANGUAGES;
+      setLanguages(nextLanguages);
+      return nextLanguages;
+    } catch (error) {
+      console.warn('Could not load languages:', error?.message);
+      setLanguages(FALLBACK_LANGUAGES);
+      return FALLBACK_LANGUAGES;
+    }
   };
 
   const loadGuestSavedPlaces = async () => {
@@ -128,10 +167,14 @@ export function AuthProvider({ children }) {
   const bootstrapAuth = async () => {
     try {
       await loadGuestSavedPlaces();
-      const [storedAccessToken, storedRefreshToken] = await Promise.all([
+      const [storedAccessToken, storedRefreshToken, storedLanguage] = await Promise.all([
         safeGetItem(ACCESS_TOKEN_KEY),
         safeGetItem(REFRESH_TOKEN_KEY),
+        safeGetItem(LANGUAGE_KEY),
       ]);
+
+      await applyLanguage(storedLanguage || 'en');
+      await loadLanguages();
 
       if (!storedAccessToken || !storedRefreshToken) {
         return;
@@ -142,8 +185,10 @@ export function AuthProvider({ children }) {
 
       try {
         const meResponse = await api.get('/users/me');
-        setCurrentUser(normalizeUser(meResponse.data));
-      } catch (error) {
+        const normalizedUser = normalizeUser(meResponse.data);
+        setCurrentUser(normalizedUser);
+        await applyLanguage(normalizedUser.preferred_language || storedLanguage || 'en');
+      } catch (_error) {
         const refreshResponse = await api.post('/auth/refresh', {
           refresh_token: storedRefreshToken,
         });
@@ -199,6 +244,7 @@ export function AuthProvider({ children }) {
         refreshToken: response.data.refresh_token,
         user: normalizeUser(response.data.user),
       });
+      await applyLanguage(response.data.user?.preferred_language || currentLanguage);
 
       return {
         success: true,
@@ -283,6 +329,37 @@ export function AuthProvider({ children }) {
 
   const getSavedPlaces = () => (currentUser ? savedPlaces : guestSavedPlaces);
   const getTrips = () => trips;
+
+  const updateLanguage = async (languageCode) => {
+    const supportedLanguage = languages.find((language) => language.code === languageCode);
+
+    if (!supportedLanguage) {
+      return {
+        success: false,
+        message: 'Language is not supported.',
+      };
+    }
+
+    try {
+      if (currentUser) {
+        const response = await api.patch('/users/me/language', {
+          preferred_language: languageCode,
+        });
+        setCurrentUser(normalizeUser(response.data));
+      }
+
+      await applyLanguage(languageCode);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: await extractApiErrorMessage(
+          error,
+          'Could not save language.'
+        ),
+      };
+    }
+  };
 
   const uploadProfilePicture = async (asset) => {
     if (!currentUser || !asset?.uri) {
@@ -414,6 +491,10 @@ export function AuthProvider({ children }) {
       removeSavedPlace,
       refreshSavedPlaces: loadSavedPlaces,
       refreshTrips: loadTrips,
+      languages,
+      currentLanguage,
+      updateLanguage,
+      refreshLanguages: loadLanguages,
       uploadProfilePicture,
       resetProfilePicture,
       profilePicturePresets: PROFILE_PICTURE_PRESETS,
@@ -428,6 +509,8 @@ export function AuthProvider({ children }) {
       savedPlaces,
       guestSavedPlaces,
       trips,
+      languages,
+      currentLanguage,
     ]
   );
 

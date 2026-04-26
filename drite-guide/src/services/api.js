@@ -6,11 +6,21 @@ export const api = axios.create({
   timeout: 15000,
 });
 
+let currentLanguage = 'en';
+
 api.interceptors.request.use((config) => {
   const nextConfig = { ...config };
   nextConfig.baseURL = ensureApiBaseUrl();
+  nextConfig.headers = {
+    ...nextConfig.headers,
+    'Accept-Language': currentLanguage,
+  };
   return nextConfig;
 });
+
+export function setApiLanguage(languageCode) {
+  currentLanguage = languageCode || 'en';
+}
 
 export function setAuthToken(token) {
   if (token) {
@@ -38,4 +48,3 @@ export async function extractApiErrorMessage(error, fallbackMessage) {
 
   return fallbackMessage;
 }
-
