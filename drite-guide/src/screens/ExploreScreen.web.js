@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -25,29 +25,48 @@ const FALLBACK_LOCATION = {
   longitude: 19.8187,
 };
 
-export default function ExploreScreen() {
+const CITY_PRIORITY = ['tirana', 'durres', 'vlore', 'gjirokaster'];
+
+const normalizeCityKey = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '');
+
+const getCitySortKey = (city) => normalizeCityKey(city.legacyId || city.id || city.name);
+
+const getCityPriority = (city) => {
+  const cityKeys = [city.legacyId, city.id, city.name, city.city_name].map(
+    normalizeCityKey
+  );
+
+  return CITY_PRIORITY.findIndex((priorityKey) =>
+    cityKeys.some((cityKey) => cityKey === priorityKey)
+  );
+};
+
+const getStableRandomScore = (city) => {
+  const key = getCitySortKey(city);
+  let hash = 0;
+
+  for (let index = 0; index < key.length; index += 1) {
+    hash = (hash * 31 + key.charCodeAt(index)) % 9973;
+  }
+
+  return hash;
+};
+
+export default function ExploreScreen({ route }) {
   const navigation = useNavigation();
+  const screenScrollRef = useRef(null);
 
   const [showMapExpanded, setShowMapExpanded] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [showPlacePreview, setShowPlacePreview] = useState(false);
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
-
-  const allowedCityIds = [
-    'tirana',
-    'durres',
-    'shkoder',
-    'vlore',
-    'ksamil',
-    'dhermi',
-    'lin',
-    'theth',
-    'gjirokaster',
-    'korca',
-    'berat',
-    'lezhe',
-  ];
+  const refreshKey = route?.params?.refreshKey;
 
   useEffect(() => {
     getUserLocation();
@@ -85,8 +104,8 @@ export default function ExploreScreen() {
       });
 
       setUserLocation({
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
       });
     } catch (error) {
       console.log('Error getting user location:', error);
@@ -94,8 +113,31 @@ export default function ExploreScreen() {
     }
   };
 
+  useEffect(() => {
+    if (!refreshKey) {
+      return;
+    }
+
+    setShowMapExpanded(false);
+    setSelectedPlace(null);
+    setShowPlacePreview(false);
+    screenScrollRef.current?.scrollTo({ y: 0, animated: false });
+    getUserLocation();
+  }, [refreshKey]);
+
   const visibleCities = useMemo(() => {
-    return cities.filter((city) => allowedCityIds.includes(city.id));
+    return [...cities].sort((left, right) => {
+      const leftPriority = getCityPriority(left);
+      const rightPriority = getCityPriority(right);
+
+      if (leftPriority !== -1 || rightPriority !== -1) {
+        if (leftPriority === -1) return 1;
+        if (rightPriority === -1) return -1;
+        return leftPriority - rightPriority;
+      }
+
+      return getStableRandomScore(left) - getStableRandomScore(right);
+    });
   }, []);
 
   const getPlacesCount = (cityId) => {
@@ -240,6 +282,7 @@ export default function ExploreScreen() {
         <StatusBar style="dark" />
 
         <ScrollView
+          ref={screenScrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >

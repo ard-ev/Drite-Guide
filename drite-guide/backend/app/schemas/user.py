@@ -32,6 +32,8 @@ class PublicUserProfileRead(ORMModel):
     saved_places_count: int
     trips_count: int
     followers_count: int = 0
+    following_count: int = 0
+    is_following: bool = False
 
 
 class UserUpdateRequest(BaseModel):

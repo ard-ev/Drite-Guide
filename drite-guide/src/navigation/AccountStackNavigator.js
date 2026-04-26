@@ -11,6 +11,7 @@ import TermsConditionsScreen from '../screens/TermsConditionsScreen';
 import CookiePolicyScreen from '../screens/CookiePolicyScreen';
 import LegalNoticeScreen from '../screens/LegalNoticeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import FollowersScreen from '../screens/FollowersScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -50,6 +51,8 @@ export default function AccountStackNavigator() {
                 component={LegalNoticeScreen}
             />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="FollowersList" component={FollowersScreen} />
+            <Stack.Screen name="FollowingList" component={FollowersScreen} />
         </Stack.Navigator>
     );
 }

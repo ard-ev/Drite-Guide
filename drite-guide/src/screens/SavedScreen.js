@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,9 @@ import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 
-export default function SavedScreen() {
+export default function SavedScreen({ route }) {
   const navigation = useNavigation();
+  const screenScrollRef = useRef(null);
   const {
     currentUser,
     isLoggedIn,
@@ -27,11 +28,32 @@ export default function SavedScreen() {
   } = useAuth();
   const { getCityById, getPlaceById } = useAppData();
 
-  const savedPlaces = getSavedPlaces() || [];
-  const trips = getTrips() || [];
-  const [selectedTab, setSelectedTab] = useState('places');
+  const savedPlaces = useMemo(() => getSavedPlaces() || [], [getSavedPlaces]);
+  const trips = useMemo(() => getTrips() || [], [getTrips]);
+  const [selectedTab, setSelectedTab] = useState(
+    route?.params?.initialTab === 'trips' ? 'trips' : 'places'
+  );
 
   const activeTab = isLoggedIn ? selectedTab : 'places';
+
+  useEffect(() => {
+    if (route?.params?.refreshKey && !route?.params?.initialTab) {
+      setSelectedTab('places');
+      screenScrollRef.current?.scrollTo({ y: 0, animated: false });
+      return;
+    }
+
+    if (route?.params?.initialTab === 'trips') {
+      setSelectedTab('trips');
+      screenScrollRef.current?.scrollTo({ y: 0, animated: false });
+      return;
+    }
+
+    if (route?.params?.initialTab === 'places') {
+      setSelectedTab('places');
+      screenScrollRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  }, [route?.params?.initialTab, route?.params?.refreshKey]);
 
   const getCityName = (cityId) => {
     return getCityById(cityId)?.name || 'Unknown city';
@@ -49,6 +71,7 @@ export default function SavedScreen() {
         <StatusBar style="dark" />
 
         <ScrollView
+          ref={screenScrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
         >

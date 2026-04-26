@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import HomeStackNavigator from './HomeStackNavigator';
@@ -9,6 +10,12 @@ import AccountStackNavigator from './AccountStackNavigator';
 import colors from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
+const TAB_ROOT_SCREENS = {
+  Home: 'HomeMain',
+  Explore: 'ExploreMain',
+  Saved: 'SavedMain',
+  Account: 'AccountMain',
+};
 
 export default function TabNavigator() {
   return (
@@ -53,10 +60,42 @@ export default function TabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeStackNavigator} />
-      <Tab.Screen name="Explore" component={ExploreStackNavigator} />
-      <Tab.Screen name="Saved" component={SavedStackNavigator} />
-      <Tab.Screen name="Account" component={AccountStackNavigator} />
+      {[
+        ['Home', HomeStackNavigator],
+        ['Explore', ExploreStackNavigator],
+        ['Saved', SavedStackNavigator],
+        ['Account', AccountStackNavigator],
+      ].map(([name, component]) => (
+        <Tab.Screen
+          key={name}
+          name={name}
+          component={component}
+          listeners={({ navigation }) => ({
+            tabPress: (event) => {
+              const state = navigation.getState();
+              const isFocused = state.routes[state.index]?.name === name;
+
+              if (!isFocused) {
+                return;
+              }
+
+              event.preventDefault();
+
+              navigation.dispatch(
+                CommonActions.navigate({
+                  name,
+                  params: {
+                    screen: TAB_ROOT_SCREENS[name],
+                    params: {
+                      refreshKey: Date.now(),
+                    },
+                  },
+                })
+              );
+            },
+          })}
+        />
+      ))}
     </Tab.Navigator>
   );
 }

@@ -8,11 +8,13 @@ from app.models.saved_place import SavedPlace
 from app.models.search_history import SearchHistory
 from app.models.trip import Trip, TripMember, TripPlace
 from app.models.user import User
+from app.models.user_follow import UserFollow
 
 __all__ = [
     "Base",
     "Language",
     "User",
+    "UserFollow",
     "Category",
     "CategoryTranslation",
     "City",
@@ -27,4 +29,3 @@ __all__ = [
     "Review",
     "SearchHistory",
 ]
-

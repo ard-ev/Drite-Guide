@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -19,8 +19,9 @@ import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 
-export default function AccountScreen() {
+export default function AccountScreen({ route }) {
     const navigation = useNavigation();
+    const screenScrollRef = useRef(null);
     const {
         currentUser,
         isLoggedIn,
@@ -34,6 +35,16 @@ export default function AccountScreen() {
     const savedPlaces = getSavedPlaces() || [];
     const trips = getTrips() || [];
     const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
+    const refreshKey = route?.params?.refreshKey;
+
+    useEffect(() => {
+        if (!refreshKey) {
+            return;
+        }
+
+        setShowProfilePictureModal(false);
+        screenScrollRef.current?.scrollTo({ y: 0, animated: false });
+    }, [refreshKey]);
 
     const settingsSections = [
         {
@@ -86,6 +97,23 @@ export default function AccountScreen() {
     const handlePress = (screen) => {
         if (!screen) return;
         navigation.navigate(screen);
+    };
+
+    const navigateToSavedTab = (initialTab) => {
+        const parentNavigation = navigation.getParent?.();
+        const targetNavigation = parentNavigation || navigation;
+
+        targetNavigation.navigate('Saved', {
+            screen: 'SavedMain',
+            params: { initialTab },
+        });
+    };
+
+    const openFollowers = () => {
+        navigation.navigate('FollowersList', {
+            username: currentUser?.username,
+            titleUsername: currentUser?.username,
+        });
     };
 
     const handleLogout = () => {
@@ -199,6 +227,7 @@ export default function AccountScreen() {
                 <StatusBar style="dark" />
 
                 <ScrollView
+                    ref={screenScrollRef}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.content}
                 >
@@ -283,24 +312,36 @@ export default function AccountScreen() {
                                 </Text>
 
                                 <View style={styles.statsRow}>
-                                    <View style={styles.statBox}>
+                                    <TouchableOpacity
+                                        style={styles.statBox}
+                                        activeOpacity={0.8}
+                                        onPress={() => navigateToSavedTab('places')}
+                                    >
                                         <Text style={styles.statValue}>
                                             {savedPlaces.length || 0}
                                         </Text>
                                         <Text style={styles.statLabel}>Saved</Text>
-                                    </View>
+                                    </TouchableOpacity>
 
-                                    <View style={styles.statBox}>
+                                    <TouchableOpacity
+                                        style={styles.statBox}
+                                        activeOpacity={0.8}
+                                        onPress={() => navigateToSavedTab('trips')}
+                                    >
                                         <Text style={styles.statValue}>{trips.length}</Text>
                                         <Text style={styles.statLabel}>Trips</Text>
-                                    </View>
+                                    </TouchableOpacity>
 
-                                    <View style={styles.statBox}>
+                                    <TouchableOpacity
+                                        style={styles.statBox}
+                                        activeOpacity={0.8}
+                                        onPress={openFollowers}
+                                    >
                                         <Text style={styles.statValue}>
                                             0
                                         </Text>
                                         <Text style={styles.statLabel}>Followers</Text>
-                                    </View>
+                                    </TouchableOpacity>
                                 </View>
 
                                 <TouchableOpacity

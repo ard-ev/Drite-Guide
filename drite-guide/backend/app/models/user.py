@@ -55,3 +55,15 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     reviews = relationship("Review", back_populates="user")
     created_places = relationship("Place", back_populates="created_by_user")
     search_history = relationship("SearchHistory", back_populates="user")
+    following_relationships = relationship(
+        "UserFollow",
+        back_populates="follower",
+        foreign_keys="UserFollow.follower_user_id",
+        cascade="all, delete-orphan",
+    )
+    follower_relationships = relationship(
+        "UserFollow",
+        back_populates="followed",
+        foreign_keys="UserFollow.followed_user_id",
+        cascade="all, delete-orphan",
+    )

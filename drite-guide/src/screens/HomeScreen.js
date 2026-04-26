@@ -9,6 +9,7 @@ import {
   Image,
   Dimensions,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -22,7 +23,7 @@ import { api } from '../services/api';
 
 const { width: screenWidth } = Dimensions.get('window');
 const HERO_WIDTH = screenWidth - 40;
-const HERO_COUNT = 2;
+const HERO_COUNT = 3;
 const VIDEO_HERO_INDEX = 1;
 const CATEGORY_PRIORITY = [
   'restaurants',
@@ -58,20 +59,27 @@ const CATEGORY_SUBTITLES = {
   adventures: 'Outdoor action and active escapes',
   governmentservices: 'Useful public service locations',
 };
+const HIDDEN_HOME_CATEGORY_KEYS = ['mosque', 'mosques', 'church', 'churches'];
 
-export default function HomeScreen() {
+export default function HomeScreen({ route }) {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
+  const screenScrollRef = useRef(null);
   const heroScrollRef = useRef(null);
   const { categories, places, cities, errorMessage } = useAppData();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
+  const [categorySuggestions, setCategorySuggestions] = useState([]);
+  const [citySuggestions, setCitySuggestions] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const [userSuggestions, setUserSuggestions] = useState([]);
   const [userResults, setUserResults] = useState([]);
+  const [categoryResults, setCategoryResults] = useState([]);
+  const [cityResults, setCityResults] = useState([]);
+  const refreshKey = route?.params?.refreshKey;
 
   const heroVideoPlayer = useVideoPlayer(
     require('../../assets/videos/albania-hero.mp4'),
@@ -151,7 +159,16 @@ export default function HomeScreen() {
     return candidates[0] || '';
   };
 
+  const isHiddenHomeCategory = (category) => {
+    const rawKeys = [category.legacyId, category.id, category.name].map(
+      normalizeCategoryKey
+    );
+
+    return rawKeys.some((key) => HIDDEN_HOME_CATEGORY_KEYS.includes(key));
+  };
+
   const categoryCards = [...categories]
+    .filter((category) => !isHiddenHomeCategory(category))
     .sort((left, right) => {
       const leftKey = getCategoryKey(left);
       const rightKey = getCategoryKey(right);
@@ -283,22 +300,83 @@ export default function HomeScreen() {
       });
   };
 
+  const buildCategorySearchResults = (query) => {
+    return categories
+      .map((category) => {
+        const score = Math.max(
+          getSimilarityScore(query, category.name),
+          getSimilarityScore(query, category.id),
+          getSimilarityScore(query, category.legacyId),
+          getSimilarityScore(query, getCategoryKey(category))
+        );
+
+        return {
+          ...category,
+          searchScore: score,
+        };
+      })
+      .filter((category) => category.searchScore > 0)
+      .sort((a, b) => {
+        if (b.searchScore !== a.searchScore) {
+          return b.searchScore - a.searchScore;
+        }
+
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+  };
+
+  const buildCitySearchResults = (query) => {
+    return cities
+      .map((city) => {
+        const score = Math.max(
+          getSimilarityScore(query, city.name),
+          getSimilarityScore(query, city.id),
+          getSimilarityScore(query, city.legacyId),
+          getSimilarityScore(query, city.location_text)
+        );
+
+        return {
+          ...city,
+          searchScore: score,
+        };
+      })
+      .filter((city) => city.searchScore > 0)
+      .sort((a, b) => {
+        if (b.searchScore !== a.searchScore) {
+          return b.searchScore - a.searchScore;
+        }
+
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      });
+  };
+
   const searchUsers = async (query) => {
-    if (!query) {
+    const userQuery = String(query || '').trim().replace(/^@+/, '');
+
+    if (!userQuery) {
       setUserSuggestions([]);
       return [];
     }
 
     try {
       const response = await api.get('/users/search', {
-        params: { q: query },
+        params: { q: userQuery },
       });
       const nextUsers = response.data || [];
       setUserSuggestions(nextUsers.slice(0, 5));
       return nextUsers;
-    } catch (error) {
-      setUserSuggestions([]);
-      return [];
+    } catch (_searchError) {
+      try {
+        const response = await api.get(
+          `/users/${encodeURIComponent(userQuery)}`
+        );
+        const fallbackUsers = response.data ? [response.data] : [];
+        setUserSuggestions(fallbackUsers);
+        return fallbackUsers;
+      } catch (_profileError) {
+        setUserSuggestions([]);
+        return [];
+      }
     }
   };
 
@@ -310,13 +388,19 @@ export default function HomeScreen() {
 
     if (!query) {
       setSuggestions([]);
+      setCategorySuggestions([]);
+      setCitySuggestions([]);
       setUserSuggestions([]);
       return;
     }
 
     const suggestionResults = buildSearchResults(query).slice(0, 5);
+    const nextCategorySuggestions = buildCategorySearchResults(query).slice(0, 4);
+    const nextCitySuggestions = buildCitySearchResults(query).slice(0, 4);
     setSuggestions(suggestionResults);
-    await searchUsers(query);
+    setCategorySuggestions(nextCategorySuggestions);
+    setCitySuggestions(nextCitySuggestions);
+    await searchUsers(text);
   };
 
   const handleSearch = async () => {
@@ -327,11 +411,17 @@ export default function HomeScreen() {
     }
 
     const filteredPlaces = buildSearchResults(query);
-    const filteredUsers = await searchUsers(query);
+    const filteredCategories = buildCategorySearchResults(query);
+    const filteredCities = buildCitySearchResults(query);
+    const filteredUsers = await searchUsers(searchQuery);
 
     setSearchResults(filteredPlaces);
+    setCategoryResults(filteredCategories);
+    setCityResults(filteredCities);
     setUserResults(filteredUsers);
     setSuggestions([]);
+    setCategorySuggestions([]);
+    setCitySuggestions([]);
     setUserSuggestions([]);
     setHasSearched(true);
     setSearchQuery('');
@@ -349,11 +439,82 @@ export default function HomeScreen() {
 
   const clearSearchResults = () => {
     setSearchResults([]);
+    setCategoryResults([]);
+    setCityResults([]);
     setUserResults([]);
     setSuggestions([]);
+    setCategorySuggestions([]);
+    setCitySuggestions([]);
     setUserSuggestions([]);
     setHasSearched(false);
     setSearchQuery('');
+  };
+
+  useEffect(() => {
+    if (!refreshKey) {
+      return;
+    }
+
+    setSearchResults([]);
+    setCategoryResults([]);
+    setCityResults([]);
+    setUserResults([]);
+    setSuggestions([]);
+    setCategorySuggestions([]);
+    setCitySuggestions([]);
+    setUserSuggestions([]);
+    setHasSearched(false);
+    setSearchQuery('');
+    setActiveHeroIndex(0);
+    screenScrollRef.current?.scrollTo({ y: 0, animated: false });
+    heroScrollRef.current?.scrollTo({ x: 0, animated: false });
+  }, [refreshKey]);
+
+  const clearSearchSuggestions = () => {
+    setSuggestions([]);
+    setCategorySuggestions([]);
+    setCitySuggestions([]);
+    setUserSuggestions([]);
+    setSearchQuery('');
+  };
+
+  const navigateToCategory = (category) => {
+    clearSearchSuggestions();
+    navigation.navigate('CategoryPlaces', {
+      categoryId: category.id,
+      categoryLabel: category.name,
+    });
+  };
+
+  const navigateToCity = (city) => {
+    clearSearchSuggestions();
+    navigation.navigate('CityPlaces', {
+      cityId: city.id,
+    });
+  };
+
+  const navigateToProfile = (user) => {
+    clearSearchSuggestions();
+    navigation.navigate('Profile', {
+      username: user.username,
+      profile: user,
+    });
+  };
+
+  const navigateToPlace = (place) => {
+    clearSearchSuggestions();
+    navigation.navigate('PlaceDetails', { placeId: place.id });
+  };
+
+  const handlePartnerContactPress = () => {
+    const subject = encodeURIComponent('Business partnership with Drite Guide');
+    const body = encodeURIComponent(
+      'Hi Drite Guide,\n\nI would like to become a business partner.\n\nBusiness name:\nLocation:\nWhat we offer:\nContact person:\nPhone:\n\nThank you!'
+    );
+
+    Linking.openURL(
+      `mailto:driteguide@gmail.com?subject=${subject}&body=${body}`
+    );
   };
 
   const handleHeroScrollEnd = (event) => {
@@ -368,6 +529,7 @@ export default function HomeScreen() {
         <StatusBar style="dark" />
 
         <ScrollView
+          ref={screenScrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
@@ -396,7 +558,7 @@ export default function HomeScreen() {
           <View style={styles.searchWrapper}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search Cities, Restaurants, Cafés, Bars..."
+              placeholder="Search places, categories, cities, accounts..."
               placeholderTextColor="#8E8E93"
               value={searchQuery}
               onChangeText={handleSearchInputChange}
@@ -413,9 +575,50 @@ export default function HomeScreen() {
           </View>
 
           {searchQuery.trim().length > 0 &&
-            (suggestions.length > 0 || userSuggestions.length > 0) &&
+            (citySuggestions.length > 0 ||
+              categorySuggestions.length > 0 ||
+              userSuggestions.length > 0 ||
+              suggestions.length > 0) &&
             !hasSearched ? (
             <View style={styles.suggestionsBox}>
+              {citySuggestions.map((city) => (
+                <TouchableOpacity
+                  key={`city-${city.id}`}
+                  style={styles.suggestionItem}
+                  activeOpacity={0.85}
+                  onPress={() => navigateToCity(city)}
+                >
+                  <Image
+                    source={getImageSource(city.heroImage || city.image)}
+                    style={styles.suggestionThumb}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.suggestionTextWrap}>
+                    <Text style={styles.suggestionTitle}>{city.name}</Text>
+                    <Text style={styles.suggestionSubtitle}>City</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+
+              {categorySuggestions.map((category) => (
+                <TouchableOpacity
+                  key={`category-${category.id}`}
+                  style={styles.suggestionItem}
+                  activeOpacity={0.85}
+                  onPress={() => navigateToCategory(category)}
+                >
+                  <Image
+                    source={getImageSource(category.image)}
+                    style={styles.suggestionThumb}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.suggestionTextWrap}>
+                    <Text style={styles.suggestionTitle}>{category.name}</Text>
+                    <Text style={styles.suggestionSubtitle}>Category</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+
               {userSuggestions.map((user, userIndex) => (
                 <TouchableOpacity
                   key={`user-${user.id}`}
@@ -426,15 +629,7 @@ export default function HomeScreen() {
                       styles.suggestionItemLast,
                   ]}
                   activeOpacity={0.85}
-                  onPress={() => {
-                    setSuggestions([]);
-                    setUserSuggestions([]);
-                    setSearchQuery('');
-                    navigation.navigate('Profile', {
-                      username: user.username,
-                      profile: user,
-                    });
-                  }}
+                  onPress={() => navigateToProfile(user)}
                 >
                   <View style={styles.userSuggestionAvatarWrap}>
                     <Image
@@ -465,11 +660,7 @@ export default function HomeScreen() {
                     styles.suggestionItemLast,
                   ]}
                   activeOpacity={0.85}
-                  onPress={() => {
-                    setSuggestions([]);
-                    setSearchQuery('');
-                    navigation.navigate('PlaceDetails', { placeId: item.id });
-                  }}
+                  onPress={() => navigateToPlace(item)}
                 >
                   <View style={styles.suggestionTextWrap}>
                     <Text style={styles.suggestionTitle}>{item.name}</Text>
@@ -504,22 +695,70 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
 
-              {userResults.length > 0 || searchResults.length > 0 ? (
+              {cityResults.length > 0 ||
+                categoryResults.length > 0 ||
+                userResults.length > 0 ||
+                searchResults.length > 0 ? (
                 <View>
+                  {cityResults.length > 0 ? (
+                    <View style={styles.searchGroup}>
+                      <Text style={styles.searchGroupTitle}>Cities</Text>
+                      {cityResults.map((city) => (
+                        <TouchableOpacity
+                          key={`result-city-${city.id}`}
+                          style={styles.resultCard}
+                          activeOpacity={0.85}
+                          onPress={() => navigateToCity(city)}
+                        >
+                          <Image
+                            source={getImageSource(city.heroImage || city.image)}
+                            style={styles.resultImage}
+                            resizeMode="cover"
+                          />
+
+                          <View style={styles.resultContent}>
+                            <Text style={styles.resultTitle}>{city.name}</Text>
+                            <Text style={styles.resultSubtitle}>City</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  {categoryResults.length > 0 ? (
+                    <View style={styles.searchGroup}>
+                      <Text style={styles.searchGroupTitle}>Categories</Text>
+                      {categoryResults.map((category) => (
+                        <TouchableOpacity
+                          key={`result-category-${category.id}`}
+                          style={styles.resultCard}
+                          activeOpacity={0.85}
+                          onPress={() => navigateToCategory(category)}
+                        >
+                          <Image
+                            source={getImageSource(category.image)}
+                            style={styles.resultImage}
+                            resizeMode="cover"
+                          />
+
+                          <View style={styles.resultContent}>
+                            <Text style={styles.resultTitle}>{category.name}</Text>
+                            <Text style={styles.resultSubtitle}>Category</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
+
                   {userResults.length > 0 ? (
-                    <View style={styles.userResultsSection}>
-                      <Text style={styles.sectionTitleNoMargin}>Profiles</Text>
+                    <View style={styles.searchGroup}>
+                      <Text style={styles.searchGroupTitle}>Profiles</Text>
                       {userResults.map((user) => (
                         <TouchableOpacity
                           key={`result-user-${user.id}`}
                           style={styles.userResultCard}
                           activeOpacity={0.85}
-                          onPress={() =>
-                            navigation.navigate('Profile', {
-                              username: user.username,
-                              profile: user,
-                            })
-                          }
+                          onPress={() => navigateToProfile(user)}
                         >
                           <Image
                             source={{
@@ -542,16 +781,16 @@ export default function HomeScreen() {
                     </View>
                   ) : null}
 
+                  {searchResults.length > 0 ? (
+                    <Text style={styles.searchGroupTitle}>Places</Text>
+                  ) : null}
+
                   {searchResults.map((place) => (
                     <TouchableOpacity
                       key={place.id}
                       style={styles.resultCard}
                       activeOpacity={0.85}
-                      onPress={() =>
-                        navigation.navigate('PlaceDetails', {
-                          placeId: place.id,
-                        })
-                      }
+                      onPress={() => navigateToPlace(place)}
                     >
                       <Image
                         source={getImageSource(place.image)}
@@ -627,11 +866,42 @@ export default function HomeScreen() {
                         surfaceType="textureView"
                       />
                     </View>
+
+                    <View style={styles.partnerHeroCard}>
+                      <View style={styles.partnerHeroGlowOne} />
+                      <View style={styles.partnerHeroGlowTwo} />
+
+                      <View style={styles.partnerHeroTopRow}>
+                        <Text style={styles.partnerHeroEyebrow}>For businesses</Text>
+                        <View style={styles.partnerHeroBadge}>
+                          <Text style={styles.partnerHeroBadgeText}>Partner up</Text>
+                        </View>
+                      </View>
+
+                      <Text style={styles.partnerHeroTitle}>
+                        Put your spot where Albania is looking
+                      </Text>
+                      <Text style={styles.partnerHeroText}>
+                        Hotels, cafés, tours and local gems can team up with
+                        Dritë Guide and get discovered by curious travelers.
+                      </Text>
+
+                      <TouchableOpacity
+                        style={styles.partnerHeroFooter}
+                        activeOpacity={0.86}
+                        onPress={handlePartnerContactPress}
+                      >
+                        <Text style={styles.partnerHeroFooterText}>Tell us what you do</Text>
+                        <View style={styles.partnerHeroArrow}>
+                          <Text style={styles.partnerHeroArrowText}>→</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
                   </ScrollView>
                 </View>
 
                 <View style={styles.pagination}>
-                  {[0, 1].map((index) => (
+                  {Array.from({ length: HERO_COUNT }).map((_, index) => (
                     <View
                       key={index}
                       style={[
@@ -806,6 +1076,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
 
+  suggestionThumb: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    marginRight: 12,
+    backgroundColor: '#E5E7EB',
+  },
+
   suggestionTitle: {
     fontSize: 15,
     fontWeight: '600',
@@ -870,6 +1148,119 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: '#000',
+  },
+
+  partnerHeroCard: {
+    width: HERO_WIDTH,
+    height: 190,
+    borderRadius: 24,
+    padding: 18,
+    overflow: 'hidden',
+    backgroundColor: '#101418',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+
+  partnerHeroGlowOne: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    right: -54,
+    top: -62,
+    backgroundColor: 'rgba(214, 40, 40, 0.82)',
+  },
+
+  partnerHeroGlowTwo: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    left: -62,
+    bottom: -64,
+    backgroundColor: 'rgba(255, 184, 77, 0.34)',
+  },
+
+  partnerHeroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+
+  partnerHeroEyebrow: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFD166',
+  },
+
+  partnerHeroBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  partnerHeroBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.white,
+  },
+
+  partnerHeroTitle: {
+    maxWidth: '88%',
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.white,
+    lineHeight: 27,
+    marginBottom: 8,
+  },
+
+  partnerHeroText: {
+    maxWidth: '92%',
+    fontSize: 12,
+    lineHeight: 18,
+    color: 'rgba(255, 255, 255, 0.82)',
+  },
+
+  partnerHeroFooter: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.white,
+    borderRadius: 999,
+    paddingLeft: 14,
+    paddingRight: 6,
+    paddingVertical: 6,
+  },
+
+  partnerHeroFooterText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#101418',
+    marginRight: 10,
+  },
+
+  partnerHeroArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  partnerHeroArrowText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.white,
+    lineHeight: 18,
   },
 
   heroEyebrow: {
@@ -957,6 +1348,17 @@ const styles = StyleSheet.create({
 
   userResultsSection: {
     marginBottom: 16,
+  },
+
+  searchGroup: {
+    marginBottom: 16,
+  },
+
+  searchGroupTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#222222',
+    marginBottom: 10,
   },
 
   userResultCard: {
