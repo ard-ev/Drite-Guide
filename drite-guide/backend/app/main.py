@@ -41,6 +41,9 @@ def create_application() -> FastAPI:
 
     @app.on_event("startup")
     async def prepare_database_after_start() -> None:
+        if getenv("SKIP_BACKGROUND_DB_PREP") == "1":
+            return
+
         async def run_prepare_database() -> None:
             try:
                 await asyncio.to_thread(prepare_database)

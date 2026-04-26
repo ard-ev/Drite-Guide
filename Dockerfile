@@ -19,5 +19,6 @@ RUN sed -i 's/\r$//' /app/backend/start.sh
 WORKDIR /app/backend
 
 EXPOSE 8000
+EXPOSE 8080
 
 CMD ["sh", "start.sh"]

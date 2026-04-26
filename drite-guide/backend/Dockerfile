@@ -16,5 +16,6 @@ COPY . /app
 RUN sed -i 's/\r$//' /app/start.sh
 
 EXPOSE 8000
+EXPOSE 8080
 
 CMD ["sh", "start.sh"]
