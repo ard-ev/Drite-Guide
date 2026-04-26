@@ -1,0 +1,10 @@
+package-lock.json
+drite-guide/node_modules
+drite-guide/.expo
+.git
+drite-guide/backend/.venv
+drite-guide/backend/.env
+**/__pycache__
+**/*.pyc
+drite-guide/dist
+drite-guide/web-build
