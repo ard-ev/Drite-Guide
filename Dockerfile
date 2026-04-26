@@ -14,7 +14,6 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 COPY drite-guide/backend /app/backend
 COPY drite-guide/src/data /app/src/data
-COPY drite-guide/assets /app/assets
 RUN sed -i 's/\r$//' /app/backend/start.sh
 
 WORKDIR /app/backend

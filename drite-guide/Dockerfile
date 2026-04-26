@@ -14,7 +14,6 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 COPY backend /app/backend
 COPY src/data /app/src/data
-COPY assets /app/assets
 RUN sed -i 's/\r$//' /app/backend/start.sh
 
 WORKDIR /app/backend
