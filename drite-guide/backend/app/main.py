@@ -1,4 +1,5 @@
 from pathlib import Path
+import asyncio
 import logging
 from os import getenv
 
@@ -10,6 +11,7 @@ from sqlalchemy import text
 
 from app.api.router import api_router
 from app.core.config import settings
+from app.db.prepare_railway import main as prepare_database
 from app.db.init_db import ensure_upload_directories
 from app.db.session import engine
 
@@ -36,6 +38,16 @@ def create_application() -> FastAPI:
     uploads_dir = Path(settings.UPLOAD_DIR)
     app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+    @app.on_event("startup")
+    async def prepare_database_after_start() -> None:
+        async def run_prepare_database() -> None:
+            try:
+                await asyncio.to_thread(prepare_database)
+            except Exception:
+                logger.exception("Background database preparation failed.")
+
+        asyncio.create_task(run_prepare_database())
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
