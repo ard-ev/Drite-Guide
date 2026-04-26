@@ -45,7 +45,8 @@ class Settings(BaseSettings):
     CITY_UPLOADS_DIR: str = "cities"
     CATEGORY_UPLOADS_DIR: str = "categories"
 
-    FRONTEND_BASE_URL: str = "http://localhost:8081"
+    FRONTEND_BASE_URL: str = "https://drite-guide-production.up.railway.app" \
+    ""
 
     @model_validator(mode="after")
     def normalize_database_urls(self) -> "Settings":
