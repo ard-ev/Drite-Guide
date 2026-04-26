@@ -50,11 +50,11 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def normalize_database_urls(self) -> "Settings":
         database_url = (
-            getenv("DATABASE_URL")
-            or getenv("DATABASE_PUBLIC_URL")
+            build_database_url_from_pg_env()
             or getenv("DATABASE_PRIVATE_URL")
+            or getenv("DATABASE_PUBLIC_URL")
             or getenv("POSTGRES_URL")
-            or build_database_url_from_pg_env()
+            or getenv("DATABASE_URL")
         )
 
         if database_url:
@@ -66,12 +66,12 @@ class Settings(BaseSettings):
         self.DATABASE_URL = normalize_database_url(self.DATABASE_URL, "async")
 
         sync_database_url = (
-            getenv("SYNC_DATABASE_URL")
-            or getenv("DATABASE_URL")
-            or getenv("DATABASE_PUBLIC_URL")
+            build_database_url_from_pg_env()
             or getenv("DATABASE_PRIVATE_URL")
+            or getenv("DATABASE_PUBLIC_URL")
             or getenv("POSTGRES_URL")
-            or build_database_url_from_pg_env()
+            or getenv("SYNC_DATABASE_URL")
+            or getenv("DATABASE_URL")
         )
 
         if sync_database_url:

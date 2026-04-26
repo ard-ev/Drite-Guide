@@ -1,16 +1,29 @@
 import Constants from 'expo-constants';
 
-const configuredBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl;
+const PRODUCTION_API_BASE_URL = 'https://drite-guide-production.up.railway.app/api/v1';
 
-export const API_BASE_URL =
-  configuredBaseUrl && configuredBaseUrl !== 'https://drite-guide-production.up.railway.app'
-    ? configuredBaseUrl
-    : null;
+const configuredBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl || PRODUCTION_API_BASE_URL;
+
+function normalizeApiBaseUrl(url) {
+  if (!url || typeof url !== 'string') {
+    return PRODUCTION_API_BASE_URL;
+  }
+
+  const trimmedUrl = url.trim().replace(/\/$/, '');
+
+  if (trimmedUrl.endsWith('/api/v1')) {
+    return trimmedUrl;
+  }
+
+  return `${trimmedUrl}/api/v1`;
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(configuredBaseUrl);
 
 export function ensureApiBaseUrl() {
   if (!API_BASE_URL) {
     throw new Error(
-      'Set expo.extra.apiBaseUrl in app.json to your computer IP, for example https://drite-guide-production.up.railway.app'
+      `Set expo.extra.apiBaseUrl in app.json, for example ${PRODUCTION_API_BASE_URL}`
     );
   }
 
@@ -34,4 +47,3 @@ export function toAbsoluteAssetUrl(path) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${normalizedPath}`;
 }
-
