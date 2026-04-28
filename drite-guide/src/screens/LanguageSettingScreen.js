@@ -14,72 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme/colors';
-
-const COPY = {
-  en: {
-    title: 'Language',
-    heroTitle: 'Choose your language',
-    heroSubtitle: 'Select the language you want to use in the app.',
-    save: 'Save language',
-    saved: 'Language saved',
-    savedMessage: 'Your language preference has been updated.',
-    ok: 'OK',
-  },
-  de: {
-    title: 'Sprache',
-    heroTitle: 'Waehle deine Sprache',
-    heroSubtitle: 'Waehle die Sprache, die du in der App verwenden moechtest.',
-    save: 'Sprache speichern',
-    saved: 'Sprache gespeichert',
-    savedMessage: 'Deine Spracheinstellung wurde aktualisiert.',
-    ok: 'OK',
-  },
-  sq: {
-    title: 'Gjuha',
-    heroTitle: 'Zgjidh gjuhen',
-    heroSubtitle: 'Zgjidh gjuhen qe deshiron te perdoresh ne aplikacion.',
-    save: 'Ruaj gjuhen',
-    saved: 'Gjuha u ruajt',
-    savedMessage: 'Preferenca jote e gjuhes u perditesua.',
-    ok: 'OK',
-  },
-  es: {
-    title: 'Idioma',
-    heroTitle: 'Elige tu idioma',
-    heroSubtitle: 'Selecciona el idioma que quieres usar en la app.',
-    save: 'Guardar idioma',
-    saved: 'Idioma guardado',
-    savedMessage: 'Tu preferencia de idioma se ha actualizado.',
-    ok: 'OK',
-  },
-  it: {
-    title: 'Lingua',
-    heroTitle: 'Scegli la lingua',
-    heroSubtitle: "Seleziona la lingua che vuoi usare nell'app.",
-    save: 'Salva lingua',
-    saved: 'Lingua salvata',
-    savedMessage: 'La tua preferenza della lingua e stata aggiornata.',
-    ok: 'OK',
-  },
-  fr: {
-    title: 'Langue',
-    heroTitle: 'Choisis ta langue',
-    heroSubtitle: "Selectionne la langue que tu veux utiliser dans l'app.",
-    save: 'Enregistrer la langue',
-    saved: 'Langue enregistree',
-    savedMessage: 'Ta preference de langue a ete mise a jour.',
-    ok: 'OK',
-  },
-};
-
-const LANGUAGE_META = {
-  en: { title: 'English', subtitle: 'App interface in English' },
-  de: { title: 'Deutsch', subtitle: 'App-Oberflaeche auf Deutsch' },
-  sq: { title: 'Shqip', subtitle: 'Nderfaqja e aplikacionit ne shqip' },
-  es: { title: 'Espanol', subtitle: 'Interfaz de la app en espanol' },
-  it: { title: 'Italiano', subtitle: "Interfaccia dell'app in italiano" },
-  fr: { title: 'Francais', subtitle: "Interface de l'app en francais" },
-};
+import { translate } from '../i18n/translations';
 
 export default function LanguageSettingScreen() {
   const navigation = useNavigation();
@@ -93,7 +28,7 @@ export default function LanguageSettingScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const didLoadLanguages = useRef(false);
 
-  const copy = COPY[selectedLanguage] || COPY.en;
+  const copy = (key, params) => translate(selectedLanguage, key, params);
 
   useEffect(() => {
     if (didLoadLanguages.current) {
@@ -111,17 +46,30 @@ export default function LanguageSettingScreen() {
   const languageOptions = useMemo(
     () =>
       languages.map((language) => {
-        const meta = LANGUAGE_META[language.code] || {
-          title: language.name,
-          subtitle: language.name,
-        };
+        const optionTitle = translate(
+          selectedLanguage,
+          `language.options.${language.code}.title`
+        );
+        const optionSubtitle = translate(
+          selectedLanguage,
+          `language.options.${language.code}.subtitle`
+        );
+        const meta = optionTitle.startsWith('language.options.')
+          ? {
+              title: language.name,
+              subtitle: language.name,
+            }
+          : {
+              title: optionTitle,
+              subtitle: optionSubtitle,
+            };
 
         return {
           id: language.code,
           ...meta,
         };
       }),
-    [languages]
+    [languages, selectedLanguage]
   );
 
   const handleSaveLanguage = async () => {
@@ -130,12 +78,12 @@ export default function LanguageSettingScreen() {
     setIsSaving(false);
 
     if (!result.success) {
-      Alert.alert(copy.title, result.message);
+      Alert.alert(copy('language.title'), result.message);
       return;
     }
 
-    Alert.alert(copy.saved, copy.savedMessage, [
-      { text: copy.ok, onPress: () => navigation.goBack() },
+    Alert.alert(copy('language.saved'), copy('language.savedMessage'), [
+      { text: copy('common.ok'), onPress: () => navigation.goBack() },
     ]);
   };
 
@@ -157,15 +105,15 @@ export default function LanguageSettingScreen() {
               <Ionicons name="chevron-back" size={22} color="#222222" />
             </TouchableOpacity>
 
-            <Text style={styles.title}>{copy.title}</Text>
+            <Text style={styles.title}>{copy('language.title')}</Text>
 
             <View style={styles.headerSpacer} />
           </View>
 
           <View style={styles.heroCard}>
             <Ionicons name="language-outline" size={42} color={colors.primary} />
-            <Text style={styles.heroTitle}>{copy.heroTitle}</Text>
-            <Text style={styles.heroSubtitle}>{copy.heroSubtitle}</Text>
+            <Text style={styles.heroTitle}>{copy('language.heroTitle')}</Text>
+            <Text style={styles.heroSubtitle}>{copy('language.heroSubtitle')}</Text>
           </View>
 
           <View style={styles.section}>
@@ -206,7 +154,7 @@ export default function LanguageSettingScreen() {
             disabled={isSaving}
             onPress={handleSaveLanguage}
           >
-            <Text style={styles.saveButtonText}>{copy.save}</Text>
+            <Text style={styles.saveButtonText}>{copy('language.save')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>

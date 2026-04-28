@@ -17,6 +17,7 @@ import colors from '../theme/colors';
 import { toAbsoluteAssetUrl } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { api, extractApiErrorMessage } from '../services/api';
+import { useTranslation } from '../context/TranslationContext';
 
 const DEFAULT_PROFILE_PICTURE =
   'https://placehold.co/240x240/E5E7EB/222222?text=DG';
@@ -31,11 +32,13 @@ export default function FollowersScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { currentUser, isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const listType =
     route.params?.listType || (route.name === 'FollowingList' ? 'following' : 'followers');
   const username = normalizeUsername(route.params?.username || '');
   const titleUsername = normalizeUsername(route.params?.titleUsername || username);
-  const pageTitle = listType === 'following' ? 'Following' : 'Followers';
+  const pageTitle =
+    listType === 'following' ? t('common.following') : t('common.followers');
 
   const [followers, setFollowers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +47,7 @@ export default function FollowersScreen() {
 
   const loadFollowers = useCallback(async () => {
     if (!username) {
-      setErrorMessage('Followers could not be loaded.');
+      setErrorMessage(t('profile.followersLoadError', { type: pageTitle }));
       setIsLoading(false);
       return;
     }
@@ -58,12 +61,15 @@ export default function FollowersScreen() {
       setErrorMessage('');
     } catch (error) {
       setErrorMessage(
-        await extractApiErrorMessage(error, `${pageTitle} could not be loaded.`)
+        await extractApiErrorMessage(
+          error,
+          t('profile.followersLoadError', { type: pageTitle })
+        )
       );
     } finally {
       setIsLoading(false);
     }
-  }, [listType, pageTitle, username]);
+  }, [listType, pageTitle, t, username]);
 
   useEffect(() => {
     loadFollowers();
@@ -125,7 +131,7 @@ export default function FollowersScreen() {
     } catch (error) {
       setFollowers(previousFollowers);
       setErrorMessage(
-        await extractApiErrorMessage(error, 'Could not update follow status.')
+        await extractApiErrorMessage(error, t('profile.followError'))
       );
     } finally {
       setUpdatingUsername('');
@@ -183,8 +189,8 @@ export default function FollowersScreen() {
               {updatingUsername === targetUsername
                 ? '...'
                 : user.is_following
-                  ? 'Following'
-                  : 'Follow'}
+                  ? t('common.following')
+                  : t('common.follow')}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -221,7 +227,9 @@ export default function FollowersScreen() {
           {isLoading ? (
             <View style={styles.emptyState}>
               <ActivityIndicator color={colors.primary} />
-              <Text style={styles.helperText}>Loading {pageTitle.toLowerCase()}...</Text>
+              <Text style={styles.helperText}>
+                {t('profile.loadingList', { type: pageTitle.toLowerCase() })}
+              </Text>
             </View>
           ) : errorMessage ? (
             <View style={styles.emptyState}>
@@ -231,9 +239,11 @@ export default function FollowersScreen() {
             followers.map(renderFollower)
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No {pageTitle.toLowerCase()} yet</Text>
+              <Text style={styles.emptyTitle}>
+                {t('profile.noFollowersTitle', { type: pageTitle.toLowerCase() })}
+              </Text>
               <Text style={styles.helperText}>
-                {pageTitle} will appear here once this profile has any.
+                {t('profile.noFollowersText', { type: pageTitle })}
               </Text>
             </View>
           )}

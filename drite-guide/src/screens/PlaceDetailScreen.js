@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -16,24 +16,40 @@ import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
+import { useTranslation } from '../context/TranslationContext';
+import AddToTripModal from '../components/AddToTripModal';
+
+const normalizeUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) return null;
+  if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+    return trimmedUrl;
+  }
+  return `https://${trimmedUrl}`;
+};
 
 export default function PlaceDetailScreen({ route }) {
-  const { placeId } = route.params || {};
-  const { getSavedPlaces, savePlace, removeSavedPlace } = useAuth();
+  const routeParams = route.params || {};
+  const placeId = routeParams.placeId || routeParams.id || routeParams.place?.id;
+  const { getSavedPlaces, savePlace, removeSavedPlace, isLoggedIn } =
+    useAuth();
   const { getPlaceById, getCityById } = useAppData();
+  const { t, language } = useTranslation();
+  const [tripModalVisible, setTripModalVisible] = useState(false);
 
-  const place = getPlaceById(placeId);
+  const place = routeParams.place || getPlaceById(placeId);
   const savedPlaces = getSavedPlaces() || [];
-  const isSaved = savedPlaces.some((item) => item.id === placeId);
+  const isSaved = savedPlaces.some((item) => String(item.id) === String(placeId));
 
   if (!place) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar style="dark" />
         <View style={styles.notFound}>
-          <Text style={styles.notFoundTitle}>Place not found</Text>
+          <Text style={styles.notFoundTitle}>{t('placeDetail.notFoundTitle')}</Text>
           <Text style={styles.notFoundText}>
-            The selected place could not be loaded.
+            {t('placeDetail.notFoundText')}
           </Text>
         </View>
       </SafeAreaView>
@@ -49,36 +65,64 @@ export default function PlaceDetailScreen({ route }) {
         ? [place.image]
         : ['https://placehold.co/1200x800/E5E7EB/222222?text=No+Image'];
 
-  const phoneNumber = place.phone || 'n/A';
-  const address = place.address || `${city?.name || 'Albania'} Center`;
-  const latitude = place.latitude ?? null;
-  const longitude = place.longitude ?? null;
+  const phoneNumber = place.phone || t('common.nA');
+  const address =
+    place.address ||
+    t('placeDetail.albaniaCenter', { city: city?.name || 'Albania' });
 
   const handleCall = async () => {
     const url = `tel:${phoneNumber}`;
     const supported = await Linking.canOpenURL(url);
 
     if (!supported) {
-      Alert.alert('Call unavailable', 'This device cannot open the phone dialer.');
+      Alert.alert(t('placeDetail.callUnavailableTitle'), t('placeDetail.callUnavailableText'));
       return;
     }
 
     Linking.openURL(url);
   };
 
-  
+  const handleOpenWebsite = async () => {
+    const normalizedUrl = normalizeUrl(place.website);
+
+    if (!normalizedUrl) {
+      Alert.alert('Website unavailable', 'This website could not be opened.');
+      return;
+    }
+
+    const supported = await Linking.canOpenURL(normalizedUrl);
+
+    if (!supported) {
+      Alert.alert('Website unavailable', 'This website could not be opened.');
+      return;
+    }
+
+    await Linking.openURL(normalizedUrl);
+  };
+
+  const handleAddToTrip = () => {
+    if (!isLoggedIn) {
+      Alert.alert(
+        'Sign in required',
+        'Create an account or sign in to add places to trips.'
+      );
+      return;
+    }
+
+    setTripModalVisible(true);
+  };
 
   const handleNavigate = async () => {
     try {
       if (!place?.google_maps_link) {
-        Alert.alert('Kein Link', 'Für diesen Ort ist kein Kartenlink hinterlegt.');
+        Alert.alert(t('placeDetail.noMapLinkTitle'), t('placeDetail.noMapLinkText'));
         return;
       }
 
       await Linking.openURL(place.google_maps_link);
     } catch (error) {
       console.log('Navigation error:', error);
-      Alert.alert('Fehler', 'Karte konnte nicht geöffnet werden.');
+      Alert.alert(t('placeDetail.mapErrorTitle'), t('placeDetail.mapErrorText'));
     }
   };
 
@@ -98,7 +142,7 @@ export default function PlaceDetailScreen({ route }) {
 
         <View style={styles.header}>
           <View style={styles.headerSpacer} />
-          <Text style={styles.headerTitle}>Details</Text>
+          <Text style={styles.headerTitle}>{t('common.details')}</Text>
 
           <TouchableOpacity
             style={styles.iconButton}
@@ -140,7 +184,7 @@ export default function PlaceDetailScreen({ route }) {
             <View style={styles.categoryBadge}>
               <Ionicons name="pricetag-outline" size={16} color={colors.primary} />
               <Text style={styles.categoryLabel}>
-                {getCategoryLabel(place.categoryId, place.categoryName)}
+                {getCategoryLabel(place.categoryId, place.categoryName, language)}
               </Text>
             </View>
 
@@ -157,7 +201,7 @@ export default function PlaceDetailScreen({ route }) {
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <Ionicons name="location-outline" size={16} color={colors.primary} />
-              <Text style={styles.metaText}>{city?.name || 'Unknown City'}</Text>
+              <Text style={styles.metaText}>{city?.name || t('common.unknownCityTitle')}</Text>
             </View>
 
             <View style={styles.metaDot} />
@@ -171,22 +215,22 @@ export default function PlaceDetailScreen({ route }) {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Description</Text>
+            <Text style={styles.cardTitle}>{t('common.description')}</Text>
             <Text style={styles.description}>
-              {place.description || 'No description available for this place yet.'}
+              {place.description || t('common.noDescriptionPlace')}
             </Text>
           </View>
 
           <View style={styles.infoGrid}>
             <View style={[styles.infoCard, { marginRight: 8 }]}>
               <Ionicons name="star-outline" size={22} color={colors.primary} />
-              <Text style={styles.infoLabel}>Rating</Text>
-              <Text style={styles.infoValue}>{place.rating || 'N/A'}</Text>
+              <Text style={styles.infoLabel}>{t('common.rating')}</Text>
+              <Text style={styles.infoValue}>{place.rating || t('common.nA')}</Text>
             </View>
 
             <View style={[styles.infoCard, { marginLeft: 8 }]}>
               <Ionicons name="call-outline" size={22} color={colors.primary} />
-              <Text style={styles.infoLabel}>Phone</Text>
+              <Text style={styles.infoLabel}>{t('common.phone')}</Text>
               <Text style={styles.infoValue} numberOfLines={1}>
                 {phoneNumber}
               </Text>
@@ -195,24 +239,47 @@ export default function PlaceDetailScreen({ route }) {
 
           <View style={styles.actionButtons}>
             <TouchableOpacity
-              style={[styles.button, styles.primaryButton]}
-              onPress={handleCall}
-              activeOpacity={0.88}
-            >
-              <Ionicons name="call" size={20} color="#FFFFFF" />
-              <Text style={styles.buttonText}>Call</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.secondaryButton]}
+              style={[styles.actionButton, styles.secondaryActionButton]}
               onPress={handleNavigate}
               activeOpacity={0.88}
             >
               <Ionicons name="navigate" size={20} color={colors.primary} />
-              <Text style={styles.secondaryButtonText}>Navigate</Text>
+              <Text style={styles.actionButtonText}>{t('common.navigate')}</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.primaryActionButton]}
+              onPress={handleCall}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="call" size={20} color="#FFFFFF" />
+              <Text style={styles.primaryActionButtonText}>{t('common.call')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleAddToTrip}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="calendar-outline" size={22} color={colors.primary} />
+              <Text style={styles.actionButtonText}>{t('placeDetail.addToTrip')}</Text>
+            </TouchableOpacity>
+
+            {place.website ? (
+              <TouchableOpacity style={styles.actionButton} onPress={handleOpenWebsite}>
+                <Ionicons name="globe-outline" size={22} color={colors.primary} />
+                <Text style={styles.actionButtonText}>{t('placeDetail.website')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         </ScrollView>
+
+        <AddToTripModal
+          visible={tripModalVisible}
+          place={place}
+          onClose={() => setTripModalVisible(false)}
+          onAdded={() => Alert.alert('Added to Trip', `${place.name} was added to the trip.`)}
+        />
       </SafeAreaView>
     </View>
   );
@@ -414,38 +481,43 @@ const styles = StyleSheet.create({
 
   actionButtons: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginBottom: 20,
   },
 
-  button: {
-    flex: 1,
+  actionButton: {
+    flexGrow: 1,
+    flexBasis: '47%',
+    minWidth: 138,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 15,
     borderRadius: 16,
-  },
-
-  primaryButton: {
-    backgroundColor: colors.primary,
-  },
-
-  secondaryButton: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: colors.primary,
   },
 
-  buttonText: {
-    color: '#FFFFFF',
+  primaryActionButton: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+
+  secondaryActionButton: {
+    backgroundColor: '#FFFFFF',
+  },
+
+  actionButtonText: {
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '700',
     marginLeft: 8,
   },
 
-  secondaryButtonText: {
-    color: colors.primary,
+  primaryActionButtonText: {
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
     marginLeft: 8,

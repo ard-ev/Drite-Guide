@@ -16,10 +16,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function SignupScreen() {
     const navigation = useNavigation();
     const { signup } = useAuth();
+    const { t } = useTranslation();
 
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -42,16 +44,16 @@ export default function SignupScreen() {
         });
 
         if (!result.success) {
-            Alert.alert('Sign up failed', result.message);
+            Alert.alert(t('auth.signupFailed'), result.message);
             return;
         }
 
         Alert.alert(
-            'Account created',
-            result.message || `Welcome, ${result.user.first_name}! Your account has been created successfully.`,
+            t('auth.accountCreated'),
+            result.message || t('auth.accountCreatedMessage', { name: result.user.first_name }),
             [
                 {
-                    text: 'Continue',
+                    text: t('common.continue'),
                     onPress: () => navigation.navigate('AccountMain'),
                 },
             ]
@@ -77,20 +79,20 @@ export default function SignupScreen() {
                             onPress={() => navigation.goBack()}
                         >
                             <Ionicons name="chevron-back" size={20} color="#222222" />
-                            <Text style={styles.backButtonText}>Back</Text>
+                            <Text style={styles.backButtonText}>{t('common.back')}</Text>
                         </TouchableOpacity>
 
                         <View style={styles.card}>
-                            <Text style={styles.title}>Sign up</Text>
+                            <Text style={styles.title}>{t('auth.signupTitle')}</Text>
                             <Text style={styles.subtitle}>
-                                Create your Dritë Guide account to sync your saved places and activity.
+                                {t('auth.signupSubtitle')}
                             </Text>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>First name</Text>
+                                <Text style={styles.label}>{t('auth.firstName')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Enter your first name"
+                                    placeholder={t('auth.firstNamePlaceholder')}
                                     placeholderTextColor="#9CA3AF"
                                     value={firstName}
                                     onChangeText={setFirstName}
@@ -98,10 +100,10 @@ export default function SignupScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Last name</Text>
+                                <Text style={styles.label}>{t('auth.lastName')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Enter your last name"
+                                    placeholder={t('auth.lastNamePlaceholder')}
                                     placeholderTextColor="#9CA3AF"
                                     value={lastName}
                                     onChangeText={setLastName}
@@ -109,10 +111,10 @@ export default function SignupScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Email address</Text>
+                                <Text style={styles.label}>{t('auth.email')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Enter your email address"
+                                    placeholder={t('auth.emailPlaceholder')}
                                     placeholderTextColor="#9CA3AF"
                                     keyboardType="email-address"
                                     autoCapitalize="none"
@@ -123,10 +125,10 @@ export default function SignupScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Username</Text>
+                                <Text style={styles.label}>{t('auth.username')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Choose a username"
+                                    placeholder={t('auth.usernamePlaceholder')}
                                     placeholderTextColor="#9CA3AF"
                                     autoCapitalize="none"
                                     autoCorrect={false}
@@ -136,11 +138,11 @@ export default function SignupScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Password</Text>
+                                <Text style={styles.label}>{t('auth.password')}</Text>
                                 <View style={styles.passwordWrap}>
                                     <TextInput
                                         style={styles.passwordInput}
-                                        placeholder="Create a password"
+                                        placeholder={t('auth.createPasswordPlaceholder')}
                                         placeholderTextColor="#9CA3AF"
                                         secureTextEntry={!showPassword}
                                         autoCapitalize="none"
@@ -162,11 +164,11 @@ export default function SignupScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Confirm password</Text>
+                                <Text style={styles.label}>{t('auth.confirmPassword')}</Text>
                                 <View style={styles.passwordWrap}>
                                     <TextInput
                                         style={styles.passwordInput}
-                                        placeholder="Confirm your password"
+                                        placeholder={t('auth.confirmPasswordPlaceholder')}
                                         placeholderTextColor="#9CA3AF"
                                         secureTextEntry={!showConfirmPassword}
                                         autoCapitalize="none"
@@ -192,7 +194,7 @@ export default function SignupScreen() {
                                 activeOpacity={0.88}
                                 onPress={handleSignUp}
                             >
-                                <Text style={styles.primaryButtonText}>Create account</Text>
+                                <Text style={styles.primaryButtonText}>{t('auth.createAccount')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -201,7 +203,7 @@ export default function SignupScreen() {
                                 onPress={() => navigation.navigate('Login')}
                             >
                                 <Text style={styles.linkText}>
-                                    Already have an account? Log in
+                                    {t('auth.alreadyAccount')}
                                 </Text>
                             </TouchableOpacity>
                         </View>

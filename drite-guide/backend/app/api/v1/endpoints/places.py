@@ -9,6 +9,7 @@ from app.api.deps import DBSession, get_current_user, get_request_language, requ
 from app.core.config import settings
 from app.models.place import Place, PlaceImage, PlaceTranslation
 from app.models.review import Review
+from app.models.trip import TripPlace
 from app.models.user import User
 from app.schemas.place import PlaceCreate, PlaceImageRead, PlaceRead, PlaceUpdate
 from app.schemas.review import ReviewCreate, ReviewRead
@@ -110,6 +111,9 @@ async def delete_place(place_id: UUID, db: DBSession, _: object = Depends(requir
     )
     if not place:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found.")
+    result = await db.scalars(select(TripPlace).where(TripPlace.place_id == place.id))
+    for trip_place in result.all():
+        await db.delete(trip_place)
     place.deleted_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(place)

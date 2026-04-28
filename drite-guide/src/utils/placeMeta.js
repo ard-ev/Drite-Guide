@@ -1,6 +1,20 @@
-export function getCategoryLabel(categoryId, categoryName) {
+import { getLocalizedCategoryName } from '../i18n/contentTranslations';
+
+export function getCategoryLabel(categoryId, categoryName, languageCode = 'en') {
   if (categoryName) {
     return categoryName;
+  }
+
+  if (languageCode !== 'en') {
+    const localizedName = getLocalizedCategoryName(
+      categoryId,
+      categoryName,
+      languageCode
+    );
+
+    if (localizedName && localizedName !== categoryId) {
+      return localizedName;
+    }
   }
 
   const categoryLabels = {

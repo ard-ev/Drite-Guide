@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,15 +17,17 @@ import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel } from '../utils/placeMeta';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function SearchResultsScreen({ route }) {
   const navigation = useNavigation();
   const { places, cities } = useAppData();
+  const { t, tc, language } = useTranslation();
   const initialQuery = route.params?.query || '';
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [showDropdown, setShowDropdown] = useState(initialQuery === '');
 
-  const normalizeForSearch = (text) => {
+  const normalizeForSearch = useCallback((text) => {
     const normalized = String(text || '').toLowerCase().trim();
 
     if (normalized.endsWith('s')) {
@@ -33,16 +35,16 @@ export default function SearchResultsScreen({ route }) {
     }
 
     return [normalized, `${normalized}s`];
-  };
+  }, []);
 
-  const textMatchesQuery = (text, query) => {
+  const textMatchesQuery = useCallback((text, query) => {
     const textVariants = normalizeForSearch(text);
     const queryVariants = normalizeForSearch(query);
 
     return textVariants.some((textVar) =>
       queryVariants.some((queryVar) => textVar.startsWith(queryVar))
     );
-  };
+  }, [normalizeForSearch]);
 
   const getCategoryEmoji = (categoryId) => {
     const emojiMap = {
@@ -60,9 +62,9 @@ export default function SearchResultsScreen({ route }) {
     return emojiMap[categoryId] || '📍';
   };
 
-  const getCityName = (cityId) =>
+  const getCityName = useCallback((cityId) =>
     cities.find((city) => city.id === cityId || city.legacyId === cityId)?.name ||
-    '';
+    '', [cities]);
 
   const suggestions = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -91,7 +93,8 @@ export default function SearchResultsScreen({ route }) {
     places.forEach((place) => {
       const categoryLabel = getCategoryLabel(
         place.categoryId,
-        place.categoryName
+        place.categoryName,
+        language
       ).toLowerCase();
       const cityName = getCityName(place.cityId).toLowerCase();
 
@@ -125,7 +128,7 @@ export default function SearchResultsScreen({ route }) {
     });
 
     return Array.from(suggestionSet.values()).slice(0, 15);
-  }, [cities, places, searchQuery]);
+  }, [cities, getCityName, language, places, searchQuery, textMatchesQuery]);
 
   const allResults = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -138,7 +141,8 @@ export default function SearchResultsScreen({ route }) {
       .filter((place) => {
         const categoryLabel = getCategoryLabel(
           place.categoryId,
-          place.categoryName
+          place.categoryName,
+          language
         ).toLowerCase();
         const cityName = getCityName(place.cityId).toLowerCase();
 
@@ -152,11 +156,13 @@ export default function SearchResultsScreen({ route }) {
       .sort((a, b) => {
         const categoryLabelA = getCategoryLabel(
           a.categoryId,
-          a.categoryName
+          a.categoryName,
+          language
         ).toLowerCase();
         const categoryLabelB = getCategoryLabel(
           b.categoryId,
-          b.categoryName
+          b.categoryName,
+          language
         ).toLowerCase();
 
         if (
@@ -175,7 +181,7 @@ export default function SearchResultsScreen({ route }) {
 
         return Number(b.rating || 0) - Number(a.rating || 0);
       });
-  }, [places, searchQuery]);
+  }, [getCityName, language, places, searchQuery, textMatchesQuery]);
 
   const handlePlacePress = (place) => {
     Keyboard.dismiss();
@@ -221,7 +227,7 @@ export default function SearchResultsScreen({ route }) {
               <Text style={styles.ratingSmallText}>{item.rating}</Text>
             </View>
             <Text style={styles.suggestionSubtext}>
-              {getCategoryLabel(item.categoryId, item.categoryName)}
+              {getCategoryLabel(item.categoryId, item.categoryName, language)}
             </Text>
           </View>
         </View>
@@ -239,7 +245,7 @@ export default function SearchResultsScreen({ route }) {
       <View style={styles.resultContent}>
         <Text style={styles.resultName}>{item.name}</Text>
         <Text style={styles.resultCategory}>
-          {getCategoryLabel(item.categoryId, item.categoryName)}
+          {getCategoryLabel(item.categoryId, item.categoryName, language)}
         </Text>
         <Text style={styles.resultCity}>{getCityName(item.cityId)}</Text>
       </View>
@@ -261,7 +267,7 @@ export default function SearchResultsScreen({ route }) {
         >
           <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Search</Text>
+        <Text style={styles.headerTitle}>{t('searchScreen.title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -274,7 +280,7 @@ export default function SearchResultsScreen({ route }) {
         />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search places, cities..."
+          placeholder={t('searchScreen.placeholder')}
           placeholderTextColor="#8E8E93"
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -304,7 +310,7 @@ export default function SearchResultsScreen({ route }) {
         <>
           {allResults.length > 0 && (
             <Text style={styles.resultsHeader}>
-              {allResults.length} {allResults.length === 1 ? 'result' : 'results'}
+              {tc('common.countResults', allResults.length)}
             </Text>
           )}
 
@@ -322,9 +328,9 @@ export default function SearchResultsScreen({ route }) {
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="search" size={64} color="#D1D5DB" />
-              <Text style={styles.emptyTitle}>No results found</Text>
+              <Text style={styles.emptyTitle}>{t('common.noResults')}</Text>
               <Text style={styles.emptySubtitle}>
-                Try searching with different keywords
+                {t('searchScreen.differentKeywords')}
               </Text>
             </View>
           )}
@@ -336,7 +342,7 @@ export default function SearchResultsScreen({ route }) {
           keyboardDismissMode="on-drag"
           onScrollBeginDrag={Keyboard.dismiss}
         >
-          <Text style={styles.sectionTitle}>Popular Cities</Text>
+          <Text style={styles.sectionTitle}>{t('searchScreen.popularCities')}</Text>
           <View style={styles.citiesGrid}>
             {cities.map((city) => (
               <TouchableOpacity
@@ -353,15 +359,15 @@ export default function SearchResultsScreen({ route }) {
             ))}
           </View>
 
-          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Categories</Text>
+          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('common.categories')}</Text>
           <View style={styles.categoriesGrid}>
             {[
-              { id: 'beaches', label: 'Beaches', emoji: '🏖️' },
-              { id: 'restaurants', label: 'Restaurants', emoji: '🍽️' },
-              { id: 'cafes', label: 'Cafes', emoji: '☕' },
-              { id: 'bars', label: 'Bars', emoji: '🍸' },
-              { id: 'hotels', label: 'Hotels', emoji: '🏨' },
-              { id: 'historical', label: 'Historical', emoji: '📚' },
+              { id: 'beaches', label: t('categories.labels.beaches'), emoji: '🏖️' },
+              { id: 'restaurants', label: t('categories.labels.restaurants'), emoji: '🍽️' },
+              { id: 'cafes', label: t('categories.labels.cafes'), emoji: '☕' },
+              { id: 'bars', label: t('categories.labels.bars'), emoji: '🍸' },
+              { id: 'hotels', label: t('categories.labels.hotels'), emoji: '🏨' },
+              { id: 'historical', label: t('searchScreen.historical'), emoji: '📚' },
             ].map((category) => (
               <TouchableOpacity
                 key={category.id}

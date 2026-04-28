@@ -15,6 +15,7 @@ import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function SavedScreen({ route }) {
   const navigation = useNavigation();
@@ -27,6 +28,7 @@ export default function SavedScreen({ route }) {
     removeSavedPlace,
   } = useAuth();
   const { getCityById, getPlaceById } = useAppData();
+  const { t, tc, language } = useTranslation();
 
   const savedPlaces = useMemo(() => getSavedPlaces() || [], [getSavedPlaces]);
   const trips = useMemo(() => getTrips() || [], [getTrips]);
@@ -56,13 +58,13 @@ export default function SavedScreen({ route }) {
   }, [route?.params?.initialTab, route?.params?.refreshKey]);
 
   const getCityName = (cityId) => {
-    return getCityById(cityId)?.name || 'Unknown city';
+    return getCityById(cityId)?.name || t('common.unknownCity');
   };
 
   const tripSummary = useMemo(
     () =>
-      `${trips.length} ${trips.length === 1 ? 'planned trip' : 'planned trips'}`,
-    [trips]
+      `${trips.length} ${tc('savedScreen.plannedTrip', trips.length)}`,
+    [tc, trips]
   );
 
   return (
@@ -76,7 +78,7 @@ export default function SavedScreen({ route }) {
           contentContainerStyle={styles.content}
         >
           <View style={styles.headerRow}>
-            <Text style={styles.title}>Saved</Text>
+            <Text style={styles.title}>{t('savedScreen.title')}</Text>
             <Ionicons name="bookmark-outline" size={24} color="#222222" />
           </View>
 
@@ -84,15 +86,15 @@ export default function SavedScreen({ route }) {
             <Text style={styles.infoTitle}>
               {isLoggedIn
                 ? activeTab === 'trips'
-                  ? 'Your planned trips'
-                  : 'Your saved places'
-                : 'Saved places on this device'}
+                  ? t('savedScreen.plannedTripsTitle')
+                  : t('savedScreen.savedPlacesTitle')
+                : t('savedScreen.deviceSavedTitle')}
             </Text>
 
             <Text style={styles.infoSubtitle}>
               {isLoggedIn
-                ? `You are logged in as @${currentUser?.username}.`
-                : 'Without an account you can still save places on this device.'}
+                ? t('savedScreen.loggedInAs', { username: currentUser?.username })
+                : t('savedScreen.guestSubtitle')}
             </Text>
           </View>
 
@@ -112,7 +114,7 @@ export default function SavedScreen({ route }) {
                     activeTab === 'places' && styles.segmentButtonTextActive,
                   ]}
                 >
-                  Places
+                  {t('common.places')}
                 </Text>
               </TouchableOpacity>
 
@@ -130,7 +132,7 @@ export default function SavedScreen({ route }) {
                     activeTab === 'trips' && styles.segmentButtonTextActive,
                   ]}
                 >
-                  Trips
+                  {t('common.trips')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -140,17 +142,22 @@ export default function SavedScreen({ route }) {
             trips.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="map-outline" size={54} color="#A1A1AA" />
-                <Text style={styles.emptyTitle}>No trips planned yet</Text>
+                <Text style={styles.emptyTitle}>{t('savedScreen.noTripsTitle')}</Text>
                 <Text style={styles.emptySubtitle}>
-                  {tripSummary}. Once you create a trip, it will appear here.
+                  {t('savedScreen.noTripsSubtitle', { summary: tripSummary })}
                 </Text>
               </View>
             ) : (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Planned trips</Text>
+                <Text style={styles.sectionTitle}>{t('savedScreen.plannedTrips')}</Text>
 
                 {trips.map((trip) => (
-                  <View key={trip.id} style={styles.tripCard}>
+                  <TouchableOpacity
+                    key={trip.id}
+                    style={styles.tripCard}
+                    activeOpacity={0.88}
+                    onPress={() => navigation.navigate('TripDetails', { tripId: trip.id })}
+                  >
                     <View style={styles.tripBadge}>
                       <Ionicons name="airplane-outline" size={16} color={colors.primary} />
                     </View>
@@ -158,27 +165,27 @@ export default function SavedScreen({ route }) {
                     <View style={styles.tripContent}>
                       <Text style={styles.tripTitle}>{trip.title}</Text>
                       <Text style={styles.tripDescription} numberOfLines={2}>
-                        {trip.description || 'No description added yet.'}
+                        {trip.description || t('savedScreen.noTripDescription')}
                       </Text>
                       <Text style={styles.tripMeta}>
                         {trip.start_date} - {trip.end_date}
                       </Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             )
           ) : savedPlaces.length === 0 ? (
             <View style={styles.emptyCard}>
               <Ionicons name="bookmark-outline" size={54} color="#A1A1AA" />
-              <Text style={styles.emptyTitle}>No saved places yet</Text>
+              <Text style={styles.emptyTitle}>{t('savedScreen.noSavedTitle')}</Text>
               <Text style={styles.emptySubtitle}>
-                Saved places will appear here once the user bookmarks a location.
+                {t('savedScreen.noSavedSubtitle')}
               </Text>
             </View>
           ) : (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Saved places</Text>
+              <Text style={styles.sectionTitle}>{t('savedScreen.savedPlaces')}</Text>
 
               {savedPlaces.map((savedPlace) => {
                 const place = getPlaceById(savedPlace.id) || savedPlace;
@@ -202,11 +209,11 @@ export default function SavedScreen({ route }) {
 
                   <View style={styles.placeContent}>
                     <Text style={styles.placeName} numberOfLines={1}>
-                      {place.name || 'Unnamed place'}
+                      {place.name || t('common.unnamedPlace')}
                     </Text>
 
                     <Text style={styles.placeMeta} numberOfLines={1}>
-                      {getCategoryLabel(place.categoryId, place.categoryName)} • {getCityName(place.cityId)}
+                      {getCategoryLabel(place.categoryId, place.categoryName, language)} • {getCityName(place.cityId)}
                     </Text>
 
                     {place.rating ? (

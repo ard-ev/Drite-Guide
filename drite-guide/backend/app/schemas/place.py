@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -82,20 +82,24 @@ class SavedPlaceUpdate(BaseModel):
 
 class TripPlaceCreate(BaseModel):
     place_id: UUID
-    day_date: date | None = None
-    visit_order: int
+    visit_date: date | None = None
+    visit_start_time: time | None = None
+    visit_end_time: time | None = None
     note: str | None = None
+    order_index: int | None = None
 
 
 class TripPlaceUpdate(BaseModel):
-    day_date: date | None = None
-    visit_order: int | None = None
+    visit_date: date | None = None
+    visit_start_time: time | None = None
+    visit_end_time: time | None = None
     note: str | None = None
+    order_index: int | None = None
 
 
 class TripPlaceReorderItem(BaseModel):
     trip_place_id: UUID
-    visit_order: int
+    order_index: int
 
 
 class TripPlaceReorderRequest(BaseModel):

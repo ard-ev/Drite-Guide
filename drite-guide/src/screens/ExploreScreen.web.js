@@ -289,9 +289,7 @@ export default function ExploreScreen({ route }) {
           <View style={styles.headerRow}>
             <Text style={styles.title}>Explore</Text>
 
-            <View style={styles.headerIcon}>
-              <Ionicons name="map-outline" size={22} color={colors.black} />
-            </View>
+            <Ionicons name="map-outline" size={24} color="#222222" />
           </View>
 
           <TouchableOpacity

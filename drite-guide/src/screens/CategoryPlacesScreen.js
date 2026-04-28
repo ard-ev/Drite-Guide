@@ -14,14 +14,16 @@ import { Ionicons } from '@expo/vector-icons';
 import colors from '../theme/colors';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function CategoryPlacesScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { places, getCityById } = useAppData();
+    const { t, tc, language } = useTranslation();
 
     const categoryId = route.params?.categoryId;
-    const categoryLabel = route.params?.categoryLabel || 'Category';
+    const categoryLabel = route.params?.categoryLabel || t('common.category');
     const matchesCategory = (place) => {
         if (categoryId === 'religious_sites') {
             return ['religious_sites', 'mosques', 'churches'].includes(place.categoryId);
@@ -35,7 +37,7 @@ export default function CategoryPlacesScreen() {
     };
 
     const getCityName = (cityId) => {
-        return getCityById(cityId)?.name || 'Unknown City';
+        return getCityById(cityId)?.name || t('common.unknownCityTitle');
     };
 
     const filteredPlaces = places
@@ -60,7 +62,7 @@ export default function CategoryPlacesScreen() {
                     <View style={styles.headerBlock}>
                         <Text style={styles.title}>{categoryLabel}</Text>
                         <Text style={styles.subtitle}>
-                            {filteredPlaces.length} {filteredPlaces.length === 1 ? 'place' : 'places'} found
+                            {tc('common.countPlacesFound', filteredPlaces.length)}
                         </Text>
                     </View>
 
@@ -94,11 +96,11 @@ export default function CategoryPlacesScreen() {
                                         </View>
 
                                         <Text style={styles.placeCategory}>
-                                            {getCategoryLabel(place.categoryId, place.categoryName)} • {getCityName(place.cityId)}
+                                            {getCategoryLabel(place.categoryId, place.categoryName, language)} • {getCityName(place.cityId)}
                                         </Text>
 
                                         <Text style={styles.placeDescription} numberOfLines={2}>
-                                            {place.description || 'No description available.'}
+                                            {place.description || t('common.noDescription')}
                                         </Text>
                                     </View>
                                 </TouchableOpacity>
@@ -107,9 +109,9 @@ export default function CategoryPlacesScreen() {
                     ) : (
                         <View style={styles.emptyState}>
                             <Ionicons name="grid-outline" size={40} color={colors.primary} />
-                            <Text style={styles.emptyStateTitle}>No places yet</Text>
+                            <Text style={styles.emptyStateTitle}>{t('listing.noPlacesYet')}</Text>
                             <Text style={styles.emptyStateText}>
-                                There are currently no places added for this category.
+                                {t('listing.noCategoryPlaces')}
                             </Text>
                         </View>
                     )}

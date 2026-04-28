@@ -58,12 +58,12 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     following_relationships = relationship(
         "UserFollow",
         back_populates="follower",
-        foreign_keys="UserFollow.follower_user_id",
+        foreign_keys="UserFollow.follower_id",
         cascade="all, delete-orphan",
     )
     follower_relationships = relationship(
         "UserFollow",
-        back_populates="followed",
-        foreign_keys="UserFollow.followed_user_id",
+        back_populates="following",
+        foreign_keys="UserFollow.following_id",
         cascade="all, delete-orphan",
     )

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -15,13 +15,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
+import { useTranslation } from '../context/TranslationContext';
+
+const CONNECTION_LONG_PRESS_DELAY = 450;
 
 export default function AccountScreen({ route }) {
     const navigation = useNavigation();
+    const isFocused = useIsFocused();
     const screenScrollRef = useRef(null);
+    const connectionLongPressRef = useRef(false);
+    const connectionPressTimerRef = useRef(null);
     const {
         currentUser,
         isLoggedIn,
@@ -31,11 +38,23 @@ export default function AccountScreen({ route }) {
         uploadProfilePicture,
         resetProfilePicture,
         defaultProfilePicture,
+        currentLanguage,
     } = useAuth();
+    const { t } = useTranslation();
     const savedPlaces = getSavedPlaces() || [];
     const trips = getTrips() || [];
     const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
+    const [profileStats, setProfileStats] = useState(null);
+    const [connectionMetric, setConnectionMetric] = useState('followers');
     const refreshKey = route?.params?.refreshKey;
+    const connectionCount =
+        connectionMetric === 'followers'
+            ? profileStats?.followers_count ?? currentUser?.followers_count ?? 0
+            : profileStats?.following_count ?? currentUser?.following_count ?? 0;
+    const connectionLabel =
+        connectionMetric === 'followers'
+            ? t('common.followers')
+            : t('common.following');
 
     useEffect(() => {
         if (!refreshKey) {
@@ -43,21 +62,56 @@ export default function AccountScreen({ route }) {
         }
 
         setShowProfilePictureModal(false);
+        setConnectionMetric('followers');
         screenScrollRef.current?.scrollTo({ y: 0, animated: false });
     }, [refreshKey]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadProfileStats = async () => {
+            if (!isFocused || !isLoggedIn || !currentUser?.username) {
+                if (isMounted && !isLoggedIn) {
+                    setProfileStats(null);
+                    setConnectionMetric('followers');
+                }
+                return;
+            }
+
+            try {
+                const response = await api.get(
+                    `/users/${encodeURIComponent(currentUser.username)}`
+                );
+
+                if (isMounted) {
+                    setProfileStats(response.data);
+                }
+            } catch (_error) {
+                if (isMounted) {
+                    setProfileStats(null);
+                }
+            }
+        };
+
+        loadProfileStats();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [currentUser?.username, isFocused, isLoggedIn]);
 
     const settingsSections = [
         {
             id: 'language',
-            title: 'Language',
-            subtitle: currentUser?.preferred_language?.toUpperCase?.() || 'EN',
+            title: t('account.language'),
+            subtitle: (currentUser?.preferred_language || currentLanguage || 'en').toUpperCase?.() || 'EN',
             icon: 'language-outline',
             screen: 'LanguageSettings',
         },
         {
             id: 'notifications',
-            title: 'Notifications',
-            subtitle: 'Manage alerts and updates',
+            title: t('account.notifications'),
+            subtitle: t('account.notificationsSubtitle'),
             icon: 'notifications-outline',
             screen: 'NotificationsSettings',
         },
@@ -66,29 +120,29 @@ export default function AccountScreen({ route }) {
     const legalSections = [
         {
             id: 'privacy',
-            title: 'Privacy Policy',
-            subtitle: 'How we collect and use your data',
+            title: t('account.privacyPolicy'),
+            subtitle: t('account.privacySubtitle'),
             icon: 'shield-checkmark-outline',
             screen: 'PrivacyPolicy',
         },
         {
             id: 'terms',
-            title: 'Terms & Conditions',
-            subtitle: 'Rules for using Dritë Guide',
+            title: t('account.terms'),
+            subtitle: t('account.termsSubtitle'),
             icon: 'document-text-outline',
             screen: 'TermsConditions',
         },
         {
             id: 'cookies',
-            title: 'Cookie Policy',
-            subtitle: 'Information about cookies and tracking',
+            title: t('account.cookies'),
+            subtitle: t('account.cookiesSubtitle'),
             icon: 'analytics-outline',
             screen: 'CookiePolicy',
         },
         {
             id: 'legal',
-            title: 'Legal Notice',
-            subtitle: 'Company and legal information',
+            title: t('account.legalNotice'),
+            subtitle: t('account.legalNoticeSubtitle'),
             icon: 'briefcase-outline',
             screen: 'LegalNotice',
         },
@@ -109,11 +163,61 @@ export default function AccountScreen({ route }) {
         });
     };
 
-    const openFollowers = () => {
-        navigation.navigate('FollowersList', {
+    const openConnectionsList = () => {
+        if (!currentUser?.username) {
+            return;
+        }
+
+        const isFollowingList = connectionMetric === 'following';
+
+        navigation.navigate(isFollowingList ? 'FollowingList' : 'FollowersList', {
             username: currentUser?.username,
             titleUsername: currentUser?.username,
+            listType: isFollowingList ? 'following' : 'followers',
         });
+    };
+
+    const toggleConnectionMetric = () => {
+        setConnectionMetric((currentMetric) =>
+            currentMetric === 'followers' ? 'following' : 'followers'
+        );
+    };
+
+    const clearConnectionPressTimer = useCallback(() => {
+        if (!connectionPressTimerRef.current) {
+            return;
+        }
+
+        clearTimeout(connectionPressTimerRef.current);
+        connectionPressTimerRef.current = null;
+    }, []);
+
+    useEffect(() => {
+        return clearConnectionPressTimer;
+    }, [clearConnectionPressTimer]);
+
+    const handleConnectionPressIn = () => {
+        clearConnectionPressTimer();
+        connectionLongPressRef.current = false;
+
+        connectionPressTimerRef.current = setTimeout(() => {
+            connectionPressTimerRef.current = null;
+            connectionLongPressRef.current = true;
+            toggleConnectionMetric();
+        }, CONNECTION_LONG_PRESS_DELAY);
+    };
+
+    const handleConnectionPress = () => {
+        if (connectionLongPressRef.current) {
+            connectionLongPressRef.current = false;
+            return;
+        }
+
+        openConnectionsList();
+    };
+
+    const handleConnectionPressOut = () => {
+        clearConnectionPressTimer();
     };
 
     const handleLogout = () => {
@@ -124,7 +228,7 @@ export default function AccountScreen({ route }) {
         const result = await uploadProfilePicture(asset);
 
         if (!result.success) {
-            Alert.alert('Profile picture', result.message);
+            Alert.alert(t('account.profilePicture'), result.message);
             return;
         }
 
@@ -135,7 +239,7 @@ export default function AccountScreen({ route }) {
         const result = await resetProfilePicture();
 
         if (!result.success) {
-            Alert.alert('Profile picture', result.message);
+            Alert.alert(t('account.profilePicture'), result.message);
             return;
         }
 
@@ -146,7 +250,7 @@ export default function AccountScreen({ route }) {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (!permission.granted) {
-            Alert.alert('Permission needed', 'Please allow photo library access.');
+            Alert.alert(t('account.permissionNeeded'), t('account.allowPhotoLibrary'));
             return;
         }
 
@@ -168,7 +272,7 @@ export default function AccountScreen({ route }) {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
 
         if (!permission.granted) {
-            Alert.alert('Permission needed', 'Please allow camera access.');
+            Alert.alert(t('account.permissionNeeded'), t('account.allowCamera'));
             return;
         }
 
@@ -232,7 +336,7 @@ export default function AccountScreen({ route }) {
                     contentContainerStyle={styles.content}
                 >
                     <View style={styles.headerRow}>
-                        <Text style={styles.title}>Account</Text>
+                        <Text style={styles.title}>{t('account.title')}</Text>
                         <Ionicons name="person-circle-outline" size={24} color="#222222" />
                     </View>
 
@@ -246,9 +350,9 @@ export default function AccountScreen({ route }) {
                                 />
                             </View>
 
-                            <Text style={styles.authTitle}>Log in or sign up</Text>
+                            <Text style={styles.authTitle}>{t('account.authTitle')}</Text>
                             <Text style={styles.authSubtitle}>
-                                Save your places, create trips and sync your activity across devices.
+                                {t('account.authSubtitle')}
                             </Text>
 
                             <TouchableOpacity
@@ -256,7 +360,7 @@ export default function AccountScreen({ route }) {
                                 activeOpacity={0.88}
                                 onPress={() => handlePress('Login')}
                             >
-                                <Text style={styles.primaryButtonText}>Log in</Text>
+                                <Text style={styles.primaryButtonText}>{t('account.login')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -264,7 +368,7 @@ export default function AccountScreen({ route }) {
                                 activeOpacity={0.88}
                                 onPress={() => handlePress('Signup')}
                             >
-                                <Text style={styles.secondaryButtonText}>Sign up</Text>
+                                <Text style={styles.secondaryButtonText}>{t('account.signup')}</Text>
                             </TouchableOpacity>
 
                             <View style={styles.syncHint}>
@@ -274,7 +378,7 @@ export default function AccountScreen({ route }) {
                                     color={colors.primary}
                                 />
                                 <Text style={styles.syncHintText}>
-                                    Saved places can also be used without an account on this device.
+                                    {t('account.syncHint')}
                                 </Text>
                             </View>
                         </View>
@@ -296,7 +400,7 @@ export default function AccountScreen({ route }) {
                                     onPress={() => setShowProfilePictureModal(true)}
                                 >
                                     <Ionicons name="camera-outline" size={16} color={colors.primary} />
-                                    <Text style={styles.changePhotoButtonText}>Change photo</Text>
+                                    <Text style={styles.changePhotoButtonText}>{t('account.changePhoto')}</Text>
                                 </TouchableOpacity>
 
                                 <Text style={styles.profileName}>
@@ -320,27 +424,50 @@ export default function AccountScreen({ route }) {
                                         <Text style={styles.statValue}>
                                             {savedPlaces.length || 0}
                                         </Text>
-                                        <Text style={styles.statLabel}>Saved</Text>
+                                        <Text style={styles.statLabel}>{t('common.saved')}</Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
                                         style={styles.statBox}
                                         activeOpacity={0.8}
-                                        onPress={() => navigateToSavedTab('trips')}
+                                        onPress={() => handlePress('Trips')}
                                     >
                                         <Text style={styles.statValue}>{trips.length}</Text>
-                                        <Text style={styles.statLabel}>Trips</Text>
+                                        <Text style={styles.statLabel}>{t('common.trips')}</Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
-                                        style={styles.statBox}
+                                        style={[
+                                            styles.statBox,
+                                            styles.connectionStatBox,
+                                            connectionMetric === 'following' &&
+                                                styles.connectionStatBoxActive,
+                                        ]}
                                         activeOpacity={0.8}
-                                        onPress={openFollowers}
+                                        onPress={handleConnectionPress}
+                                        onPressIn={handleConnectionPressIn}
+                                        onPressOut={handleConnectionPressOut}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={`${connectionLabel}: ${connectionCount}`}
                                     >
-                                        <Text style={styles.statValue}>
-                                            0
+                                        <Text
+                                            style={[
+                                                styles.statValue,
+                                                connectionMetric === 'following' &&
+                                                    styles.connectionStatValueActive,
+                                            ]}
+                                        >
+                                            {connectionCount}
                                         </Text>
-                                        <Text style={styles.statLabel}>Followers</Text>
+                                        <Text
+                                            style={[
+                                                styles.statLabel,
+                                                connectionMetric === 'following' &&
+                                                    styles.connectionStatLabelActive,
+                                            ]}
+                                        >
+                                            {connectionLabel}
+                                        </Text>
                                     </TouchableOpacity>
                                 </View>
 
@@ -349,17 +476,41 @@ export default function AccountScreen({ route }) {
                                     activeOpacity={0.88}
                                     onPress={handleLogout}
                                 >
-                                    <Text style={styles.logoutButtonText}>Log out</Text>
+                                    <Text style={styles.logoutButtonText}>{t('account.logout')}</Text>
                                 </TouchableOpacity>
                             </View>
 
                             <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>Settings</Text>
+                                <Text style={styles.sectionTitle}>Trips</Text>
+                                <TouchableOpacity
+                                    style={styles.menuItem}
+                                    activeOpacity={0.85}
+                                    onPress={() => handlePress('Trips')}
+                                >
+                                    <View style={styles.menuItemLeft}>
+                                        <View style={styles.iconWrap}>
+                                            <Ionicons name="map-outline" size={20} color="#222222" />
+                                        </View>
+
+                                        <View style={styles.menuTextWrap}>
+                                            <Text style={styles.menuTitle}>Trips</Text>
+                                            <Text style={styles.menuSubtitle}>
+                                                Plan date ranges, places, invited users, and shared notes.
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.section}>
+                                <Text style={styles.sectionTitle}>{t('account.settings')}</Text>
                                 {settingsSections.map(renderMenuItem)}
                             </View>
 
                             <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>Legal</Text>
+                                <Text style={styles.sectionTitle}>{t('account.legal')}</Text>
                                 {legalSections.map(renderMenuItem)}
                             </View>
                         </>
@@ -377,9 +528,9 @@ export default function AccountScreen({ route }) {
                         onPress={() => setShowProfilePictureModal(false)}
                     >
                         <Pressable style={styles.modalCard} onPress={() => null}>
-                            <Text style={styles.modalTitle}>Choose profile picture</Text>
+                            <Text style={styles.modalTitle}>{t('account.chooseProfilePicture')}</Text>
                             <Text style={styles.modalSubtitle}>
-                                Add your own picture from your device.
+                                {t('account.chooseProfileSubtitle')}
                             </Text>
 
                             <TouchableOpacity
@@ -388,7 +539,7 @@ export default function AccountScreen({ route }) {
                                 onPress={pickFromLibrary}
                             >
                                 <Ionicons name="images-outline" size={18} color={colors.primary} />
-                                <Text style={styles.sourceButtonText}>Choose from media library</Text>
+                                <Text style={styles.sourceButtonText}>{t('account.mediaLibrary')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -397,7 +548,7 @@ export default function AccountScreen({ route }) {
                                 onPress={takePhoto}
                             >
                                 <Ionicons name="camera-outline" size={18} color={colors.primary} />
-                                <Text style={styles.sourceButtonText}>Take photo with camera</Text>
+                                <Text style={styles.sourceButtonText}>{t('account.takePhoto')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -406,7 +557,7 @@ export default function AccountScreen({ route }) {
                                 onPress={pickFromFiles}
                             >
                                 <Ionicons name="document-outline" size={18} color={colors.primary} />
-                                <Text style={styles.sourceButtonText}>Choose from files</Text>
+                                <Text style={styles.sourceButtonText}>{t('account.chooseFiles')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -414,7 +565,7 @@ export default function AccountScreen({ route }) {
                                 activeOpacity={0.88}
                                 onPress={handleResetProfilePicture}
                             >
-                                <Text style={styles.resetButtonText}>Use default picture</Text>
+                                <Text style={styles.resetButtonText}>{t('account.defaultPicture')}</Text>
                             </TouchableOpacity>
                         </Pressable>
                     </Pressable>
@@ -603,16 +754,35 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 
+    connectionStatBox: {
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+
+    connectionStatBoxActive: {
+        backgroundColor: '#FFF5F5',
+        borderColor: colors.primary,
+    },
+
     statValue: {
         fontSize: 18,
         fontWeight: '700',
         color: '#222222',
     },
 
+    connectionStatValueActive: {
+        color: colors.primary,
+    },
+
     statLabel: {
         marginTop: 4,
         fontSize: 12,
         color: '#6B7280',
+    },
+
+    connectionStatLabelActive: {
+        color: colors.primary,
+        fontWeight: '700',
     },
 
     logoutButton: {

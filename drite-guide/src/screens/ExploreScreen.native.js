@@ -21,6 +21,7 @@ import * as Location from 'expo-location';
 import colors from '../theme/colors';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
+import { useTranslation } from '../context/TranslationContext';
 
 const FALLBACK_REGION = {
     latitude: 41.3275,
@@ -71,6 +72,7 @@ export default function ExploreScreen({ route }) {
     const screenScrollRef = useRef(null);
     const mapRef = useRef(null);
     const { places, cities } = useAppData();
+    const { t, tc, language } = useTranslation();
 
     const [showMapExpanded, setShowMapExpanded] = useState(false);
     const [userLocation, setUserLocation] = useState(null);
@@ -366,7 +368,7 @@ export default function ExploreScreen({ route }) {
                         <View style={styles.cityTextWrapper}>
                             <Text style={styles.cityName}>{city.name}</Text>
                             <Text style={styles.cityPlaces}>
-                                {placesCount} {placesCount === 1 ? 'place' : 'places'}
+                                {tc('common.countPlaces', placesCount)}
                             </Text>
                         </View>
 
@@ -441,8 +443,8 @@ export default function ExploreScreen({ route }) {
 
     const selectedCity = selectedPlace ? cityMap[selectedPlace.cityId] : null;
     const selectedCategory = selectedPlace
-        ? getCategoryLabel(selectedPlace.categoryId, selectedPlace.categoryName)
-        : 'Place';
+        ? getCategoryLabel(selectedPlace.categoryId, selectedPlace.categoryName, language)
+        : t('common.place');
 
     return (
         <View style={styles.screen}>
@@ -455,11 +457,9 @@ export default function ExploreScreen({ route }) {
                     contentContainerStyle={styles.content}
                 >
                     <View style={styles.headerRow}>
-                        <Text style={styles.title}>Explore</Text>
+                        <Text style={styles.title}>{t('explore.title')}</Text>
 
-                        <View style={styles.headerIcon}>
-                            <Ionicons name="map-outline" size={22} color={colors.black} />
-                        </View>
+                        <Ionicons name="map-outline" size={24} color="#222222" />
                     </View>
 
                     <TouchableOpacity
@@ -482,12 +482,12 @@ export default function ExploreScreen({ route }) {
                                     size={16}
                                     color={colors.white}
                                 />
-                                <Text style={styles.heroBadgeText}>Interactive Map</Text>
+                                <Text style={styles.heroBadgeText}>{t('explore.interactiveMap')}</Text>
                             </View>
 
-                            <Text style={styles.heroTitle}>Explore Albania</Text>
+                            <Text style={styles.heroTitle}>{t('explore.heroTitle')}</Text>
                             <Text style={styles.heroText}>
-                                Discover cities, nearby spots and hidden gems on the map
+                                {t('explore.heroText')}
                             </Text>
                         </View>
                     </TouchableOpacity>
@@ -547,7 +547,7 @@ export default function ExploreScreen({ route }) {
                                                 color={colors.black}
                                             />
                                             <Text style={styles.mapFloatingPillText}>
-                                                {nearbyPlaces.length} nearby
+                                                {t('common.countNearby', { count: nearbyPlaces.length })}
                                             </Text>
                                         </View>
 
@@ -559,7 +559,7 @@ export default function ExploreScreen({ route }) {
                                                     color="#A15C00"
                                                 />
                                                 <Text style={styles.mapWarningPillText}>
-                                                    Using fallback location
+                                                    {t('explore.usingFallback')}
                                                 </Text>
                                             </View>
                                         )}
@@ -596,10 +596,10 @@ export default function ExploreScreen({ route }) {
                                             <View style={styles.mapInfoTopRow}>
                                                 <View>
                                                     <Text style={styles.mapInfoTitle}>
-                                                        Nearby places
+                                                        {t('explore.nearbyPlaces')}
                                                     </Text>
                                                     <Text style={styles.mapInfoSubtext}>
-                                                        Tap a marker to preview a place.
+                                                        {t('explore.tapMarker')}
                                                     </Text>
                                                 </View>
 
@@ -695,7 +695,7 @@ export default function ExploreScreen({ route }) {
                                             onPress={openPlaceDetailsFromPreview}
                                         >
                                             <Text style={styles.placePreviewButtonText}>
-                                                Open place details
+                                                {t('explore.openDetails')}
                                             </Text>
                                             <Ionicons
                                                 name="arrow-forward"

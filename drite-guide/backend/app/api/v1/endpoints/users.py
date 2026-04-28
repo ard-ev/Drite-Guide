@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from sqlalchemy import and_, func, or_, select
@@ -36,7 +37,7 @@ async def _build_public_profile(
         select(func.count()).select_from(SavedPlace).where(SavedPlace.user_id == user.id)
     )
     trips_count = await db.scalar(
-        select(func.count()).select_from(Trip).where(Trip.owner_user_id == user.id, Trip.deleted_at.is_(None))
+        select(func.count()).select_from(Trip).where(Trip.owner_id == user.id)
     )
     followers_count = 0
     following_count = 0
@@ -44,18 +45,18 @@ async def _build_public_profile(
 
     try:
         followers_count = await db.scalar(
-            select(func.count()).select_from(UserFollow).where(UserFollow.followed_user_id == user.id)
+            select(func.count()).select_from(UserFollow).where(UserFollow.following_id == user.id)
         )
         following_count = await db.scalar(
-            select(func.count()).select_from(UserFollow).where(UserFollow.follower_user_id == user.id)
+            select(func.count()).select_from(UserFollow).where(UserFollow.follower_id == user.id)
         )
 
         if current_user and current_user.id != user.id:
             is_following = bool(
                 await db.scalar(
                     select(UserFollow).where(
-                        UserFollow.follower_user_id == current_user.id,
-                        UserFollow.followed_user_id == user.id,
+                        UserFollow.follower_id == current_user.id,
+                        UserFollow.following_id == user.id,
                     )
                 )
             )
@@ -82,6 +83,28 @@ async def _get_public_user_by_username(db: DBSession, username: str) -> User:
     user = await db.scalar(
         select(User).where(
             User.username == normalized_username,
+            User.deleted_at.is_(None),
+            User.is_active.is_(True),
+        )
+    )
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    return user
+
+
+async def _get_public_user_by_identifier(db: DBSession, identifier: str) -> User:
+    normalized_identifier = identifier.strip().lstrip("@").lower()
+
+    try:
+        user_id = UUID(normalized_identifier)
+    except ValueError:
+        return await _get_public_user_by_username(db, normalized_identifier)
+
+    user = await db.scalar(
+        select(User).where(
+            User.id == user_id,
             User.deleted_at.is_(None),
             User.is_active.is_(True),
         )
@@ -151,9 +174,9 @@ async def get_public_profile(
     return await _build_public_profile(db, user, current_user)
 
 
-@router.post("/{username}/follow", response_model=PublicUserProfileRead)
-async def follow_user(username: str, db: DBSession, current_user: CurrentUser) -> PublicUserProfileRead:
-    user = await _get_public_user_by_username(db, username)
+@router.post("/{user_id}/follow", response_model=PublicUserProfileRead)
+async def follow_user(user_id: str, db: DBSession, current_user: CurrentUser) -> PublicUserProfileRead:
+    user = await _get_public_user_by_identifier(db, user_id)
 
     if user.id == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot follow yourself.")
@@ -161,13 +184,13 @@ async def follow_user(username: str, db: DBSession, current_user: CurrentUser) -
     try:
         existing_follow = await db.scalar(
             select(UserFollow).where(
-                UserFollow.follower_user_id == current_user.id,
-                UserFollow.followed_user_id == user.id,
+                UserFollow.follower_id == current_user.id,
+                UserFollow.following_id == user.id,
             )
         )
 
         if not existing_follow:
-            db.add(UserFollow(follower_user_id=current_user.id, followed_user_id=user.id))
+            db.add(UserFollow(follower_id=current_user.id, following_id=user.id))
             await db.commit()
     except SQLAlchemyError as exc:
         await db.rollback()
@@ -179,15 +202,15 @@ async def follow_user(username: str, db: DBSession, current_user: CurrentUser) -
     return await _build_public_profile(db, user, current_user)
 
 
-@router.delete("/{username}/follow", response_model=PublicUserProfileRead)
-async def unfollow_user(username: str, db: DBSession, current_user: CurrentUser) -> PublicUserProfileRead:
-    user = await _get_public_user_by_username(db, username)
+@router.delete("/{user_id}/follow", response_model=PublicUserProfileRead)
+async def unfollow_user(user_id: str, db: DBSession, current_user: CurrentUser) -> PublicUserProfileRead:
+    user = await _get_public_user_by_identifier(db, user_id)
 
     try:
         existing_follow = await db.scalar(
             select(UserFollow).where(
-                UserFollow.follower_user_id == current_user.id,
-                UserFollow.followed_user_id == user.id,
+                UserFollow.follower_id == current_user.id,
+                UserFollow.following_id == user.id,
             )
         )
 
@@ -204,19 +227,19 @@ async def unfollow_user(username: str, db: DBSession, current_user: CurrentUser)
     return await _build_public_profile(db, user, current_user)
 
 
-@router.get("/{username}/followers", response_model=list[PublicUserProfileRead])
+@router.get("/{user_id}/followers", response_model=list[PublicUserProfileRead])
 async def get_followers(
-    username: str,
+    user_id: str,
     db: DBSession,
     current_user: OptionalCurrentUser,
 ) -> list[PublicUserProfileRead]:
-    user = await _get_public_user_by_username(db, username)
+    user = await _get_public_user_by_identifier(db, user_id)
     try:
         result = await db.scalars(
             select(User)
-            .join(UserFollow, UserFollow.follower_user_id == User.id)
+            .join(UserFollow, UserFollow.follower_id == User.id)
             .where(
-                UserFollow.followed_user_id == user.id,
+                UserFollow.following_id == user.id,
                 User.deleted_at.is_(None),
                 User.is_active.is_(True),
             )
@@ -232,19 +255,19 @@ async def get_followers(
     return [await _build_public_profile(db, follower, current_user) for follower in result.all()]
 
 
-@router.get("/{username}/following", response_model=list[PublicUserProfileRead])
+@router.get("/{user_id}/following", response_model=list[PublicUserProfileRead])
 async def get_following(
-    username: str,
+    user_id: str,
     db: DBSession,
     current_user: OptionalCurrentUser,
 ) -> list[PublicUserProfileRead]:
-    user = await _get_public_user_by_username(db, username)
+    user = await _get_public_user_by_identifier(db, user_id)
     try:
         result = await db.scalars(
             select(User)
-            .join(UserFollow, UserFollow.followed_user_id == User.id)
+            .join(UserFollow, UserFollow.following_id == User.id)
             .where(
-                UserFollow.follower_user_id == user.id,
+                UserFollow.follower_id == user.id,
                 User.deleted_at.is_(None),
                 User.is_active.is_(True),
             )

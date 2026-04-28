@@ -16,10 +16,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function LoginScreen() {
     const navigation = useNavigation();
     const { login, isBootstrapping } = useAuth();
+    const { t } = useTranslation();
 
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
@@ -29,13 +31,13 @@ export default function LoginScreen() {
         const result = await login(identifier, password);
 
         if (!result.success) {
-            Alert.alert('Login failed', result.message);
+            Alert.alert(t('auth.loginFailed'), result.message);
             return;
         }
 
-        Alert.alert('Login successful', `Welcome back, ${result.user.first_name}!`, [
+        Alert.alert(t('auth.loginSuccessful'), t('auth.welcomeBack', { name: result.user.first_name }), [
             {
-                text: 'Continue',
+                text: t('common.continue'),
                 onPress: () => navigation.navigate('AccountMain'),
             },
         ]);
@@ -60,20 +62,20 @@ export default function LoginScreen() {
                             onPress={() => navigation.goBack()}
                         >
                             <Ionicons name="chevron-back" size={20} color="#222222" />
-                            <Text style={styles.backButtonText}>Back</Text>
+                            <Text style={styles.backButtonText}>{t('common.back')}</Text>
                         </TouchableOpacity>
 
                         <View style={styles.card}>
-                            <Text style={styles.title}>Log in</Text>
+                            <Text style={styles.title}>{t('auth.loginTitle')}</Text>
                             <Text style={styles.subtitle}>
-                                Log in with your email address or username and your password.
+                                {t('auth.loginSubtitle')}
                             </Text>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Email or username</Text>
+                                <Text style={styles.label}>{t('auth.emailOrUsername')}</Text>
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="Enter your email or username"
+                                    placeholder={t('auth.emailOrUsernamePlaceholder')}
                                     placeholderTextColor="#9CA3AF"
                                     autoCapitalize="none"
                                     autoCorrect={false}
@@ -83,11 +85,11 @@ export default function LoginScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Password</Text>
+                                <Text style={styles.label}>{t('auth.password')}</Text>
                                 <View style={styles.passwordWrap}>
                                     <TextInput
                                         style={styles.passwordInput}
-                                        placeholder="Enter your password"
+                                        placeholder={t('auth.passwordPlaceholder')}
                                         placeholderTextColor="#9CA3AF"
                                         secureTextEntry={!showPassword}
                                         autoCapitalize="none"
@@ -115,7 +117,7 @@ export default function LoginScreen() {
                                 disabled={isBootstrapping}
                             >
                                 <Text style={styles.primaryButtonText}>
-                                    {isBootstrapping ? 'Please wait...' : 'Log in'}
+                                    {isBootstrapping ? t('common.pleaseWait') : t('auth.loginTitle')}
                                 </Text>
                             </TouchableOpacity>
 
@@ -125,7 +127,7 @@ export default function LoginScreen() {
                                 onPress={() => navigation.navigate('Signup')}
                             >
                                 <Text style={styles.linkText}>
-                                    Don’t have an account? Sign up first
+                                    {t('auth.signupPrompt')}
                                 </Text>
                             </TouchableOpacity>
                         </View>

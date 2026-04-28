@@ -14,11 +14,13 @@ import { Ionicons } from '@expo/vector-icons';
 import colors from '../theme/colors';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function CityPlacesScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { places, getCityById } = useAppData();
+    const { t, tc, language } = useTranslation();
 
     const cityId = route.params?.cityId;
     const city = getCityById(cityId);
@@ -64,11 +66,11 @@ export default function CityPlacesScreen() {
                     </View>
 
                     <Text style={styles.placeCategory}>
-                        {getCategoryLabel(place.categoryId, place.categoryName)}
+                        {getCategoryLabel(place.categoryId, place.categoryName, language)}
                     </Text>
 
                     <Text style={styles.placeDescription} numberOfLines={2}>
-                        {place.description || 'No description available.'}
+                        {place.description || t('common.noDescription')}
                     </Text>
                 </View>
             </TouchableOpacity>
@@ -85,9 +87,9 @@ export default function CityPlacesScreen() {
                     contentContainerStyle={styles.content}
                 >
                     <View style={styles.headerBlock}>
-                        <Text style={styles.title}>{city?.name || 'City'}</Text>
+                        <Text style={styles.title}>{city?.name || t('common.city')}</Text>
                         <Text style={styles.subtitle}>
-                            {filteredPlaces.length} {filteredPlaces.length === 1 ? 'place' : 'places'} found
+                            {tc('common.countPlacesFound', filteredPlaces.length)}
                         </Text>
                     </View>
 
@@ -102,9 +104,9 @@ export default function CityPlacesScreen() {
                                 size={40}
                                 color={colors.primary}
                             />
-                            <Text style={styles.emptyStateTitle}>No places yet</Text>
+                            <Text style={styles.emptyStateTitle}>{t('listing.noPlacesYet')}</Text>
                             <Text style={styles.emptyStateText}>
-                                There are currently no places added for this city.
+                                {t('listing.noCityPlaces')}
                             </Text>
                         </View>
                     )}

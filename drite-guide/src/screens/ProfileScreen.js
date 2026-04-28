@@ -16,9 +16,11 @@ import colors from '../theme/colors';
 import { toAbsoluteAssetUrl } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 import { api, extractApiErrorMessage } from '../services/api';
+import { useTranslation } from '../context/TranslationContext';
 
 const DEFAULT_PROFILE_PICTURE =
   'https://placehold.co/240x240/E5E7EB/222222?text=DG';
+const CONNECTION_LONG_PRESS_DELAY = 450;
 
 const normalizeUsername = (value) =>
   String(value || '')
@@ -30,9 +32,12 @@ export default function ProfileScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { currentUser, isLoggedIn } = useAuth();
+  const { t } = useTranslation();
   const initialProfile = route.params?.profile || null;
   const initialOpenConnections = route.params?.openConnections || '';
   const hasOpenedInitialConnections = useRef(false);
+  const connectionLongPressRef = useRef(false);
+  const connectionPressTimerRef = useRef(null);
   const username = normalizeUsername(
     route.params?.username || initialProfile?.username || ''
   );
@@ -56,12 +61,14 @@ export default function ProfileScreen() {
       ? profile?.followers_count ?? 0
       : profile?.following_count ?? 0;
   const connectionLabel =
-    connectionMetric === 'followers' ? 'Followers' : 'Following';
+    connectionMetric === 'followers'
+      ? t('common.followers')
+      : t('common.following');
 
   useEffect(() => {
     const loadProfile = async () => {
       if (!username) {
-        setErrorMessage('Profile could not be loaded.');
+        setErrorMessage(t('profile.loadError'));
         setIsLoading(false);
         return;
       }
@@ -73,7 +80,7 @@ export default function ProfileScreen() {
         setErrorMessage('');
       } catch (error) {
         setErrorMessage(
-          await extractApiErrorMessage(error, 'Profile could not be loaded.')
+          await extractApiErrorMessage(error, t('profile.loadError'))
         );
       } finally {
         setIsLoading(false);
@@ -81,7 +88,7 @@ export default function ProfileScreen() {
     };
 
     loadProfile();
-  }, [isLoggedIn, username]);
+  }, [isLoggedIn, t, username]);
 
   const handleFollowPress = async () => {
     const targetUsername = normalizeUsername(profile?.username || username);
@@ -91,7 +98,7 @@ export default function ProfileScreen() {
     }
 
     if (!isLoggedIn) {
-      setFollowMessage('Please log in to follow users.');
+      setFollowMessage(t('profile.loginToFollow'));
       return;
     }
 
@@ -122,7 +129,7 @@ export default function ProfileScreen() {
     } catch (error) {
       setProfile(previousProfile);
       setFollowMessage(
-        await extractApiErrorMessage(error, 'Could not update follow status.')
+        await extractApiErrorMessage(error, t('profile.followError'))
       );
     } finally {
       setIsFollowLoading(false);
@@ -149,6 +156,43 @@ export default function ProfileScreen() {
     setConnectionMetric((currentMetric) =>
       currentMetric === 'followers' ? 'following' : 'followers'
     );
+  };
+
+  const clearConnectionPressTimer = useCallback(() => {
+    if (!connectionPressTimerRef.current) {
+      return;
+    }
+
+    clearTimeout(connectionPressTimerRef.current);
+    connectionPressTimerRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    return clearConnectionPressTimer;
+  }, [clearConnectionPressTimer]);
+
+  const handleConnectionPressIn = () => {
+    clearConnectionPressTimer();
+    connectionLongPressRef.current = false;
+
+    connectionPressTimerRef.current = setTimeout(() => {
+      connectionPressTimerRef.current = null;
+      connectionLongPressRef.current = true;
+      toggleConnectionMetric();
+    }, CONNECTION_LONG_PRESS_DELAY);
+  };
+
+  const handleConnectionPress = () => {
+    if (connectionLongPressRef.current) {
+      connectionLongPressRef.current = false;
+      return;
+    }
+
+    openFollowersList();
+  };
+
+  const handleConnectionPressOut = () => {
+    clearConnectionPressTimer();
   };
 
   const navigateToSavedTab = (initialTab) => {
@@ -193,7 +237,7 @@ export default function ProfileScreen() {
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="chevron-back" size={20} color="#222222" />
-            <Text style={styles.backButtonText}>Back</Text>
+            <Text style={styles.backButtonText}>{t('common.back')}</Text>
           </TouchableOpacity>
 
           <View style={styles.profileCard}>
@@ -209,12 +253,12 @@ export default function ProfileScreen() {
             <Text style={styles.profileName}>
               {profile
                 ? `${profile.first_name} ${profile.last_name}`
-                : 'Profile'}
+                : t('profile.profile')}
             </Text>
 
             <Text style={styles.profileUsername}>@{displayUsername}</Text>
             <Text style={styles.profileEmail}>
-              {profile?.email || 'No email available'}
+              {profile?.email || t('common.noEmail')}
             </Text>
 
             {canShowFollowButton ? (
@@ -240,12 +284,12 @@ export default function ProfileScreen() {
                   ]}
                 >
                   {isFollowLoading
-                    ? 'Updating...'
+                    ? t('common.updating')
                     : isFollowing
-                      ? 'Following'
+                      ? t('common.following')
                       : isLoggedIn
-                        ? 'Follow'
-                        : 'Log in to follow'}
+                        ? t('common.follow')
+                        : t('profile.followButtonLogin')}
                 </Text>
               </TouchableOpacity>
             ) : null}
@@ -260,7 +304,7 @@ export default function ProfileScreen() {
                 <Text style={styles.statValue}>
                   {profile?.saved_places_count ?? 0}
                 </Text>
-                <Text style={styles.statLabel}>Saved</Text>
+                <Text style={styles.statLabel}>{t('common.saved')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -270,23 +314,46 @@ export default function ProfileScreen() {
                 disabled={!isOwnProfile}
               >
                 <Text style={styles.statValue}>{profile?.trips_count ?? 0}</Text>
-                <Text style={styles.statLabel}>Trips</Text>
+                <Text style={styles.statLabel}>{t('common.trips')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.statBox}
+                style={[
+                  styles.statBox,
+                  styles.connectionStatBox,
+                  connectionMetric === 'following' &&
+                    styles.connectionStatBoxActive,
+                ]}
                 activeOpacity={0.8}
-                onPress={openFollowersList}
-                onLongPress={toggleConnectionMetric}
-                delayLongPress={350}
+                onPress={handleConnectionPress}
+                onPressIn={handleConnectionPressIn}
+                onPressOut={handleConnectionPressOut}
+                accessibilityRole="button"
+                accessibilityLabel={`${connectionLabel}: ${connectionCount}`}
               >
-                <Text style={styles.statValue}>{connectionCount}</Text>
-                <Text style={styles.statLabel}>{connectionLabel}</Text>
+                <Text
+                  style={[
+                    styles.statValue,
+                    connectionMetric === 'following' &&
+                      styles.connectionStatValueActive,
+                  ]}
+                >
+                  {connectionCount}
+                </Text>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    connectionMetric === 'following' &&
+                      styles.connectionStatLabelActive,
+                  ]}
+                >
+                  {connectionLabel}
+                </Text>
               </TouchableOpacity>
             </View>
 
             {isLoading ? (
-              <Text style={styles.helperText}>Loading profile...</Text>
+              <Text style={styles.helperText}>{t('profile.loadingProfile')}</Text>
             ) : errorMessage ? (
               <Text style={styles.helperText}>{errorMessage}</Text>
             ) : followMessage ? (
@@ -419,16 +486,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  connectionStatBox: {
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+
+  connectionStatBoxActive: {
+    backgroundColor: '#FFF5F5',
+    borderColor: colors.primary,
+  },
+
   statValue: {
     fontSize: 18,
     fontWeight: '700',
     color: '#222222',
   },
 
+  connectionStatValueActive: {
+    color: colors.primary,
+  },
+
   statLabel: {
     marginTop: 4,
     fontSize: 12,
     color: '#6B7280',
+  },
+
+  connectionStatLabelActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
 
   helperText: {

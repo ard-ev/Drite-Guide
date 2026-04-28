@@ -12,9 +12,11 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function NotificationSettingsScreen() {
     const navigation = useNavigation();
+    const { t } = useTranslation();
 
     const [pushNotifications, setPushNotifications] = useState(true);
     const [tripUpdates, setTripUpdates] = useState(true);
@@ -70,7 +72,7 @@ export default function NotificationSettingsScreen() {
                             <Ionicons name="chevron-back" size={22} color="#222222" />
                         </TouchableOpacity>
 
-                        <Text style={styles.title}>Notifications</Text>
+                        <Text style={styles.title}>{t('notifications.title')}</Text>
 
                         <View style={styles.headerSpacer} />
                     </View>
@@ -81,19 +83,19 @@ export default function NotificationSettingsScreen() {
                             size={42}
                             color={colors.primary}
                         />
-                        <Text style={styles.heroTitle}>Manage your notifications</Text>
+                        <Text style={styles.heroTitle}>{t('notifications.heroTitle')}</Text>
                         <Text style={styles.heroSubtitle}>
-                            Control which alerts, reminders and updates you want to receive.
+                            {t('notifications.heroSubtitle')}
                         </Text>
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>App notifications</Text>
+                        <Text style={styles.sectionTitle}>{t('notifications.appSection')}</Text>
 
                         {renderSettingItem({
                             id: 'push',
-                            title: 'Push notifications',
-                            subtitle: 'Receive instant updates on your device',
+                            title: t('notifications.pushTitle'),
+                            subtitle: t('notifications.pushSubtitle'),
                             value: pushNotifications,
                             onValueChange: setPushNotifications,
                             icon: 'phone-portrait-outline',
@@ -101,8 +103,8 @@ export default function NotificationSettingsScreen() {
 
                         {renderSettingItem({
                             id: 'tripUpdates',
-                            title: 'Trip updates',
-                            subtitle: 'Get notified about trip-related changes and reminders',
+                            title: t('notifications.tripTitle'),
+                            subtitle: t('notifications.tripSubtitle'),
                             value: tripUpdates,
                             onValueChange: setTripUpdates,
                             icon: 'airplane-outline',
@@ -110,8 +112,8 @@ export default function NotificationSettingsScreen() {
 
                         {renderSettingItem({
                             id: 'savedPlaces',
-                            title: 'Saved place alerts',
-                            subtitle: 'Updates related to places you have saved',
+                            title: t('notifications.savedPlacesTitle'),
+                            subtitle: t('notifications.savedPlacesSubtitle'),
                             value: savedPlaceAlerts,
                             onValueChange: setSavedPlaceAlerts,
                             icon: 'bookmark-outline',
@@ -119,12 +121,12 @@ export default function NotificationSettingsScreen() {
                     </View>
 
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Email and content</Text>
+                        <Text style={styles.sectionTitle}>{t('notifications.emailSection')}</Text>
 
                         {renderSettingItem({
                             id: 'news',
-                            title: 'News and tips',
-                            subtitle: 'Travel inspiration, guides and app tips',
+                            title: t('notifications.newsTitle'),
+                            subtitle: t('notifications.newsSubtitle'),
                             value: newsAndTips,
                             onValueChange: setNewsAndTips,
                             icon: 'newspaper-outline',
@@ -132,8 +134,8 @@ export default function NotificationSettingsScreen() {
 
                         {renderSettingItem({
                             id: 'email',
-                            title: 'Email notifications',
-                            subtitle: 'Receive updates and information by email',
+                            title: t('notifications.emailTitle'),
+                            subtitle: t('notifications.emailSubtitle'),
                             value: emailNotifications,
                             onValueChange: setEmailNotifications,
                             icon: 'mail-outline',
@@ -147,8 +149,7 @@ export default function NotificationSettingsScreen() {
                             color={colors.primary}
                         />
                         <Text style={styles.infoText}>
-                            You can change these settings at any time. Some notifications may
-                            also depend on your device permissions.
+                            {t('notifications.info')}
                         </Text>
                     </View>
 
@@ -157,7 +158,7 @@ export default function NotificationSettingsScreen() {
                         activeOpacity={0.88}
                         onPress={() => navigation.goBack()}
                     >
-                        <Text style={styles.saveButtonText}>Save settings</Text>
+                        <Text style={styles.saveButtonText}>{t('notifications.save')}</Text>
                     </TouchableOpacity>
                 </ScrollView>
             </SafeAreaView>

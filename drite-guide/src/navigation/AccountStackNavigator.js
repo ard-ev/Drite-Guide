@@ -12,6 +12,9 @@ import CookiePolicyScreen from '../screens/CookiePolicyScreen';
 import LegalNoticeScreen from '../screens/LegalNoticeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import FollowersScreen from '../screens/FollowersScreen';
+import TripsScreen from '../screens/TripsScreen';
+import TripDetailScreen from '../screens/TripDetailScreen';
+import PlaceDetailScreen from '../screens/PlaceDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -53,6 +56,9 @@ export default function AccountStackNavigator() {
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="FollowersList" component={FollowersScreen} />
             <Stack.Screen name="FollowingList" component={FollowersScreen} />
+            <Stack.Screen name="Trips" component={TripsScreen} />
+            <Stack.Screen name="TripDetails" component={TripDetailScreen} />
+            <Stack.Screen name="PlaceDetails" component={PlaceDetailScreen} />
         </Stack.Navigator>
     );
 }

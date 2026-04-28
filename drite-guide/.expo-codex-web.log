@@ -1,0 +1,26 @@
+Starting project at C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide
+React Compiler enabled
+Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+Starting Metro Bundler
+Waiting on http://localhost:8083
+Logs for your project will appear below.
+Web node_modules\expo\AppEntry.js ▓▓▓░░░░░░░░░░░░░ 20.7% ( 5/11)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  5.7% ( 16/130)
+Web node_modules\expo\AppEntry.js ▓▓▓▓░░░░░░░░░░░░ 27.4% (11/21)
+λ node_modules\expo-router\node\render.js ▓▓▓░░░░░░░░░░░░░ 19.7% (137/309)
+Web node_modules\expo\AppEntry.js ▓▓▓▓▓▓░░░░░░░░░░ 38.6% ( 69/142)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 63.0% (417/526)
+Web node_modules\expo\AppEntry.js ▓▓▓▓▓▓▓░░░░░░░░░ 46.1% (254/374)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 86.2% (586/631)
+Web node_modules\expo\AppEntry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 69.7% (459/560)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 92.7% (636/663)
+λ Bundled 19915ms node_modules\expo-router\node\render.js (767 modules)
+Web node_modules\expo\AppEntry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.7% (768/778)
+Web Bundled 22076ms node_modules\expo\AppEntry.js (801 modules)
+Web node_modules\expo\AppEntry.js ▓▓▓▓░░░░░░░░░░░░ 31.1% (159/285)
+Web node_modules\expo\AppEntry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 79.5% (544/610)
+Web Bundled 7361ms node_modules\expo\AppEntry.js (802 modules)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 100ms node_modules\expo-router\node\render.js (1 module)
+Web Bundled 1418ms node_modules\expo\AppEntry.js (1 module)

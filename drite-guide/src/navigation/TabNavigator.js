@@ -8,6 +8,7 @@ import ExploreStackNavigator from './ExploreStackNavigator';
 import SavedStackNavigator from './SavedStackNavigator';
 import AccountStackNavigator from './AccountStackNavigator';
 import colors from '../theme/colors';
+import { useTranslation } from '../context/TranslationContext';
 
 const Tab = createBottomTabNavigator();
 const TAB_ROOT_SCREENS = {
@@ -18,6 +19,8 @@ const TAB_ROOT_SCREENS = {
 };
 
 export default function TabNavigator() {
+  const { t } = useTranslation();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -60,7 +63,7 @@ export default function TabNavigator() {
         },
       })}
     >
-      {[
+      {[ 
         ['Home', HomeStackNavigator],
         ['Explore', ExploreStackNavigator],
         ['Saved', SavedStackNavigator],
@@ -70,6 +73,9 @@ export default function TabNavigator() {
           key={name}
           name={name}
           component={component}
+          options={{
+            tabBarLabel: t(`tabs.${name.toLowerCase()}`),
+          }}
           listeners={({ navigation }) => ({
             tabPress: (event) => {
               const state = navigation.getState();

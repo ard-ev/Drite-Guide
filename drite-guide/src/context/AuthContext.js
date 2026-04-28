@@ -12,8 +12,14 @@ import {
   setApiLanguage,
   setAuthToken,
 } from '../services/api';
-import { normalizePlace, normalizeUser } from '../services/transformers';
+import {
+  normalizePlace,
+  normalizeTrip,
+  normalizeTripPlace,
+  normalizeUser,
+} from '../services/transformers';
 import { safeGetItem, safeRemoveItem, safeSetItem } from '../utils/storage';
+import { translate } from '../i18n/translations';
 
 const AuthContext = createContext(null);
 
@@ -53,6 +59,7 @@ export function AuthProvider({ children }) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   const isLoggedIn = !!currentUser;
+  const t = (key, params) => translate(currentLanguage, key, params);
 
   const applySession = async ({
     accessToken: nextAccessToken,
@@ -156,8 +163,8 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.get('/trips/me');
-      setTrips(response.data || []);
+      const response = await api.get('/trips');
+      setTrips((response.data || []).map(normalizeTrip));
     } catch (error) {
       console.warn('Could not load trips:', error?.message);
       setTrips([]);
@@ -229,7 +236,7 @@ export function AuthProvider({ children }) {
     if (!trimmedIdentifier || !trimmedPassword) {
       return {
         success: false,
-        message: 'Please enter your email or username and your password.',
+        message: t('auth.missingLogin'),
       };
     }
 
@@ -255,7 +262,7 @@ export function AuthProvider({ children }) {
         success: false,
         message: await extractApiErrorMessage(
           error,
-          'Login failed. Please try again.'
+          t('auth.loginFailedFallback')
         ),
       };
     }
@@ -275,7 +282,7 @@ export function AuthProvider({ children }) {
     if (trimmedPassword !== trimmedConfirmPassword) {
       return {
         success: false,
-        message: 'The passwords do not match.',
+        message: t('auth.passwordsMismatch'),
       };
     }
 
@@ -294,8 +301,7 @@ export function AuthProvider({ children }) {
         return {
           success: true,
           user: normalizeUser(response.data.user),
-          message:
-            'Account created. Please log in and verify your email from the backend log.',
+          message: t('auth.accountCreatedVerify'),
         };
       }
 
@@ -309,7 +315,7 @@ export function AuthProvider({ children }) {
         success: false,
         message: await extractApiErrorMessage(
           error,
-          'Sign up failed. Please try again.'
+          t('auth.signupFailedFallback')
         ),
       };
     }
@@ -330,13 +336,244 @@ export function AuthProvider({ children }) {
   const getSavedPlaces = () => (currentUser ? savedPlaces : guestSavedPlaces);
   const getTrips = () => trips;
 
+  const getTrip = async (tripId) => {
+    if (!tripId || !currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      const response = await api.get(`/trips/${tripId}`);
+      return {
+        success: true,
+        trip: normalizeTrip(response.data),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: await extractApiErrorMessage(
+          error,
+          'Trip could not be loaded.'
+        ),
+      };
+    }
+  };
+
+  const createTrip = async (payload) => {
+    if (!currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      const response = await api.post('/trips', payload);
+      const trip = normalizeTrip(response.data);
+      await loadTrips();
+      return {
+        success: true,
+        trip,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: await extractApiErrorMessage(
+          error,
+          'Trip creation failed.'
+        ),
+      };
+    }
+  };
+
+  const updateTrip = async (tripId, payload) => {
+    if (!tripId || !currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      const response = await api.put(`/trips/${tripId}`, payload);
+      const trip = normalizeTrip(response.data);
+      await loadTrips();
+      return {
+        success: true,
+        trip,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: await extractApiErrorMessage(
+          error,
+          'Trip update failed.'
+        ),
+      };
+    }
+  };
+
+  const deleteTrip = async (tripId) => {
+    if (!tripId || !currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      await api.delete(`/trips/${tripId}`);
+      await loadTrips();
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: await extractApiErrorMessage(
+          error,
+          'Trip deletion failed.'
+        ),
+      };
+    }
+  };
+
+  const addPlaceToTrip = async (tripId, payload) => {
+    if (!tripId || !currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      const response = await api.post(`/trips/${tripId}/places`, payload);
+      await loadTrips();
+      return {
+        success: true,
+        tripPlace: normalizeTripPlace(response.data),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: await extractApiErrorMessage(
+          error,
+          'Could not add this place to the trip.'
+        ),
+      };
+    }
+  };
+
+  const updateTripPlace = async (tripId, tripPlaceId, payload) => {
+    if (!tripId || !tripPlaceId || !currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      const response = await api.put(
+        `/trips/${tripId}/places/${tripPlaceId}`,
+        payload
+      );
+      await loadTrips();
+      return {
+        success: true,
+        tripPlace: normalizeTripPlace(response.data),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: await extractApiErrorMessage(
+          error,
+          'Could not update this trip place.'
+        ),
+      };
+    }
+  };
+
+  const removeTripPlace = async (tripId, tripPlaceId) => {
+    if (!tripId || !tripPlaceId || !currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      await api.delete(`/trips/${tripId}/places/${tripPlaceId}`);
+      await loadTrips();
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: await extractApiErrorMessage(
+          error,
+          'Could not remove this place from the trip.'
+        ),
+      };
+    }
+  };
+
+  const inviteUserToTrip = async (tripId, username) => {
+    if (!tripId || !currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      const response = await api.post(`/trips/${tripId}/invite`, {
+        username,
+      });
+      await loadTrips();
+      return {
+        success: true,
+        member: response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: await extractApiErrorMessage(
+          error,
+          'Could not invite this user.'
+        ),
+      };
+    }
+  };
+
+  const removeTripMember = async (tripId, userId) => {
+    if (!tripId || !userId || !currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      await api.delete(`/trips/${tripId}/members/${userId}`);
+      await loadTrips();
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: await extractApiErrorMessage(
+          error,
+          'Could not remove this member.'
+        ),
+      };
+    }
+  };
+
   const updateLanguage = async (languageCode) => {
     const supportedLanguage = languages.find((language) => language.code === languageCode);
 
     if (!supportedLanguage) {
       return {
         success: false,
-        message: 'Language is not supported.',
+        message: t('language.unsupported'),
       };
     }
 
@@ -355,7 +592,7 @@ export function AuthProvider({ children }) {
         success: false,
         message: await extractApiErrorMessage(
           error,
-          'Could not save language.'
+          t('language.saveError')
         ),
       };
     }
@@ -365,7 +602,7 @@ export function AuthProvider({ children }) {
     if (!currentUser || !asset?.uri) {
       return {
         success: false,
-        message: 'No profile picture selected.',
+        message: t('account.profilePicture'),
       };
     }
 
@@ -396,7 +633,7 @@ export function AuthProvider({ children }) {
         success: false,
         message: await extractApiErrorMessage(
           error,
-          'Could not update the profile picture.'
+          t('account.profilePicture')
         ),
       };
     }
@@ -406,7 +643,7 @@ export function AuthProvider({ children }) {
     if (!currentUser) {
       return {
         success: false,
-        message: 'You need to be logged in.',
+        message: t('profile.loginToFollow'),
       };
     }
 
@@ -425,7 +662,7 @@ export function AuthProvider({ children }) {
         success: false,
         message: await extractApiErrorMessage(
           error,
-          'Could not reset the profile picture.'
+          t('account.profilePicture')
         ),
       };
     }
@@ -487,6 +724,15 @@ export function AuthProvider({ children }) {
       logout,
       getSavedPlaces,
       getTrips,
+      getTrip,
+      createTrip,
+      updateTrip,
+      deleteTrip,
+      addPlaceToTrip,
+      updateTripPlace,
+      removeTripPlace,
+      inviteUserToTrip,
+      removeTripMember,
       savePlace,
       removeSavedPlace,
       refreshSavedPlaces: loadSavedPlaces,

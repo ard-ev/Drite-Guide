@@ -16,6 +16,7 @@ import {
   normalizePlace,
 } from '../services/transformers';
 import { useAuth } from './AuthContext';
+import { localizeAppDataSet } from '../i18n/contentTranslations';
 
 const AppDataContext = createContext(null);
 
@@ -197,6 +198,7 @@ function enrichCategory(item, fallbackCategories) {
 
   return {
     ...item,
+    legacyId: fallbackMatch?.legacyId || item.legacyId,
     image: localImage || item.image || null,
   };
 }
@@ -207,6 +209,7 @@ function enrichCity(item, fallbackCities) {
 
   return {
     ...item,
+    legacyId: fallbackMatch?.legacyId || item.legacyId,
     image: localImage || item.image || null,
     heroImage: localImage || item.heroImage || item.image || null,
   };
@@ -223,6 +226,8 @@ function enrichPlace(item, fallbackPlaces) {
 
   return {
     ...item,
+    legacyId: fallbackMatch?.legacyId || item.legacyId,
+    seededId: fallbackMatch?.seededId || item.seededId,
     image: fallbackMatch?.image || item.image || null,
     images:
       fallbackImages.length > 0
@@ -321,7 +326,15 @@ function buildLocalFallbackData() {
 }
 
 function findByAnyId(items, id) {
-  return items.find((item) => item.id === id || item.legacyId === id);
+  return items.find(
+    (item) =>
+      item.id === id ||
+      item.legacyId === id ||
+      item.seededId === id ||
+      String(item.id) === String(id) ||
+      String(item.legacyId) === String(id) ||
+      String(item.seededId) === String(id)
+  );
 }
 
 export function AppDataProvider({ children }) {
@@ -373,11 +386,21 @@ export function AppDataProvider({ children }) {
         enrichPlace(item, fallbackData.places)
       );
 
-      setCategories(
-        mergedCategories.length > 0 ? mergedCategories : fallbackData.categories
+      const localizedData = localizeAppDataSet(
+        {
+          categories:
+            mergedCategories.length > 0
+              ? mergedCategories
+              : fallbackData.categories,
+          cities: mergedCities.length > 0 ? mergedCities : fallbackData.cities,
+          places: mergedPlaces.length > 0 ? mergedPlaces : fallbackData.places,
+        },
+        currentLanguage
       );
-      setCities(mergedCities.length > 0 ? mergedCities : fallbackData.cities);
-      setPlaces(mergedPlaces.length > 0 ? mergedPlaces : fallbackData.places);
+
+      setCategories(localizedData.categories);
+      setCities(localizedData.cities);
+      setPlaces(localizedData.places);
     } catch (error) {
       const message = await extractApiErrorMessage(
         error,
@@ -385,9 +408,10 @@ export function AppDataProvider({ children }) {
       );
       setErrorMessage(message);
       const fallbackData = buildLocalFallbackData();
-      setCategories(fallbackData.categories);
-      setCities(fallbackData.cities);
-      setPlaces(fallbackData.places);
+      const localizedData = localizeAppDataSet(fallbackData, currentLanguage);
+      setCategories(localizedData.categories);
+      setCities(localizedData.cities);
+      setPlaces(localizedData.places);
     } finally {
       setIsLoading(false);
     }

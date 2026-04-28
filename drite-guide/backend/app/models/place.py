@@ -36,7 +36,7 @@ class Place(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     images = relationship("PlaceImage", back_populates="place", cascade="all, delete-orphan")
     saved_places = relationship("SavedPlace", back_populates="place")
     reviews = relationship("Review", back_populates="place")
-    trip_places = relationship("TripPlace", back_populates="place")
+    trip_places = relationship("TripPlace", back_populates="place", passive_deletes=True)
 
 
 class PlaceTranslation(UUIDPrimaryKeyMixin, TimestampMixin, Base):

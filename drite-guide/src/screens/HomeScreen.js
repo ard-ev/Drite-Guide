@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Linking,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -20,6 +21,7 @@ import { useAppData } from '../context/AppDataContext';
 import { toAbsoluteAssetUrl } from '../config/api';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { api } from '../services/api';
+import { useTranslation } from '../context/TranslationContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 const HERO_WIDTH = screenWidth - 40;
@@ -37,28 +39,6 @@ const CATEGORY_PRIORITY = [
   'governmenthelp',
   'governmentservices',
 ];
-const CATEGORY_SUBTITLES = {
-  restaurants: 'Traditional and modern dining spots',
-  hotels: 'Stay close to the best destinations',
-  bars: 'Cocktails, music and nightlife vibes',
-  cafes: 'Coffee breaks and cozy corners',
-  beaches: 'Sunny coastlines and crystal water',
-  historical: 'Castles, ruins and heritage places',
-  historicalsites: 'Castles, ruins and heritage places',
-  hidden_gems: 'Lesser-known local favorites',
-  hiddengems: 'Lesser-known local favorites',
-  government_help: 'Banks, offices and public help points',
-  governmenthelp: 'Helpful public services and support',
-  mosques: 'Beautiful Islamic landmarks',
-  churches: 'Historic churches and sacred sites',
-  religious_sites: 'Mosques, churches and sacred places',
-  religioussites: 'Mosques, churches and sacred places',
-  clubs: 'Late-night venues and party spots',
-  museums: 'Culture, art and local history',
-  bunkers: 'Unique Cold War era locations',
-  adventures: 'Outdoor action and active escapes',
-  governmentservices: 'Useful public service locations',
-};
 const HIDDEN_HOME_CATEGORY_KEYS = ['mosque', 'mosques', 'church', 'churches'];
 
 export default function HomeScreen({ route }) {
@@ -66,7 +46,9 @@ export default function HomeScreen({ route }) {
   const isFocused = useIsFocused();
   const screenScrollRef = useRef(null);
   const heroScrollRef = useRef(null);
+  const userSearchRequestRef = useRef(0);
   const { categories, places, cities, errorMessage } = useAppData();
+  const { t, tc, language } = useTranslation();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -139,9 +121,9 @@ export default function HomeScreen({ route }) {
       hiddengems: 'hidden_gems',
       religioussites: 'religious_sites',
       government_help: 'government_help',
-      governmentservice: 'governmentservices',
-      governmentservices: 'governmentservices',
-      governmenthelp: 'governmenthelp',
+      governmentservice: 'government_help',
+      governmentservices: 'government_help',
+      governmenthelp: 'government_help',
       mosques: 'religious_sites',
       churches: 'religious_sites',
     };
@@ -186,13 +168,12 @@ export default function HomeScreen({ route }) {
     .map((category) => ({
       id: category.id,
       label: category.name,
-      subtitle:
-        CATEGORY_SUBTITLES[getCategoryKey(category)] || 'Explore places in this category',
+      subtitle: t(`categories.subtitles.${getCategoryKey(category)}`),
       image: category.image,
     }));
 
   const getCityName = (cityId) => {
-    return cities.find((city) => city.id === cityId)?.name || 'Unknown City';
+    return cities.find((city) => city.id === cityId)?.name || t('common.unknownCityTitle');
   };
 
   const normalizeText = (text) => {
@@ -277,7 +258,11 @@ export default function HomeScreen({ route }) {
     return places
       .map((place) => {
         const cityName = getCityName(place.cityId);
-        const categoryLabel = getCategoryLabel(place.categoryId, place.categoryName);
+        const categoryLabel = getCategoryLabel(
+          place.categoryId,
+          place.categoryName,
+          language
+        );
 
         const score = Math.max(
           getSimilarityScore(query, place.name),
@@ -352,6 +337,8 @@ export default function HomeScreen({ route }) {
 
   const searchUsers = async (query) => {
     const userQuery = String(query || '').trim().replace(/^@+/, '');
+    const requestId = userSearchRequestRef.current + 1;
+    userSearchRequestRef.current = requestId;
 
     if (!userQuery) {
       setUserSuggestions([]);
@@ -363,7 +350,11 @@ export default function HomeScreen({ route }) {
         params: { q: userQuery },
       });
       const nextUsers = response.data || [];
-      setUserSuggestions(nextUsers.slice(0, 5));
+
+      if (requestId === userSearchRequestRef.current) {
+        setUserSuggestions(nextUsers.slice(0, 5));
+      }
+
       return nextUsers;
     } catch (_searchError) {
       try {
@@ -371,14 +362,35 @@ export default function HomeScreen({ route }) {
           `/users/${encodeURIComponent(userQuery)}`
         );
         const fallbackUsers = response.data ? [response.data] : [];
-        setUserSuggestions(fallbackUsers);
+
+        if (requestId === userSearchRequestRef.current) {
+          setUserSuggestions(fallbackUsers);
+        }
+
         return fallbackUsers;
       } catch (_profileError) {
-        setUserSuggestions([]);
+        if (requestId === userSearchRequestRef.current) {
+          setUserSuggestions([]);
+        }
+
         return [];
       }
     }
   };
+
+  const clearSearchState = useCallback(() => {
+    userSearchRequestRef.current += 1;
+    setSearchResults([]);
+    setCategoryResults([]);
+    setCityResults([]);
+    setUserResults([]);
+    setSuggestions([]);
+    setCategorySuggestions([]);
+    setCitySuggestions([]);
+    setUserSuggestions([]);
+    setHasSearched(false);
+    setSearchQuery('');
+  }, []);
 
   const handleSearchInputChange = async (text) => {
     setSearchQuery(text);
@@ -387,6 +399,7 @@ export default function HomeScreen({ route }) {
     const query = normalizeText(text);
 
     if (!query) {
+      userSearchRequestRef.current += 1;
       setSuggestions([]);
       setCategorySuggestions([]);
       setCitySuggestions([]);
@@ -424,7 +437,6 @@ export default function HomeScreen({ route }) {
     setCitySuggestions([]);
     setUserSuggestions([]);
     setHasSearched(true);
-    setSearchQuery('');
   };
 
   const handleCategoryPress = (category) => {
@@ -438,16 +450,7 @@ export default function HomeScreen({ route }) {
   };
 
   const clearSearchResults = () => {
-    setSearchResults([]);
-    setCategoryResults([]);
-    setCityResults([]);
-    setUserResults([]);
-    setSuggestions([]);
-    setCategorySuggestions([]);
-    setCitySuggestions([]);
-    setUserSuggestions([]);
-    setHasSearched(false);
-    setSearchQuery('');
+    clearSearchState();
   };
 
   useEffect(() => {
@@ -455,22 +458,14 @@ export default function HomeScreen({ route }) {
       return;
     }
 
-    setSearchResults([]);
-    setCategoryResults([]);
-    setCityResults([]);
-    setUserResults([]);
-    setSuggestions([]);
-    setCategorySuggestions([]);
-    setCitySuggestions([]);
-    setUserSuggestions([]);
-    setHasSearched(false);
-    setSearchQuery('');
+    clearSearchState();
     setActiveHeroIndex(0);
     screenScrollRef.current?.scrollTo({ y: 0, animated: false });
     heroScrollRef.current?.scrollTo({ x: 0, animated: false });
-  }, [refreshKey]);
+  }, [clearSearchState, refreshKey]);
 
   const clearSearchSuggestions = () => {
+    userSearchRequestRef.current += 1;
     setSuggestions([]);
     setCategorySuggestions([]);
     setCitySuggestions([]);
@@ -507,10 +502,8 @@ export default function HomeScreen({ route }) {
   };
 
   const handlePartnerContactPress = () => {
-    const subject = encodeURIComponent('Business partnership with Drite Guide');
-    const body = encodeURIComponent(
-      'Hi Drite Guide,\n\nI would like to become a business partner.\n\nBusiness name:\nLocation:\nWhat we offer:\nContact person:\nPhone:\n\nThank you!'
-    );
+    const subject = encodeURIComponent(t('home.partnerEmailSubject'));
+    const body = encodeURIComponent(t('home.partnerEmailBody'));
 
     Linking.openURL(
       `mailto:driteguide@gmail.com?subject=${subject}&body=${body}`
@@ -539,7 +532,7 @@ export default function HomeScreen({ route }) {
           <View style={styles.headerRow}>
             <View style={styles.headerTextWrap}>
               <Text style={styles.title}>Dritë Guide</Text>
-              <Text style={styles.subtitle}>Discover Albania with ease</Text>
+              <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
             </View>
 
             <Image
@@ -558,7 +551,7 @@ export default function HomeScreen({ route }) {
           <View style={styles.searchWrapper}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search places, categories, cities, accounts..."
+              placeholder={t('home.searchPlaceholder')}
               placeholderTextColor="#8E8E93"
               value={searchQuery}
               onChangeText={handleSearchInputChange}
@@ -570,8 +563,24 @@ export default function HomeScreen({ route }) {
               activeOpacity={0.85}
               onPress={handleSearch}
             >
-              <Text style={styles.searchButtonText}>Search</Text>
+              <Text style={styles.searchButtonText}>{t('common.search')}</Text>
             </TouchableOpacity>
+            {searchQuery.trim().length > 0 ||
+            hasSearched ||
+            citySuggestions.length > 0 ||
+            categorySuggestions.length > 0 ||
+            userSuggestions.length > 0 ||
+            suggestions.length > 0 ? (
+              <TouchableOpacity
+                style={styles.clearSearchButton}
+                activeOpacity={0.85}
+                onPress={clearSearchState}
+                accessibilityRole="button"
+                accessibilityLabel={t('home.clearSearchAccessibility')}
+              >
+                <Ionicons name="close" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           {searchQuery.trim().length > 0 &&
@@ -595,7 +604,7 @@ export default function HomeScreen({ route }) {
                   />
                   <View style={styles.suggestionTextWrap}>
                     <Text style={styles.suggestionTitle}>{city.name}</Text>
-                    <Text style={styles.suggestionSubtitle}>City</Text>
+                    <Text style={styles.suggestionSubtitle}>{t('common.city')}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -614,7 +623,7 @@ export default function HomeScreen({ route }) {
                   />
                   <View style={styles.suggestionTextWrap}>
                     <Text style={styles.suggestionTitle}>{category.name}</Text>
-                    <Text style={styles.suggestionSubtitle}>Category</Text>
+                    <Text style={styles.suggestionSubtitle}>{t('common.category')}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -665,7 +674,7 @@ export default function HomeScreen({ route }) {
                   <View style={styles.suggestionTextWrap}>
                     <Text style={styles.suggestionTitle}>{item.name}</Text>
                     <Text style={styles.suggestionSubtitle}>
-                      {getCategoryLabel(item.categoryId, item.categoryName)} •{' '}
+                      {getCategoryLabel(item.categoryId, item.categoryName, language)} •{' '}
                       {getCityName(item.cityId)}
                     </Text>
                   </View>
@@ -685,13 +694,13 @@ export default function HomeScreen({ route }) {
           {hasSearched ? (
             <View style={styles.section}>
               <View style={styles.resultsHeaderRow}>
-                <Text style={styles.sectionTitleNoMargin}>Search results</Text>
+                <Text style={styles.sectionTitleNoMargin}>{t('home.searchResults')}</Text>
 
                 <TouchableOpacity
                   onPress={clearSearchResults}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.clearResultsText}>Clear</Text>
+                  <Text style={styles.clearResultsText}>{t('common.clear')}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -702,7 +711,7 @@ export default function HomeScreen({ route }) {
                 <View>
                   {cityResults.length > 0 ? (
                     <View style={styles.searchGroup}>
-                      <Text style={styles.searchGroupTitle}>Cities</Text>
+                      <Text style={styles.searchGroupTitle}>{t('common.cities')}</Text>
                       {cityResults.map((city) => (
                         <TouchableOpacity
                           key={`result-city-${city.id}`}
@@ -718,7 +727,7 @@ export default function HomeScreen({ route }) {
 
                           <View style={styles.resultContent}>
                             <Text style={styles.resultTitle}>{city.name}</Text>
-                            <Text style={styles.resultSubtitle}>City</Text>
+                            <Text style={styles.resultSubtitle}>{t('common.city')}</Text>
                           </View>
                         </TouchableOpacity>
                       ))}
@@ -727,7 +736,7 @@ export default function HomeScreen({ route }) {
 
                   {categoryResults.length > 0 ? (
                     <View style={styles.searchGroup}>
-                      <Text style={styles.searchGroupTitle}>Categories</Text>
+                      <Text style={styles.searchGroupTitle}>{t('common.categories')}</Text>
                       {categoryResults.map((category) => (
                         <TouchableOpacity
                           key={`result-category-${category.id}`}
@@ -743,7 +752,7 @@ export default function HomeScreen({ route }) {
 
                           <View style={styles.resultContent}>
                             <Text style={styles.resultTitle}>{category.name}</Text>
-                            <Text style={styles.resultSubtitle}>Category</Text>
+                            <Text style={styles.resultSubtitle}>{t('common.category')}</Text>
                           </View>
                         </TouchableOpacity>
                       ))}
@@ -752,7 +761,7 @@ export default function HomeScreen({ route }) {
 
                   {userResults.length > 0 ? (
                     <View style={styles.searchGroup}>
-                      <Text style={styles.searchGroupTitle}>Profiles</Text>
+                      <Text style={styles.searchGroupTitle}>{t('common.profiles')}</Text>
                       {userResults.map((user) => (
                         <TouchableOpacity
                           key={`result-user-${user.id}`}
@@ -773,7 +782,7 @@ export default function HomeScreen({ route }) {
                               {user.first_name} {user.last_name}
                             </Text>
                             <Text style={styles.resultSubtitle}>
-                              @{user.username} • {user.followers_count || 0} followers
+                              @{user.username} • {tc('common.countFollowers', user.followers_count || 0)}
                             </Text>
                           </View>
                         </TouchableOpacity>
@@ -782,7 +791,7 @@ export default function HomeScreen({ route }) {
                   ) : null}
 
                   {searchResults.length > 0 ? (
-                    <Text style={styles.searchGroupTitle}>Places</Text>
+                    <Text style={styles.searchGroupTitle}>{t('common.places')}</Text>
                   ) : null}
 
                   {searchResults.map((place) => (
@@ -803,7 +812,7 @@ export default function HomeScreen({ route }) {
                           <View style={styles.resultTextWrap}>
                             <Text style={styles.resultTitle}>{place.name}</Text>
                             <Text style={styles.resultSubtitle}>
-                              {getCategoryLabel(place.categoryId, place.categoryName)} •{' '}
+                              {getCategoryLabel(place.categoryId, place.categoryName, language)} •{' '}
                               {getCityName(place.cityId)}
                             </Text>
                           </View>
@@ -826,7 +835,7 @@ export default function HomeScreen({ route }) {
                 </View>
               ) : (
                 <View style={styles.noResultsCard}>
-                  <Text style={styles.noResultsText}>No results found</Text>
+                  <Text style={styles.noResultsText}>{t('common.noResults')}</Text>
                 </View>
               )}
             </View>
@@ -845,13 +854,12 @@ export default function HomeScreen({ route }) {
                     scrollEventThrottle={16}
                   >
                     <View style={styles.heroCard}>
-                      <Text style={styles.heroEyebrow}>Travel smarter</Text>
+                      <Text style={styles.heroEyebrow}>{t('home.heroEyebrow')}</Text>
                       <Text style={styles.heroTitle}>
-                        Find the best places in Albania
+                        {t('home.heroTitle')}
                       </Text>
                       <Text style={styles.heroText}>
-                        Explore Cities, Villages, Restaurants, Cafés, Bars,
-                        Clubs and Hidden Gems in one experience.
+                        {t('home.heroText')}
                       </Text>
                     </View>
 
@@ -872,18 +880,17 @@ export default function HomeScreen({ route }) {
                       <View style={styles.partnerHeroGlowTwo} />
 
                       <View style={styles.partnerHeroTopRow}>
-                        <Text style={styles.partnerHeroEyebrow}>For businesses</Text>
+                        <Text style={styles.partnerHeroEyebrow}>{t('home.businessEyebrow')}</Text>
                         <View style={styles.partnerHeroBadge}>
-                          <Text style={styles.partnerHeroBadgeText}>Partner up</Text>
+                          <Text style={styles.partnerHeroBadgeText}>{t('home.partnerBadge')}</Text>
                         </View>
                       </View>
 
                       <Text style={styles.partnerHeroTitle}>
-                        Put your spot where Albania is looking
+                        {t('home.partnerTitle')}
                       </Text>
                       <Text style={styles.partnerHeroText}>
-                        Hotels, cafés, tours and local gems can team up with
-                        Dritë Guide and get discovered by curious travelers.
+                        {t('home.partnerText')}
                       </Text>
 
                       <TouchableOpacity
@@ -891,7 +898,7 @@ export default function HomeScreen({ route }) {
                         activeOpacity={0.86}
                         onPress={handlePartnerContactPress}
                       >
-                        <Text style={styles.partnerHeroFooterText}>Tell us what you do</Text>
+                        <Text style={styles.partnerHeroFooterText}>{t('home.partnerButton')}</Text>
                         <View style={styles.partnerHeroArrow}>
                           <Text style={styles.partnerHeroArrowText}>→</Text>
                         </View>
@@ -915,7 +922,7 @@ export default function HomeScreen({ route }) {
               </View>
 
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Popular categories</Text>
+                <Text style={styles.sectionTitle}>{t('home.popularCategories')}</Text>
 
                 <View style={styles.categoryGrid}>
                   {categoryCards.map((category) => (
@@ -1023,15 +1030,27 @@ const styles = StyleSheet.create({
 
   searchButton: {
     backgroundColor: colors.primary,
+    minHeight: 46,
     paddingHorizontal: 18,
-    paddingVertical: 13,
     borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   searchButtonText: {
     color: colors.white,
     fontSize: 14,
     fontWeight: '700',
+  },
+
+  clearSearchButton: {
+    width: 46,
+    height: 46,
+    marginLeft: 8,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
   },
 
   suggestionsBox: {
@@ -1229,7 +1248,7 @@ const styles = StyleSheet.create({
   },
 
   partnerHeroFooter: {
-    marginTop: 12,
+    marginTop: 0,
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',

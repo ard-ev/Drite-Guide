@@ -5,6 +5,7 @@ import SplashScreenView from './src/screens/SplashScreen';
 import RootNavigator from './src/navigation/RootNavigator';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppDataProvider } from './src/context/AppDataContext';
+import { TranslationProvider } from './src/context/TranslationContext';
 
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
@@ -30,11 +31,13 @@ export default function App() {
   return (
     <View style={{ flex: 1 }}>
       <AuthProvider>
-        <AppDataProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
-        </AppDataProvider>
+        <TranslationProvider>
+          <AppDataProvider>
+            <NavigationContainer>
+              <RootNavigator />
+            </NavigationContainer>
+          </AppDataProvider>
+        </TranslationProvider>
       </AuthProvider>
     </View>
   );
