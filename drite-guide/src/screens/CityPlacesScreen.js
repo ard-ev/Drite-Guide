@@ -29,18 +29,19 @@ export default function CityPlacesScreen() {
         String(place.cityId) === String(cityId) ||
         place.legacyId === cityId;
 
-    const filteredPlaces = places.filter(matchesCity);
+    const filteredPlaces = places.filter(Boolean).filter(matchesCity);
 
     const handlePlacePress = (place) => {
         navigation.navigate('PlaceDetails', {
-            placeId: place.id,
+            placeId: place?.id,
+            place,
         });
     };
 
     const renderPlaceCard = (place) => {
         return (
             <TouchableOpacity
-                key={place.id}
+                key={place?.id || place?.legacyId || place?.name}
                 style={styles.placeCard}
                 activeOpacity={0.9}
                 onPress={() => handlePlacePress(place)}

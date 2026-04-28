@@ -1,6 +1,10 @@
 import { toAbsoluteAssetUrl } from '../config/api';
 
 export function normalizeCategory(category) {
+  if (!category) {
+    return null;
+  }
+
   return {
     ...category,
     id: category.id,
@@ -10,6 +14,10 @@ export function normalizeCategory(category) {
 }
 
 export function normalizeUser(user) {
+  if (!user) {
+    return null;
+  }
+
   return {
     ...user,
     profile_picture_path: toAbsoluteAssetUrl(user.profile_picture_path),
@@ -17,6 +25,10 @@ export function normalizeUser(user) {
 }
 
 export function normalizeCity(city) {
+  if (!city) {
+    return null;
+  }
+
   return {
     ...city,
     id: city.id,
@@ -28,6 +40,10 @@ export function normalizeCity(city) {
 }
 
 export function normalizePlace(place, options = {}) {
+  if (!place) {
+    return null;
+  }
+
   const mainImage = toAbsoluteAssetUrl(place.main_image_path);
 
   return {
@@ -49,6 +65,10 @@ export function normalizePlace(place, options = {}) {
 }
 
 export function normalizeTripMember(member) {
+  if (!member) {
+    return null;
+  }
+
   return {
     ...member,
     userId: member.user_id,
@@ -58,6 +78,10 @@ export function normalizeTripMember(member) {
 }
 
 export function normalizeTripPlace(tripPlace) {
+  if (!tripPlace) {
+    return null;
+  }
+
   return {
     ...tripPlace,
     tripId: tripPlace.trip_id,
@@ -71,6 +95,10 @@ export function normalizeTripPlace(tripPlace) {
 }
 
 export function normalizeTrip(trip) {
+  if (!trip) {
+    return null;
+  }
+
   return {
     ...trip,
     ownerId: trip.owner_id || trip.owner_user_id,
@@ -81,13 +109,13 @@ export function normalizeTrip(trip) {
     invitedUsersCount:
       trip.invited_users_count ??
       (Array.isArray(trip.members)
-        ? trip.members.filter((member) => member.role !== 'owner').length
+        ? trip.members.filter((member) => member && member.role !== 'owner').length
         : 0),
     members: Array.isArray(trip.members)
-      ? trip.members.map(normalizeTripMember)
+      ? trip.members.map(normalizeTripMember).filter(Boolean)
       : [],
     places: Array.isArray(trip.places)
-      ? trip.places.map(normalizeTripPlace)
+      ? trip.places.map(normalizeTripPlace).filter(Boolean)
       : [],
   };
 }

@@ -326,7 +326,7 @@ function buildLocalFallbackData() {
 }
 
 function findByAnyId(items, id) {
-  return items.find(
+  return (items || []).filter(Boolean).find(
     (item) =>
       item.id === id ||
       item.legacyId === id ||
@@ -357,22 +357,26 @@ export function AppDataProvider({ children }) {
           api.get('/places'),
         ]);
 
-      const nextCategories = (categoriesResponse.data || []).map(
-        normalizeCategory
-      );
-      const nextCities = (citiesResponse.data || []).map(normalizeCity);
+      const nextCategories = (categoriesResponse.data || [])
+        .map(normalizeCategory)
+        .filter(Boolean);
+      const nextCities = (citiesResponse.data || [])
+        .map(normalizeCity)
+        .filter(Boolean);
       const categoryNameById = Object.fromEntries(
         nextCategories.map((item) => [item.id, item.name])
       );
       const cityNameById = Object.fromEntries(
         nextCities.map((item) => [item.id, item.name])
       );
-      const nextPlaces = (placesResponse.data || []).map((item) =>
-        normalizePlace(item, {
-          categoryName: categoryNameById[item.category_id],
-          cityName: cityNameById[item.city_id],
-        })
-      );
+      const nextPlaces = (placesResponse.data || [])
+        .map((item) =>
+          normalizePlace(item, {
+            categoryName: categoryNameById[item?.category_id],
+            cityName: cityNameById[item?.city_id],
+          })
+        )
+        .filter(Boolean);
 
       const fallbackData = buildLocalFallbackData();
       const mergedCategories = mergeCategoriesWithFallback(

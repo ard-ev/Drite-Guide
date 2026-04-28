@@ -187,17 +187,18 @@ export default function SavedScreen({ route }) {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>{t('savedScreen.savedPlaces')}</Text>
 
-              {savedPlaces.map((savedPlace) => {
+              {savedPlaces.filter(Boolean).map((savedPlace) => {
                 const place = getPlaceById(savedPlace.id) || savedPlace;
 
                 return (
                 <TouchableOpacity
-                  key={place.id}
+                  key={place.id || savedPlace.id}
                   style={styles.placeCard}
                   activeOpacity={0.88}
                   onPress={() =>
                     navigation.navigate('PlaceDetails', {
-                      placeId: place.id,
+                      placeId: place.id || savedPlace.id,
+                      place,
                     })
                   }
                 >
@@ -227,7 +228,7 @@ export default function SavedScreen({ route }) {
                   <TouchableOpacity
                     style={styles.deleteButton}
                     activeOpacity={0.8}
-                    onPress={() => removeSavedPlace(place.id)}
+                    onPress={() => removeSavedPlace(place.id || savedPlace.id)}
                   >
                     <Ionicons name="trash-outline" size={20} color="#d51e1e" />
                   </TouchableOpacity>

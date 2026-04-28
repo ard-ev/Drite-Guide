@@ -63,7 +63,7 @@ export default function SearchResultsScreen({ route }) {
   };
 
   const getCityName = useCallback((cityId) =>
-    cities.find((city) => city.id === cityId || city.legacyId === cityId)?.name ||
+    cities.filter(Boolean).find((city) => city.id === cityId || city.legacyId === cityId)?.name ||
     '', [cities]);
 
   const suggestions = useMemo(() => {
@@ -77,7 +77,7 @@ export default function SearchResultsScreen({ route }) {
     const nameMatches = [];
     const descriptionMatches = [];
 
-    cities.forEach((city) => {
+    cities.filter(Boolean).forEach((city) => {
       if (
         city.name.toLowerCase().startsWith(query) ||
         String(city.id).toLowerCase().startsWith(query)
@@ -90,7 +90,7 @@ export default function SearchResultsScreen({ route }) {
       }
     });
 
-    places.forEach((place) => {
+    places.filter(Boolean).forEach((place) => {
       const categoryLabel = getCategoryLabel(
         place.categoryId,
         place.categoryName,
@@ -138,6 +138,7 @@ export default function SearchResultsScreen({ route }) {
     const query = searchQuery.toLowerCase().trim();
 
     return places
+      .filter(Boolean)
       .filter((place) => {
         const categoryLabel = getCategoryLabel(
           place.categoryId,
@@ -184,9 +185,14 @@ export default function SearchResultsScreen({ route }) {
   }, [getCityName, language, places, searchQuery, textMatchesQuery]);
 
   const handlePlacePress = (place) => {
+    if (!place?.id) {
+      return;
+    }
+
     Keyboard.dismiss();
     navigation.navigate('PlaceDetails', {
       placeId: place.id,
+      place,
     });
   };
 
@@ -299,7 +305,7 @@ export default function SearchResultsScreen({ route }) {
           <FlatList
             data={suggestions}
             renderItem={renderSuggestionItem}
-            keyExtractor={(item) => `${item.type}-${item.id}`}
+            keyExtractor={(item) => `${item?.type}-${item?.id || item?.name}`}
             scrollEnabled={false}
             nestedScrollEnabled={false}
           />
@@ -318,7 +324,7 @@ export default function SearchResultsScreen({ route }) {
             <FlatList
               data={allResults}
               renderItem={renderResultItem}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item?.id || item?.legacyId || item?.name}
               contentContainerStyle={styles.resultsContent}
               showsVerticalScrollIndicator
               scrollIndicatorInsets={{ right: 1 }}
@@ -344,7 +350,7 @@ export default function SearchResultsScreen({ route }) {
         >
           <Text style={styles.sectionTitle}>{t('searchScreen.popularCities')}</Text>
           <View style={styles.citiesGrid}>
-            {cities.map((city) => (
+            {cities.filter(Boolean).map((city) => (
               <TouchableOpacity
                 key={city.id}
                 style={styles.cityCard}

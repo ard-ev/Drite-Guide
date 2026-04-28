@@ -19,7 +19,7 @@ import TripPlaceScheduleModal from './TripPlaceScheduleModal';
 export default function AddToTripModal({ visible, place, onClose, onAdded }) {
   const { getTrips, getTrip, createTrip, addPlaceToTrip } = useAuth();
   const backendPlaceId = place?.seededId || place?.id;
-  const trips = getTrips() || [];
+  const trips = (getTrips() || []).filter((trip) => trip?.id);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [checkingTripId, setCheckingTripId] = useState(null);
   const [scheduleVisible, setScheduleVisible] = useState(false);
@@ -35,13 +35,21 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
   }, [visible]);
 
   const tripHasPlace = (trip) => {
-    return (trip?.places || []).some((tripPlace) => {
-      const tripPlaceId = tripPlace.placeId || tripPlace.place_id;
+    if (!backendPlaceId) {
+      return false;
+    }
+
+    return (trip?.places || []).filter(Boolean).some((tripPlace) => {
+      const tripPlaceId = tripPlace?.placeId || tripPlace?.place_id;
       return String(tripPlaceId) === String(backendPlaceId);
     });
   };
 
   const handleTripPress = async (trip) => {
+    if (!trip?.id) {
+      return;
+    }
+
     setCheckingTripId(trip.id);
     const result = await getTrip(trip.id);
     setCheckingTripId(null);
@@ -70,6 +78,13 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
   };
 
   const handleSaveVisit = async (visitPayload) => {
+    if (!selectedTrip?.id || !backendPlaceId) {
+      return {
+        success: false,
+        message: 'This place or trip could not be loaded.',
+      };
+    }
+
     const result = await addPlaceToTrip(selectedTrip.id, {
       place_id: backendPlaceId,
       ...visitPayload,
@@ -128,7 +143,7 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
                       </View>
 
                       <View style={styles.tripOptionContent}>
-                        <Text style={styles.tripOptionTitle}>{trip.title}</Text>
+                        <Text style={styles.tripOptionTitle}>{trip.title || 'Untitled trip'}</Text>
                         <Text style={styles.tripOptionDescription} numberOfLines={2}>
                           {isChecking ? 'Checking trip...' : `${trip.start_date} - ${trip.end_date}`}
                           {isDuplicate ? ' · Already added' : ''}

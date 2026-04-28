@@ -41,12 +41,14 @@ export default function CategoryPlacesScreen() {
     };
 
     const filteredPlaces = places
+        .filter(Boolean)
         .filter(matchesCategory)
         .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
 
     const handlePlacePress = (place) => {
         navigation.navigate('PlaceDetails', {
-            placeId: place.id,
+            placeId: place?.id,
+            place,
         });
     };
 
@@ -70,7 +72,7 @@ export default function CategoryPlacesScreen() {
                         <View style={styles.placesSection}>
                             {filteredPlaces.map((place) => (
                                 <TouchableOpacity
-                                    key={place.id}
+                                    key={place?.id || place?.legacyId || place?.name}
                                     style={styles.placeCard}
                                     activeOpacity={0.9}
                                     onPress={() => handlePlacePress(place)}

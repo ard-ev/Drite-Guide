@@ -422,7 +422,7 @@ export function localizeAppDataSet(dataSet, languageCode) {
 
   const categoryNameById = new Map();
 
-  const categories = dataSet.categories.map((category) => {
+  const categories = (dataSet.categories || []).filter(Boolean).map((category) => {
     const categoryKey = getCategoryKey(category);
     const localizedName = translate(language, `categories.labels.${categoryKey}`);
     const nextCategory = {
@@ -436,7 +436,7 @@ export function localizeAppDataSet(dataSet, languageCode) {
     return nextCategory;
   });
 
-  const cities = dataSet.cities.map((city) => {
+  const cities = (dataSet.cities || []).filter(Boolean).map((city) => {
     const cityKey = normalizeLookupKey(city.legacyId || city.id || city.name);
     const localizedDescription = CITY_DESCRIPTIONS[language]?.[cityKey];
 
@@ -446,7 +446,7 @@ export function localizeAppDataSet(dataSet, languageCode) {
     };
   });
 
-  const places = dataSet.places.map((place) => {
+  const places = (dataSet.places || []).filter(Boolean).map((place) => {
     const placeKey = normalizeLookupKey(place.legacyId || place.id);
     const categoryKey = getCategoryKey(place.categoryId || place.categoryName);
     const localizedDescription = PLACE_DESCRIPTIONS[language]?.[placeKey];

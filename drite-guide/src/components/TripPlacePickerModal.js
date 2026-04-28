@@ -34,6 +34,7 @@ export default function TripPlacePickerModal({
     const normalizedQuery = query.trim().toLowerCase();
 
     return (places || [])
+      .filter(Boolean)
       .filter((place) => {
         if (!normalizedQuery) return true;
 

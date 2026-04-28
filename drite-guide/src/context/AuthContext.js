@@ -123,7 +123,16 @@ export function AuthProvider({ children }) {
     try {
       const stored = await safeGetItem(GUEST_SAVED_PLACES_KEY);
       const parsed = stored ? JSON.parse(stored) : [];
-      setGuestSavedPlaces(Array.isArray(parsed) ? parsed : []);
+      const nextGuestSavedPlaces = Array.isArray(parsed)
+        ? parsed.filter(Boolean)
+        : [];
+      setGuestSavedPlaces(nextGuestSavedPlaces);
+      if (Array.isArray(parsed) && parsed.length !== nextGuestSavedPlaces.length) {
+        await safeSetItem(
+          GUEST_SAVED_PLACES_KEY,
+          JSON.stringify(nextGuestSavedPlaces)
+        );
+      }
     } catch (error) {
       console.warn('Could not load guest saved places:', error?.message);
       setGuestSavedPlaces([]);
@@ -131,10 +140,11 @@ export function AuthProvider({ children }) {
   };
 
   const persistGuestSavedPlaces = async (nextSavedPlaces) => {
-    setGuestSavedPlaces(nextSavedPlaces);
+    const compactSavedPlaces = (nextSavedPlaces || []).filter(Boolean);
+    setGuestSavedPlaces(compactSavedPlaces);
     await safeSetItem(
       GUEST_SAVED_PLACES_KEY,
-      JSON.stringify(nextSavedPlaces)
+      JSON.stringify(compactSavedPlaces)
     );
   };
 
@@ -146,9 +156,9 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await api.get('/saved-places/me');
-      const nextSavedPlaces = (response.data || []).map((item) =>
-        normalizePlace(item.place)
-      );
+      const nextSavedPlaces = (response.data || [])
+        .map((item) => normalizePlace(item?.place))
+        .filter(Boolean);
       setSavedPlaces(nextSavedPlaces);
     } catch (error) {
       console.warn('Could not load saved places:', error?.message);
@@ -163,8 +173,8 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.get('/trips');
-      setTrips((response.data || []).map(normalizeTrip));
+      const response = await api.get('/trips/me');
+      setTrips((response.data || []).map(normalizeTrip).filter(Boolean));
     } catch (error) {
       console.warn('Could not load trips:', error?.message);
       setTrips([]);
@@ -333,8 +343,9 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const getSavedPlaces = () => (currentUser ? savedPlaces : guestSavedPlaces);
-  const getTrips = () => trips;
+  const getSavedPlaces = () =>
+    (currentUser ? savedPlaces : guestSavedPlaces).filter(Boolean);
+  const getTrips = () => trips.filter((trip) => trip?.id);
 
   const getTrip = async (tripId) => {
     if (!tripId || !currentUser) {
@@ -674,13 +685,15 @@ export function AuthProvider({ children }) {
     }
 
     if (!currentUser) {
-      const alreadySaved = guestSavedPlaces.some((item) => item.id === place.id);
+      const alreadySaved = guestSavedPlaces
+        .filter(Boolean)
+        .some((item) => item.id === place.id);
 
       if (alreadySaved) {
         return;
       }
 
-      await persistGuestSavedPlaces([...guestSavedPlaces, place]);
+      await persistGuestSavedPlaces([...guestSavedPlaces.filter(Boolean), place]);
       return;
     }
 
@@ -699,7 +712,7 @@ export function AuthProvider({ children }) {
 
     if (!currentUser) {
       await persistGuestSavedPlaces(
-        guestSavedPlaces.filter((item) => item.id !== placeId)
+        guestSavedPlaces.filter((item) => item && item.id !== placeId)
       );
       return;
     }

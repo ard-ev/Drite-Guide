@@ -34,10 +34,10 @@ const normalizeCityKey = (value) =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '');
 
-const getCitySortKey = (city) => normalizeCityKey(city.legacyId || city.id || city.name);
+const getCitySortKey = (city) => normalizeCityKey(city?.legacyId || city?.id || city?.name);
 
 const getCityPriority = (city) => {
-  const cityKeys = [city.legacyId, city.id, city.name, city.city_name].map(
+  const cityKeys = [city?.legacyId, city?.id, city?.name, city?.city_name].map(
     normalizeCityKey
   );
 
@@ -73,8 +73,10 @@ export default function ExploreScreen({ route }) {
   }, []);
 
   const cityMap = useMemo(() => {
-    return cities.reduce((acc, city) => {
-      acc[city.id] = city;
+    return cities.filter(Boolean).reduce((acc, city) => {
+      if (city?.id) {
+        acc[city.id] = city;
+      }
       return acc;
     }, {});
   }, []);
@@ -214,26 +216,27 @@ export default function ExploreScreen({ route }) {
   const openPlaceDetailsFromPreview = () => {
     if (!selectedPlace) return;
 
-    const placeId = selectedPlace.id;
+    const placeId = selectedPlace?.id;
+    if (!placeId) return;
 
     setShowMapExpanded(false);
     setShowPlacePreview(false);
     setSelectedPlace(null);
 
     setTimeout(() => {
-      navigation.navigate('PlaceDetails', { placeId });
+      navigation.navigate('PlaceDetails', { placeId, place: selectedPlace });
     }, 150);
   };
 
   const renderCityCard = (city) => {
-    const placesCount = getPlacesCount(city.id);
+    const placesCount = getPlacesCount(city?.id);
 
     return (
       <TouchableOpacity
-        key={city.id}
+        key={city?.id || city?.legacyId || city?.name}
         style={styles.cityCard}
         activeOpacity={0.88}
-        onPress={() => handleCityPress(city.id)}
+        onPress={() => handleCityPress(city?.id)}
       >
         <ImageBackground
           source={city.image}
@@ -491,15 +494,15 @@ export default function ExploreScreen({ route }) {
                   contentContainerStyle={styles.webPlacesStripContent}
                   style={styles.webPlacesStrip}
                 >
-                  {nearbyPlaces.map((place) => {
+                  {nearbyPlaces.filter(Boolean).map((place) => {
                     const city = cityMap[place.cityId];
 
                     return (
                       <TouchableOpacity
-                        key={place.id}
+                        key={place?.id || place?.legacyId || place?.name}
                         style={[
                           styles.webPlaceChip,
-                          selectedPlace?.id === place.id && styles.webPlaceChipActive,
+                          selectedPlace?.id === place?.id && styles.webPlaceChipActive,
                         ]}
                         activeOpacity={0.88}
                         onPress={() => handleMarkerPress(place)}

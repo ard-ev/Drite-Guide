@@ -44,10 +44,10 @@ const normalizeCityKey = (value) =>
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '');
 
-const getCitySortKey = (city) => normalizeCityKey(city.legacyId || city.id || city.name);
+const getCitySortKey = (city) => normalizeCityKey(city?.legacyId || city?.id || city?.name);
 
 const getCityPriority = (city) => {
-    const cityKeys = [city.legacyId, city.id, city.name, city.city_name].map(
+    const cityKeys = [city?.legacyId, city?.id, city?.name, city?.city_name].map(
         normalizeCityKey
     );
 
@@ -87,8 +87,10 @@ export default function ExploreScreen({ route }) {
     }, []);
 
     const cityMap = useMemo(() => {
-        return cities.reduce((acc, city) => {
-            acc[city.id] = city;
+        return cities.filter(Boolean).reduce((acc, city) => {
+            if (city?.id) {
+                acc[city.id] = city;
+            }
             return acc;
         }, {});
     }, [cities]);
@@ -278,14 +280,15 @@ export default function ExploreScreen({ route }) {
     const openPlaceDetailsFromPreview = () => {
         if (!selectedPlace) return;
 
-        const placeId = selectedPlace.id;
+        const placeId = selectedPlace?.id;
+        if (!placeId) return;
 
         setShowMapExpanded(false);
         setShowPlacePreview(false);
         setSelectedPlace(null);
 
         setTimeout(() => {
-            navigation.navigate('PlaceDetails', { placeId });
+            navigation.navigate('PlaceDetails', { placeId, place: selectedPlace });
         }, 150);
     };
 
@@ -347,14 +350,14 @@ export default function ExploreScreen({ route }) {
     };
 
     const renderCityCard = (city) => {
-        const placesCount = getPlacesCount(city.id);
+        const placesCount = getPlacesCount(city?.id);
 
         return (
             <TouchableOpacity
-                key={city.id}
+                key={city?.id || city?.legacyId || city?.name}
                 style={styles.cityCard}
                 activeOpacity={0.88}
-                onPress={() => handleCityPress(city.id)}
+                onPress={() => handleCityPress(city?.id)}
             >
                 <ImageBackground
                     source={getImageSource(city.image)}
@@ -419,7 +422,7 @@ export default function ExploreScreen({ route }) {
           }).addTo(map);
 
           const markers = ${JSON.stringify(
-              placesWithCoordinates.slice(0, 80).map((place) => ({
+              placesWithCoordinates.filter(Boolean).slice(0, 80).map((place) => ({
                   latitude: place.latitude,
                   longitude: place.longitude,
                   name: place.name,
@@ -515,9 +518,9 @@ export default function ExploreScreen({ route }) {
                                     }
                                 }}
                             >
-                                {nearbyPlaces.map((place) => (
+                                {nearbyPlaces.filter(Boolean).map((place) => (
                                     <Marker
-                                        key={place.id}
+                                        key={place?.id || place?.legacyId || place?.name}
                                         coordinate={{
                                             latitude: place.latitude,
                                             longitude: place.longitude,

@@ -110,9 +110,9 @@ export default function HomeScreen({ route }) {
 
   const getCategoryKey = (category) => {
     const candidates = [
-      category.legacyId,
-      category.id,
-      category.name,
+      category?.legacyId,
+      category?.id,
+      category?.name,
     ].map(normalizeCategoryKey);
 
     const aliases = {
@@ -142,14 +142,14 @@ export default function HomeScreen({ route }) {
   };
 
   const isHiddenHomeCategory = (category) => {
-    const rawKeys = [category.legacyId, category.id, category.name].map(
+    const rawKeys = [category?.legacyId, category?.id, category?.name].map(
       normalizeCategoryKey
     );
 
     return rawKeys.some((key) => HIDDEN_HOME_CATEGORY_KEYS.includes(key));
   };
 
-  const categoryCards = [...categories]
+  const categoryCards = [...categories].filter(Boolean)
     .filter((category) => !isHiddenHomeCategory(category))
     .sort((left, right) => {
       const leftKey = getCategoryKey(left);
@@ -173,7 +173,7 @@ export default function HomeScreen({ route }) {
     }));
 
   const getCityName = (cityId) => {
-    return cities.find((city) => city.id === cityId)?.name || t('common.unknownCityTitle');
+    return cities.filter(Boolean).find((city) => city.id === cityId)?.name || t('common.unknownCityTitle');
   };
 
   const normalizeText = (text) => {
@@ -256,6 +256,7 @@ export default function HomeScreen({ route }) {
 
   const buildSearchResults = (query) => {
     return places
+      .filter(Boolean)
       .map((place) => {
         const cityName = getCityName(place.cityId);
         const categoryLabel = getCategoryLabel(
@@ -287,6 +288,7 @@ export default function HomeScreen({ route }) {
 
   const buildCategorySearchResults = (query) => {
     return categories
+      .filter(Boolean)
       .map((category) => {
         const score = Math.max(
           getSimilarityScore(query, category.name),
@@ -312,6 +314,7 @@ export default function HomeScreen({ route }) {
 
   const buildCitySearchResults = (query) => {
     return cities
+      .filter(Boolean)
       .map((city) => {
         const score = Math.max(
           getSimilarityScore(query, city.name),
@@ -498,7 +501,8 @@ export default function HomeScreen({ route }) {
 
   const navigateToPlace = (place) => {
     clearSearchSuggestions();
-    navigation.navigate('PlaceDetails', { placeId: place.id });
+    if (!place?.id) return;
+    navigation.navigate('PlaceDetails', { placeId: place.id, place });
   };
 
   const handlePartnerContactPress = () => {
@@ -659,9 +663,9 @@ export default function HomeScreen({ route }) {
                 </TouchableOpacity>
               ))}
 
-              {suggestions.map((item, index) => (
+              {suggestions.filter(Boolean).map((item, index) => (
                 <TouchableOpacity
-                  key={item.id}
+                  key={item?.id || item?.legacyId || item?.name}
                   style={[
                     styles.suggestionItem,
                     index === suggestions.length - 1 &&
@@ -712,9 +716,9 @@ export default function HomeScreen({ route }) {
                   {cityResults.length > 0 ? (
                     <View style={styles.searchGroup}>
                       <Text style={styles.searchGroupTitle}>{t('common.cities')}</Text>
-                      {cityResults.map((city) => (
+                      {cityResults.filter(Boolean).map((city) => (
                         <TouchableOpacity
-                          key={`result-city-${city.id}`}
+                          key={`result-city-${city?.id || city?.legacyId || city?.name}`}
                           style={styles.resultCard}
                           activeOpacity={0.85}
                           onPress={() => navigateToCity(city)}
@@ -737,9 +741,9 @@ export default function HomeScreen({ route }) {
                   {categoryResults.length > 0 ? (
                     <View style={styles.searchGroup}>
                       <Text style={styles.searchGroupTitle}>{t('common.categories')}</Text>
-                      {categoryResults.map((category) => (
+                      {categoryResults.filter(Boolean).map((category) => (
                         <TouchableOpacity
-                          key={`result-category-${category.id}`}
+                          key={`result-category-${category?.id || category?.legacyId || category?.name}`}
                           style={styles.resultCard}
                           activeOpacity={0.85}
                           onPress={() => navigateToCategory(category)}
@@ -762,9 +766,9 @@ export default function HomeScreen({ route }) {
                   {userResults.length > 0 ? (
                     <View style={styles.searchGroup}>
                       <Text style={styles.searchGroupTitle}>{t('common.profiles')}</Text>
-                      {userResults.map((user) => (
+                      {userResults.filter(Boolean).map((user) => (
                         <TouchableOpacity
-                          key={`result-user-${user.id}`}
+                          key={`result-user-${user?.id || user?.username}`}
                           style={styles.userResultCard}
                           activeOpacity={0.85}
                           onPress={() => navigateToProfile(user)}
@@ -794,9 +798,9 @@ export default function HomeScreen({ route }) {
                     <Text style={styles.searchGroupTitle}>{t('common.places')}</Text>
                   ) : null}
 
-                  {searchResults.map((place) => (
+                  {searchResults.filter(Boolean).map((place) => (
                     <TouchableOpacity
-                      key={place.id}
+                      key={place?.id || place?.legacyId || place?.name}
                       style={styles.resultCard}
                       activeOpacity={0.85}
                       onPress={() => navigateToPlace(place)}

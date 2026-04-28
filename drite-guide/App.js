@@ -11,6 +11,20 @@ export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
 
   useEffect(() => {
+    const ErrorUtilsRef = global.ErrorUtils;
+    const previousHandler = ErrorUtilsRef?.getGlobalHandler?.();
+
+    if (ErrorUtilsRef?.setGlobalHandler && previousHandler) {
+      ErrorUtilsRef.setGlobalHandler((error, isFatal) => {
+        console.error('Global app error:', {
+          message: error?.message,
+          stack: error?.stack,
+          isFatal,
+        });
+        previousHandler(error, isFatal);
+      });
+    }
+
     async function prepare() {
       try {
         await new Promise((resolve) => setTimeout(resolve, 1500));

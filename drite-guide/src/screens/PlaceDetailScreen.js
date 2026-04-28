@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
 import AddToTripModal from '../components/AddToTripModal';
+import { api } from '../services/api';
+import { normalizePlace } from '../services/transformers';
 
 const normalizeUrl = (url) => {
   if (!url || typeof url !== 'string') return null;
@@ -31,16 +33,50 @@ const normalizeUrl = (url) => {
 
 export default function PlaceDetailScreen({ route }) {
   const routeParams = route.params || {};
-  const placeId = routeParams.placeId || routeParams.id || routeParams.place?.id;
+  const placeId =
+    routeParams.placeId ||
+    routeParams.id ||
+    routeParams.place?.id ||
+    routeParams.place?.seededId;
   const { getSavedPlaces, savePlace, removeSavedPlace, isLoggedIn } =
     useAuth();
   const { getPlaceById, getCityById } = useAppData();
   const { t, language } = useTranslation();
   const [tripModalVisible, setTripModalVisible] = useState(false);
+  const [remotePlace, setRemotePlace] = useState(null);
 
-  const place = routeParams.place || getPlaceById(placeId);
+  const place = routeParams.place || getPlaceById(placeId) || remotePlace;
   const savedPlaces = getSavedPlaces() || [];
-  const isSaved = savedPlaces.some((item) => String(item.id) === String(placeId));
+  const safePlaceId = place?.id || placeId;
+  const isSaved = savedPlaces
+    .filter(Boolean)
+    .some((item) => String(item.id) === String(safePlaceId));
+
+  useEffect(() => {
+    if (place || !placeId) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadPlaceDetails() {
+      try {
+        const response = await api.get(`/places/${placeId}`);
+        const nextPlace = normalizePlace(response.data);
+        if (isMounted && nextPlace) {
+          setRemotePlace(nextPlace);
+        }
+      } catch (error) {
+        console.warn('Could not load place detail:', error?.message);
+      }
+    }
+
+    loadPlaceDetails();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [place, placeId]);
 
   if (!place) {
     return (
@@ -128,7 +164,7 @@ export default function PlaceDetailScreen({ route }) {
 
   const handleToggleSaved = () => {
     if (isSaved) {
-      removeSavedPlace(place.id);
+      removeSavedPlace(safePlaceId);
       return;
     }
 
@@ -169,7 +205,7 @@ export default function PlaceDetailScreen({ route }) {
           >
             {imageGallery.map((img, index) => (
               <Image
-                key={`${place.id}-image-${index}`}
+                key={`${safePlaceId || 'place'}-image-${index}`}
                 source={getImageSource(img)}
                 style={[
                   styles.galleryImage,
