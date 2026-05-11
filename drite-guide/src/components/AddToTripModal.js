@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
+  Easing,
   Modal,
   Pressable,
   ScrollView,
@@ -14,25 +16,92 @@ import { Ionicons } from '@expo/vector-icons';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import CreateTripModal from './CreateTripModal';
-import TripPlaceScheduleModal from './TripPlaceScheduleModal';
+import { formatDateRangeForDisplay } from '../utils/dateFormat';
 
 export default function AddToTripModal({ visible, place, onClose, onAdded }) {
-  const { getTrips, getTrip, createTrip, addPlaceToTrip } = useAuth();
+  const { getTrips, getTrip, createTrip, addPlaceToTrip, inviteUserToTrip } = useAuth();
   const backendPlaceId = place?.seededId || place?.id;
   const trips = (getTrips() || []).filter((trip) => trip?.id);
-  const [selectedTrip, setSelectedTrip] = useState(null);
   const [checkingTripId, setCheckingTripId] = useState(null);
-  const [scheduleVisible, setScheduleVisible] = useState(false);
+  const [addingTripId, setAddingTripId] = useState(null);
+  const [addedTripId, setAddedTripId] = useState(null);
   const [createTripVisible, setCreateTripVisible] = useState(false);
+  const [isMounted, setIsMounted] = useState(visible);
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(36)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setIsMounted(true);
+      backdropOpacity.setValue(0);
+      sheetTranslateY.setValue(42);
+
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+
+    if (isMounted) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 140,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 30,
+          duration: 180,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setIsMounted(false);
+        }
+      });
+    }
+  }, [backdropOpacity, isMounted, sheetTranslateY, visible]);
 
   useEffect(() => {
     if (!visible) {
-      setSelectedTrip(null);
       setCheckingTripId(null);
-      setScheduleVisible(false);
+      setAddingTripId(null);
+      setAddedTripId(null);
       setCreateTripVisible(false);
     }
   }, [visible]);
+
+  const closeWithAnimation = (result) => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 140,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: 30,
+        duration: 180,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onClose?.(result);
+    });
+  };
 
   const tripHasPlace = (trip) => {
     if (!backendPlaceId) {
@@ -46,7 +115,7 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
   };
 
   const handleTripPress = async (trip) => {
-    if (!trip?.id) {
+    if (!trip?.id || checkingTripId || addingTripId || addedTripId) {
       return;
     }
 
@@ -64,53 +133,91 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
       return;
     }
 
-    setSelectedTrip(result.trip);
-    setScheduleVisible(true);
+    setAddingTripId(trip.id);
+    const addResult = await addPlaceToTrip(trip.id, {
+      place_id: backendPlaceId,
+    });
+    setAddingTripId(null);
+
+    if (!addResult.success) {
+      Alert.alert('Trip update failed', addResult.message || 'This place could not be added.');
+      return;
+    }
+
+    setAddedTripId(trip.id);
+    onAdded?.(addResult);
+    window.setTimeout(() => {
+      closeWithAnimation(addResult);
+    }, 650);
   };
 
-  const handleCreateTripClose = (createdTrip) => {
+  const handleCreateTripClose = async (createdTrip) => {
     setCreateTripVisible(false);
 
     if (createdTrip?.id) {
-      setSelectedTrip(createdTrip);
-      setScheduleVisible(true);
+      setAddingTripId(createdTrip.id);
+      const addResult = await addPlaceToTrip(createdTrip.id, {
+        place_id: backendPlaceId,
+      });
+      setAddingTripId(null);
+
+      if (!addResult.success) {
+        Alert.alert('Trip update failed', addResult.message || 'This place could not be added.');
+        return;
+      }
+
+      setAddedTripId(createdTrip.id);
+      onAdded?.(addResult);
+      window.setTimeout(() => {
+        closeWithAnimation(addResult);
+      }, 650);
     }
   };
 
-  const handleSaveVisit = async (visitPayload) => {
-    if (!selectedTrip?.id || !backendPlaceId) {
+  const handleInviteUsersAfterCreate = async (trip, usernames) => {
+    const failedInvites = [];
+
+    for (const username of usernames) {
+      const result = await inviteUserToTrip(trip.id, username);
+
+      if (!result.success) {
+        failedInvites.push(`${username}: ${result.message || 'Invite failed'}`);
+      }
+    }
+
+    if (failedInvites.length > 0) {
       return {
         success: false,
-        message: 'This place or trip could not be loaded.',
+        message: failedInvites.join('\n'),
       };
     }
 
-    const result = await addPlaceToTrip(selectedTrip.id, {
-      place_id: backendPlaceId,
-      ...visitPayload,
-    });
-
-    if (result.success) {
-      setScheduleVisible(false);
-      onAdded?.(result);
-      onClose?.();
-    }
-
-    return result;
+    return { success: true };
   };
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={() => onClose?.()}>
-        <Pressable style={styles.backdrop} onPress={() => onClose?.()}>
-          <Pressable style={styles.sheet} onPress={() => null}>
+      <Modal
+        visible={isMounted && !createTripVisible}
+        transparent
+        animationType="none"
+        onRequestClose={() => closeWithAnimation()}
+      >
+        <View style={styles.modalRoot}>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.backdropOverlay, { opacity: backdropOpacity }]}
+          />
+          <Pressable style={styles.backdropPressArea} onPress={() => closeWithAnimation()} />
+          <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
+            <Pressable onPress={() => null}>
             <View style={styles.header}>
               <View>
                 <Text style={styles.title}>Add to Trip</Text>
-                <Text style={styles.subtitle}>Choose a trip, then set when this place will be visited.</Text>
+                <Text style={styles.subtitle}>Choose a trip to add this place.</Text>
               </View>
 
-              <TouchableOpacity style={styles.closeButton} onPress={() => onClose?.()}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => closeWithAnimation()}>
                 <Ionicons name="close" size={20} color="#222222" />
               </TouchableOpacity>
             </View>
@@ -130,22 +237,39 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
                 trips.map((trip) => {
                   const isDuplicate = tripHasPlace(trip);
                   const isChecking = checkingTripId === trip.id;
+                  const isAdding = addingTripId === trip.id;
+                  const isAdded = addedTripId === trip.id;
 
                   return (
                     <TouchableOpacity
                       key={trip.id}
-                      style={[styles.tripOption, isDuplicate && styles.tripOptionDisabled]}
+                      style={[
+                        styles.tripOption,
+                        (isDuplicate || isChecking || isAdding || isAdded) && styles.tripOptionDisabled,
+                        isAdded && styles.tripOptionAdded,
+                      ]}
                       activeOpacity={0.88}
+                      disabled={isDuplicate || isChecking || isAdding || isAdded}
                       onPress={() => handleTripPress(trip)}
                     >
-                      <View style={styles.tripOptionIcon}>
-                        <Ionicons name="map-outline" size={18} color={colors.primary} />
+                      <View style={[styles.tripOptionIcon, isAdded && styles.tripOptionIconAdded]}>
+                        <Ionicons
+                          name={isAdded ? 'checkmark' : 'map-outline'}
+                          size={18}
+                          color={isAdded ? '#FFFFFF' : colors.primary}
+                        />
                       </View>
 
                       <View style={styles.tripOptionContent}>
                         <Text style={styles.tripOptionTitle}>{trip.title || 'Untitled trip'}</Text>
                         <Text style={styles.tripOptionDescription} numberOfLines={2}>
-                          {isChecking ? 'Checking trip...' : `${trip.start_date} - ${trip.end_date}`}
+                          {isAdded
+                            ? 'Added to Trip'
+                            : isAdding
+                              ? 'Adding to trip...'
+                              : isChecking
+                                ? 'Checking trip...'
+                                : formatDateRangeForDisplay(trip.start_date, trip.end_date)}
                           {isDuplicate ? ' · Already added' : ''}
                         </Text>
                       </View>
@@ -160,36 +284,36 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
                 onPress={() => setCreateTripVisible(true)}
               >
                 <Ionicons name="add" size={20} color="#FFFFFF" />
-                <Text style={styles.createTripButtonText}>+ Create new trip</Text>
+                <Text style={styles.createTripButtonText}>Create new trip</Text>
               </TouchableOpacity>
             </ScrollView>
           </Pressable>
-        </Pressable>
+          </Animated.View>
+        </View>
       </Modal>
 
       <CreateTripModal
         visible={createTripVisible}
         onClose={handleCreateTripClose}
         onSave={createTrip}
+        onInviteUsersAfterCreate={handleInviteUsersAfterCreate}
       />
 
-      <TripPlaceScheduleModal
-        visible={scheduleVisible}
-        trip={selectedTrip}
-        placeName={place?.name}
-        saveLabel="Add Place"
-        onClose={() => setScheduleVisible(false)}
-        onSave={handleSaveVisit}
-      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.28)',
     justifyContent: 'flex-end',
+  },
+  backdropOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  backdropPressArea: {
+    ...StyleSheet.absoluteFillObject,
   },
   sheet: {
     maxHeight: '88%',
@@ -259,6 +383,10 @@ const styles = StyleSheet.create({
   tripOptionDisabled: {
     opacity: 0.58,
   },
+  tripOptionAdded: {
+    opacity: 1,
+    backgroundColor: '#ECFDF5',
+  },
   tripOptionIcon: {
     width: 38,
     height: 38,
@@ -267,6 +395,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  tripOptionIconAdded: {
+    backgroundColor: '#10B981',
   },
   tripOptionContent: {
     flex: 1,

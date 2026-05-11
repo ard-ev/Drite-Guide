@@ -1,28 +1,51 @@
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Keyboard,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import colors from '../theme/colors';
+import UserInviteInput from './UserInviteInput';
 
 export default function InviteUserToTripModal({ visible, onClose, onInvite }) {
+  const { height: windowHeight } = useWindowDimensions();
   const [username, setUsername] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const cardMaxHeight = Math.max(240, windowHeight - keyboardHeight - 40);
 
   useEffect(() => {
     if (visible) {
       setUsername('');
     }
   }, [visible]);
+
+  useEffect(() => {
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(keyboardShowEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height || 0);
+    });
+    const hideSubscription = Keyboard.addListener(keyboardHideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const handleInvite = async () => {
     const normalizedUsername = username.trim().replace(/^@/, '');
@@ -46,8 +69,18 @@ export default function InviteUserToTripModal({ visible, onClose, onInvite }) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => onClose?.()}>
-      <Pressable style={styles.backdrop} onPress={() => onClose?.()}>
-        <Pressable style={styles.card} onPress={() => null}>
+      <View style={styles.backdrop}>
+        <Pressable style={styles.backdropPressArea} onPress={() => onClose?.()} />
+        <Pressable
+          style={[
+            styles.card,
+            {
+              maxHeight: cardMaxHeight,
+              marginBottom: keyboardHeight,
+            },
+          ]}
+          onPress={() => null}
+        >
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>Invite User</Text>
@@ -65,13 +98,11 @@ export default function InviteUserToTripModal({ visible, onClose, onInvite }) {
             keyboardShouldPersistTaps="handled"
           >
             <Text style={styles.label}>Username</Text>
-            <TextInput
-              style={styles.input}
+            <UserInviteInput
+              inputStyle={styles.input}
               value={username}
               onChangeText={setUsername}
               placeholder="exampleuser"
-              placeholderTextColor="#A1A1AA"
-              autoCapitalize="none"
             />
 
             <TouchableOpacity
@@ -85,7 +116,7 @@ export default function InviteUserToTripModal({ visible, onClose, onInvite }) {
             </TouchableOpacity>
           </ScrollView>
         </Pressable>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -96,6 +127,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.28)',
     justifyContent: 'center',
     paddingHorizontal: 20,
+  },
+  backdropPressArea: {
+    ...StyleSheet.absoluteFillObject,
   },
   card: {
     backgroundColor: '#FFFFFF',

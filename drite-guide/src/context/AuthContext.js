@@ -357,9 +357,18 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await api.get(`/trips/${tripId}`);
+      const trip = normalizeTrip(response.data);
+      setTrips((currentTrips) => {
+        const existingTrips = currentTrips.filter(Boolean);
+        const hasTrip = existingTrips.some((item) => String(item.id) === String(trip.id));
+        return hasTrip
+          ? existingTrips.map((item) => (String(item.id) === String(trip.id) ? trip : item))
+          : [trip, ...existingTrips];
+      });
+
       return {
         success: true,
-        trip: normalizeTrip(response.data),
+        trip,
       };
     } catch (error) {
       return {
@@ -459,10 +468,28 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await api.post(`/trips/${tripId}/places`, payload);
+      const tripPlace = normalizeTripPlace(response.data);
+      let trip = null;
+
+      try {
+        const tripResponse = await api.get(`/trips/${tripId}`);
+        trip = normalizeTrip(tripResponse.data);
+        setTrips((currentTrips) => {
+          const existingTrips = currentTrips.filter(Boolean);
+          const hasTrip = existingTrips.some((item) => String(item.id) === String(trip.id));
+          return hasTrip
+            ? existingTrips.map((item) => (String(item.id) === String(trip.id) ? trip : item))
+            : [trip, ...existingTrips];
+        });
+      } catch (error) {
+        console.warn('Could not reload trip after adding place:', error?.message);
+      }
+
       await loadTrips();
       return {
         success: true,
-        tripPlace: normalizeTripPlace(response.data),
+        tripPlace,
+        trip,
       };
     } catch (error) {
       return {

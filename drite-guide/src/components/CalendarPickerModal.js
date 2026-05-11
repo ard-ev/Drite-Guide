@@ -47,18 +47,28 @@ const getInitialMonth = (value) => {
 export default function CalendarPickerModal({
   visible,
   value,
+  startValue,
+  endValue,
   minDate,
   maxDate,
+  rangeMode = false,
   onClose,
   onSelect,
+  onSelectRange,
 }) {
-  const [visibleMonth, setVisibleMonth] = useState(() => getInitialMonth(value));
+  const [visibleMonth, setVisibleMonth] = useState(() =>
+    getInitialMonth(startValue || value || endValue)
+  );
+  const [rangeStart, setRangeStart] = useState(startValue || '');
+  const [rangeEnd, setRangeEnd] = useState(endValue || '');
 
   useEffect(() => {
     if (visible) {
-      setVisibleMonth(getInitialMonth(value));
+      setVisibleMonth(getInitialMonth(startValue || value || endValue));
+      setRangeStart(startValue || '');
+      setRangeEnd(endValue || '');
     }
-  }, [value, visible]);
+  }, [endValue, startValue, value, visible]);
 
   const days = useMemo(() => {
     const year = visibleMonth.getFullYear();
@@ -94,10 +104,35 @@ export default function CalendarPickerModal({
     return Boolean((minDate && isoDate < minDate) || (maxDate && isoDate > maxDate));
   };
 
+  const handleSelectDate = (isoDate) => {
+    if (!rangeMode) {
+      onSelect?.(isoDate);
+      return;
+    }
+
+    if (!rangeStart || rangeEnd || isoDate < rangeStart) {
+      setRangeStart(isoDate);
+      setRangeEnd('');
+      onSelectRange?.({ startDate: isoDate, endDate: '' });
+      return;
+    }
+
+    setRangeEnd(isoDate);
+    onSelectRange?.({ startDate: rangeStart, endDate: isoDate });
+  };
+
+  const rangeHint = !rangeMode
+    ? ''
+    : rangeStart && !rangeEnd
+      ? 'Select end date'
+      : 'Select start date';
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => null}>
+          {rangeMode ? <Text style={styles.rangeHint}>{rangeHint}</Text> : null}
+
           <View style={styles.header}>
             <TouchableOpacity style={styles.iconButton} onPress={() => changeMonth(-1)}>
               <Ionicons name="chevron-back" size={20} color="#222222" />
@@ -127,7 +162,10 @@ export default function CalendarPickerModal({
               }
 
               const isoDate = toIsoDate(date);
-              const selected = isoDate === value;
+              const selected = rangeMode
+                ? isoDate === rangeStart || isoDate === rangeEnd
+                : isoDate === value;
+              const inRange = rangeMode && rangeStart && rangeEnd && isoDate > rangeStart && isoDate < rangeEnd;
               const disabled = isDisabled(date);
 
               return (
@@ -135,12 +173,13 @@ export default function CalendarPickerModal({
                   key={isoDate}
                   style={[
                     styles.dayCell,
+                    inRange && styles.dayCellInRange,
                     selected && styles.dayCellSelected,
                     disabled && styles.dayCellDisabled,
                   ]}
                   activeOpacity={0.82}
                   disabled={disabled}
-                  onPress={() => onSelect?.(isoDate)}
+                  onPress={() => handleSelectDate(isoDate)}
                 >
                   <Text
                     style={[
@@ -172,6 +211,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 18,
+  },
+  rangeHint: {
+    marginBottom: 12,
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.primary,
   },
   header: {
     flexDirection: 'row',
@@ -216,6 +262,9 @@ const styles = StyleSheet.create({
   },
   dayCellSelected: {
     backgroundColor: colors.primary,
+  },
+  dayCellInRange: {
+    backgroundColor: '#FDECEC',
   },
   dayCellDisabled: {
     opacity: 0.32,

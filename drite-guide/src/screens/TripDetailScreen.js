@@ -1,11 +1,15 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -21,6 +25,8 @@ import TripPlaceScheduleModal from '../components/TripPlaceScheduleModal';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme/colors';
+import { formatDateForDisplay, formatDateRangeForDisplay } from '../utils/dateFormat';
+import { formatTimeForDisplay } from '../utils/timeFormat';
 import { getImageSource } from '../utils/placeMeta';
 
 export default function TripDetailScreen({ route }) {
@@ -45,8 +51,14 @@ export default function TripDetailScreen({ route }) {
   const [editTripVisible, setEditTripVisible] = useState(false);
   const [inviteVisible, setInviteVisible] = useState(false);
   const [placePickerVisible, setPlacePickerVisible] = useState(false);
-  const [placeToAdd, setPlaceToAdd] = useState(null);
+  const [addingPlaceId, setAddingPlaceId] = useState(null);
   const [editingTripPlace, setEditingTripPlace] = useState(null);
+  const [isEditingSharedNote, setIsEditingSharedNote] = useState(false);
+  const [sharedNoteDraft, setSharedNoteDraft] = useState('');
+  const [isSavingSharedNote, setIsSavingSharedNote] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollRef = useRef(null);
+  const sharedNoteInputY = useRef(0);
 
   const loadTrip = useCallback(async () => {
     if (!isLoggedIn || !tripId) {
@@ -72,10 +84,31 @@ export default function TripDetailScreen({ route }) {
     }, [loadTrip])
   );
 
+  useEffect(() => {
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(keyboardShowEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height || 0);
+    });
+    const hideSubscription = Keyboard.addListener(keyboardHideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
   const isOwner =
     trip?.ownerId === currentUser?.id ||
     trip?.owner_id === currentUser?.id ||
     trip?.role === 'owner';
+  const currentMember = (trip?.members || []).find(
+    (member) => (member.userId || member.user_id) === currentUser?.id
+  );
+  const canEditSharedNote = isOwner || currentMember?.status === 'accepted';
 
   const handleSaveTrip = async (payload) => {
     const result = await updateTrip(trip.id, payload);
@@ -90,6 +123,36 @@ export default function TripDetailScreen({ route }) {
     if (updatedTrip?.id) {
       setTrip(updatedTrip);
     }
+  };
+
+  const startEditingSharedNote = () => {
+    setSharedNoteDraft(trip.sharedNote || trip.shared_note || '');
+    setIsEditingSharedNote(true);
+  };
+
+  const handleSaveSharedNote = async () => {
+    setIsSavingSharedNote(true);
+    const result = await updateTrip(trip.id, {
+      shared_note: sharedNoteDraft.trim() ? sharedNoteDraft : null,
+    });
+    setIsSavingSharedNote(false);
+
+    if (!result.success) {
+      Alert.alert('Shared note update failed', result.message);
+      return;
+    }
+
+    setTrip(result.trip);
+    setIsEditingSharedNote(false);
+  };
+
+  const scrollToSharedNoteInput = () => {
+    window.setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        y: Math.max(sharedNoteInputY.current - 84, 0),
+        animated: true,
+      });
+    }, 120);
   };
 
   const handleInvite = async (username) => {
@@ -108,23 +171,67 @@ export default function TripDetailScreen({ route }) {
     return result;
   };
 
-  const handleSelectPlaceToAdd = (place) => {
-    setPlacePickerVisible(false);
-    setPlaceToAdd(place);
+  const mergeTripPlaceIntoTrip = (tripPlace, fallbackPlace = null) => {
+    if (!tripPlace?.id) {
+      return;
+    }
+
+    setTrip((currentTrip) => {
+      if (!currentTrip?.id) {
+        return currentTrip;
+      }
+
+      const nextTripPlace = {
+        ...tripPlace,
+        place: tripPlace.place || fallbackPlace,
+      };
+      const existingPlaces = (currentTrip.places || []).filter(Boolean);
+      const alreadyExists = existingPlaces.some(
+        (item) => String(item.id) === String(nextTripPlace.id)
+      );
+      const nextPlaces = alreadyExists
+        ? existingPlaces.map((item) =>
+            String(item.id) === String(nextTripPlace.id) ? nextTripPlace : item
+          )
+        : [...existingPlaces, nextTripPlace];
+
+      return {
+        ...currentTrip,
+        places: nextPlaces.sort((firstItem, secondItem) =>
+          (firstItem.orderIndex ?? firstItem.order_index ?? 0) -
+          (secondItem.orderIndex ?? secondItem.order_index ?? 0)
+        ),
+        placesCount: nextPlaces.length,
+        places_count: nextPlaces.length,
+      };
+    });
   };
 
-  const handleAddTripPlace = async (payload) => {
+  const handleSelectPlaceToAdd = async (place) => {
+    if (!place?.id || addingPlaceId) {
+      return;
+    }
+
+    const nextAddingPlaceId = place.seededId || place.id;
+    setAddingPlaceId(nextAddingPlaceId);
     const result = await addPlaceToTrip(trip.id, {
-      place_id: placeToAdd.seededId || placeToAdd.id,
-      ...payload,
+      place_id: nextAddingPlaceId,
     });
 
     if (result.success) {
-      setPlaceToAdd(null);
+      if (result.trip?.id) {
+        setTrip(result.trip);
+      } else {
+        mergeTripPlaceIntoTrip(result.tripPlace, place);
+      }
+
+      setPlacePickerVisible(false);
       await loadTrip();
+    } else {
+      Alert.alert('Trip update failed', result.message || 'This place could not be added.');
     }
 
-    return result;
+    setAddingPlaceId(null);
   };
 
   const handleRemoveTripPlace = (tripPlace) => {
@@ -200,14 +307,19 @@ export default function TripDetailScreen({ route }) {
 
   const getVisitMeta = (tripPlace) => {
     const date = tripPlace.visitDate || tripPlace.visit_date;
-    const startTime = tripPlace.visitStartTime || tripPlace.visit_start_time;
-    const endTime = tripPlace.visitEndTime || tripPlace.visit_end_time;
+    const formattedDate = formatDateForDisplay(date);
+    const startTime = formatTimeForDisplay(tripPlace.visitStartTime || tripPlace.visit_start_time);
+    const endTime = formatTimeForDisplay(tripPlace.visitEndTime || tripPlace.visit_end_time);
     const timeRange = startTime || endTime ? `${startTime || '--:--'} - ${endTime || '--:--'}` : '';
-    return [date, timeRange].filter(Boolean).join(' · ') || 'Visit time not set';
+    return [formattedDate, timeRange].filter(Boolean).join(' - ') || 'Visit time not set';
   };
 
   const existingPlaceIds = (trip?.places || []).map(
-    (tripPlace) => tripPlace.placeId || tripPlace.place_id
+    (tripPlace) =>
+      tripPlace.placeId ||
+      tripPlace.place_id ||
+      tripPlace.place?.seededId ||
+      tripPlace.place?.id
   );
 
   if (!isLoggedIn) {
@@ -258,7 +370,20 @@ export default function TripDetailScreen({ route }) {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <StatusBar style="dark" />
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoider}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.content,
+            keyboardHeight > 0 && { paddingBottom: keyboardHeight + 120 },
+          ]}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.headerRow}>
             <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={22} color="#222222" />
@@ -278,7 +403,9 @@ export default function TripDetailScreen({ route }) {
               <Ionicons name="calendar-outline" size={20} color={colors.primary} />
             </View>
             <Text style={styles.tripTitle}>{trip.title}</Text>
-            <Text style={styles.tripDateRange}>{trip.start_date} - {trip.end_date}</Text>
+            <Text style={styles.tripDateRange}>
+              {formatDateRangeForDisplay(trip.start_date, trip.end_date)}
+            </Text>
             {trip.description ? (
               <Text style={styles.tripDescription}>{trip.description}</Text>
             ) : null}
@@ -325,8 +452,51 @@ export default function TripDetailScreen({ route }) {
                 <Ionicons name="document-text-outline" size={20} color={colors.primary} />
                 <Text style={styles.sectionTitle}>Shared Note</Text>
               </View>
+              {canEditSharedNote ? (
+                <TouchableOpacity
+                  style={styles.noteEditButton}
+                  activeOpacity={0.86}
+                  onPress={isEditingSharedNote ? handleSaveSharedNote : startEditingSharedNote}
+                  disabled={isSavingSharedNote}
+                >
+                  <Ionicons
+                    name={isEditingSharedNote ? 'checkmark' : 'create-outline'}
+                    size={16}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.noteEditButtonText}>
+                    {isEditingSharedNote ? (isSavingSharedNote ? 'Saving...' : 'Save') : 'Edit'}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
-            <Text style={styles.bodyText}>{trip.sharedNote || trip.shared_note || 'No shared note yet.'}</Text>
+            {isEditingSharedNote ? (
+              <>
+                <TextInput
+                  style={styles.sharedNoteInput}
+                  value={sharedNoteDraft}
+                  onChangeText={setSharedNoteDraft}
+                  onFocus={scrollToSharedNoteInput}
+                  onLayout={(event) => {
+                    sharedNoteInputY.current = event.nativeEvent.layout.y;
+                  }}
+                  placeholder="Add notes everyone can see."
+                  placeholderTextColor="#A1A1AA"
+                  multiline
+                  textAlignVertical="top"
+                />
+                <TouchableOpacity
+                  style={styles.noteCancelButton}
+                  activeOpacity={0.86}
+                  onPress={() => setIsEditingSharedNote(false)}
+                  disabled={isSavingSharedNote}
+                >
+                  <Text style={styles.noteCancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={styles.bodyText}>{trip.sharedNote || trip.shared_note || 'No shared note yet.'}</Text>
+            )}
           </View>
 
           <View style={styles.card}>
@@ -341,6 +511,7 @@ export default function TripDetailScreen({ route }) {
             {(trip.members || []).map((member) => {
               const user = member.user || {};
               const isMemberOwner = member.role === 'owner';
+              const memberStatusLabel = isMemberOwner ? 'created' : member.status;
 
               return (
                 <View key={member.id} style={styles.memberRow}>
@@ -351,7 +522,7 @@ export default function TripDetailScreen({ route }) {
                   </View>
                   <View style={styles.memberContent}>
                     <Text style={styles.memberName}>@{user.username || 'user'}</Text>
-                    <Text style={styles.memberMeta}>{member.role} · {member.status}</Text>
+                    <Text style={styles.memberMeta}>{member.role} · {memberStatusLabel}</Text>
                   </View>
                   {isOwner && !isMemberOwner ? (
                     <TouchableOpacity
@@ -434,6 +605,7 @@ export default function TripDetailScreen({ route }) {
             )}
           </View>
         </ScrollView>
+        </KeyboardAvoidingView>
 
         <CreateTripModal
           visible={editTripVisible}
@@ -451,17 +623,9 @@ export default function TripDetailScreen({ route }) {
         <TripPlacePickerModal
           visible={placePickerVisible}
           existingPlaceIds={existingPlaceIds}
+          addingPlaceId={addingPlaceId}
           onClose={() => setPlacePickerVisible(false)}
           onSelectPlace={handleSelectPlaceToAdd}
-        />
-
-        <TripPlaceScheduleModal
-          visible={Boolean(placeToAdd)}
-          trip={trip}
-          placeName={placeToAdd?.name || ''}
-          saveLabel="Add Place"
-          onClose={() => setPlaceToAdd(null)}
-          onSave={handleAddTripPlace}
         />
 
         <TripPlaceScheduleModal
@@ -490,6 +654,9 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingBottom: 120,
+  },
+  keyboardAvoider: {
+    flex: 1,
   },
   headerRow: {
     flexDirection: 'row',
@@ -637,6 +804,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: '#4B5563',
+  },
+  noteEditButton: {
+    minHeight: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FDECEC',
+    borderRadius: 13,
+    paddingHorizontal: 11,
+    gap: 5,
+  },
+  noteEditButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  sharedNoteInput: {
+    minHeight: 120,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#222222',
+  },
+  noteCancelButton: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+  },
+  noteCancelButtonText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#6B7280',
   },
   memberRow: {
     flexDirection: 'row',

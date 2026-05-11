@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
+import { formatDateRangeForDisplay } from '../utils/dateFormat';
 
 export default function SavedScreen({ route }) {
   const navigation = useNavigation();
@@ -168,7 +169,7 @@ export default function SavedScreen({ route }) {
                         {trip.description || t('savedScreen.noTripDescription')}
                       </Text>
                       <Text style={styles.tripMeta}>
-                        {trip.start_date} - {trip.end_date}
+                        {formatDateRangeForDisplay(trip.start_date, trip.end_date)}
                       </Text>
                     </View>
                   </TouchableOpacity>

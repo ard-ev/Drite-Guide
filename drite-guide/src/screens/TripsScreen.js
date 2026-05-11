@@ -15,6 +15,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import CreateTripModal from '../components/CreateTripModal';
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme/colors';
+import { formatDateRangeForDisplay } from '../utils/dateFormat';
 
 export default function TripsScreen() {
   const navigation = useNavigation();
@@ -153,7 +154,7 @@ export default function TripsScreen() {
                       {trip.description || 'No description added yet.'}
                     </Text>
                     <Text style={styles.tripDateRange}>
-                      {trip.start_date} - {trip.end_date}
+                      {formatDateRangeForDisplay(trip.start_date, trip.end_date)}
                     </Text>
 
                     <View style={styles.metaRow}>

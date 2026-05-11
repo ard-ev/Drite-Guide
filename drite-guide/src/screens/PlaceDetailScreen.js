@@ -314,7 +314,6 @@ export default function PlaceDetailScreen({ route }) {
           visible={tripModalVisible}
           place={place}
           onClose={() => setTripModalVisible(false)}
-          onAdded={() => Alert.alert('Added to Trip', `${place.name} was added to the trip.`)}
         />
       </SafeAreaView>
     </View>

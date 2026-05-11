@@ -1,7 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
+  Easing,
+  Keyboard,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,9 +17,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import CalendarPickerModal from './CalendarPickerModal';
+import UserInviteInput from './UserInviteInput';
 import colors from '../theme/colors';
-
-const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+import {
+  formatDateForDisplay,
+  isIsoDate,
+  normalizeDateInput,
+  parseDisplayDateToIso,
+} from '../utils/dateFormat';
 
 export default function CreateTripModal({
   visible,
@@ -30,10 +39,77 @@ export default function CreateTripModal({
   const [endDate, setEndDate] = useState('');
   const [sharedNote, setSharedNote] = useState('');
   const [inviteUsernames, setInviteUsernames] = useState('');
-  const [datePickerField, setDatePickerField] = useState(null);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isMounted, setIsMounted] = useState(visible);
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(36)).current;
+  const scrollRef = useRef(null);
+  const inputLayouts = useRef({});
 
   const isEditing = Boolean(initialTrip?.id);
+  useEffect(() => {
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(keyboardShowEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height || 0);
+    });
+    const hideSubscription = Keyboard.addListener(keyboardHideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (visible) {
+      setIsMounted(true);
+      backdropOpacity.setValue(0);
+      sheetTranslateY.setValue(42);
+
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+
+    if (isMounted) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 140,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 30,
+          duration: 180,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setIsMounted(false);
+        }
+      });
+    }
+  }, [backdropOpacity, isMounted, sheetTranslateY, visible]);
 
   useEffect(() => {
     if (!visible) {
@@ -46,10 +122,32 @@ export default function CreateTripModal({
     setEndDate(initialTrip?.end_date || '');
     setSharedNote(initialTrip?.shared_note || initialTrip?.sharedNote || '');
     setInviteUsernames('');
-    setDatePickerField(null);
+    setDatePickerVisible(false);
   }, [initialTrip, visible]);
 
+  const closeWithAnimation = (result) => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 140,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: 30,
+        duration: 180,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onClose?.(result);
+    });
+  };
+
   const validate = () => {
+    const normalizedStartDate = normalizeDateInput(startDate);
+    const normalizedEndDate = normalizeDateInput(endDate);
+
     if (!title.trim()) {
       Alert.alert('Missing required fields', 'Trip title is required.');
       return false;
@@ -60,12 +158,12 @@ export default function CreateTripModal({
       return false;
     }
 
-    if (!isIsoDate(startDate.trim()) || !isIsoDate(endDate.trim())) {
-      Alert.alert('Invalid date', 'Use the date format YYYY-MM-DD.');
+    if (!isIsoDate(normalizedStartDate) || !isIsoDate(normalizedEndDate)) {
+      Alert.alert('Invalid date', 'Use the date format DD.MM.YYYY.');
       return false;
     }
 
-    if (endDate.trim() < startDate.trim()) {
+    if (normalizedEndDate < normalizedStartDate) {
       Alert.alert('Invalid date range', 'End date must be after or equal to start date.');
       return false;
     }
@@ -79,11 +177,13 @@ export default function CreateTripModal({
     }
 
     setIsSaving(true);
+    const normalizedStartDate = normalizeDateInput(startDate);
+    const normalizedEndDate = normalizeDateInput(endDate);
     const result = await onSave({
       title: title.trim(),
       description: description.trim() || null,
-      start_date: startDate.trim(),
-      end_date: endDate.trim(),
+      start_date: normalizedStartDate,
+      end_date: normalizedEndDate,
       shared_note: sharedNote.trim() || null,
     });
     setIsSaving(false);
@@ -110,46 +210,79 @@ export default function CreateTripModal({
       }
     }
 
-    onClose?.(result.trip);
+    closeWithAnimation(result.trip);
   };
 
-  const handleSelectDate = (date) => {
-    if (datePickerField === 'start') {
-      setStartDate(date);
+  const handleSelectDateRange = ({ startDate: nextStartDate, endDate: nextEndDate }) => {
+    if (nextStartDate !== undefined) {
+      setStartDate(nextStartDate);
     }
 
-    if (datePickerField === 'end') {
-      setEndDate(date);
+    if (nextEndDate !== undefined) {
+      setEndDate(nextEndDate);
     }
 
-    setDatePickerField(null);
+    if (nextStartDate && nextEndDate) {
+      setDatePickerVisible(false);
+    }
+  };
+
+  const registerInputLayout = (key) => (event) => {
+    inputLayouts.current[key] = event.nativeEvent.layout.y;
+  };
+
+  const scrollToInput = (key) => {
+    window.setTimeout(() => {
+      const y = inputLayouts.current[key];
+      if (typeof y === 'number') {
+        scrollRef.current?.scrollTo({ y: Math.max(y - 24, 0), animated: true });
+      }
+    }, 120);
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => onClose?.()}>
-      <Pressable style={styles.backdrop} onPress={() => onClose?.()}>
-        <Pressable style={styles.sheet} onPress={() => null}>
+    <Modal visible={isMounted} transparent animationType="none" onRequestClose={() => closeWithAnimation()}>
+      <View style={styles.modalRoot}>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.backdropOverlay, { opacity: backdropOpacity }]}
+        />
+        <Pressable style={styles.backdropPressArea} onPress={() => closeWithAnimation()} />
+        <Animated.View
+          style={[
+            styles.sheet,
+            { transform: [{ translateY: sheetTranslateY }] },
+          ]}
+        >
+          <Pressable onPress={() => null}>
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>{isEditing ? 'Edit Trip' : 'Create Trip'}</Text>
               <Text style={styles.subtitle}>Plan the dates, people, places, and shared note.</Text>
             </View>
 
-            <TouchableOpacity style={styles.closeButton} onPress={() => onClose?.()}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => closeWithAnimation()}>
               <Ionicons name="close" size={20} color="#222222" />
             </TouchableOpacity>
           </View>
 
           <ScrollView
+            ref={scrollRef}
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
+            contentContainerStyle={[
+              styles.scrollContent,
+              keyboardHeight > 0 && { paddingBottom: keyboardHeight + 28 },
+            ]}
           >
             <Text style={styles.label}>Title</Text>
             <TextInput
               style={styles.input}
               value={title}
               onChangeText={setTitle}
+              onFocus={() => scrollToInput('title')}
+              onLayout={registerInputLayout('title')}
               placeholder="Albania Summer 2026"
               placeholderTextColor="#A1A1AA"
             />
@@ -159,6 +292,8 @@ export default function CreateTripModal({
               style={[styles.input, styles.textArea]}
               value={description}
               onChangeText={setDescription}
+              onFocus={() => scrollToInput('description')}
+              onLayout={registerInputLayout('description')}
               placeholder="Summer trip through Albania"
               placeholderTextColor="#A1A1AA"
               multiline
@@ -167,50 +302,47 @@ export default function CreateTripModal({
             <View style={styles.dateRow}>
               <View style={styles.dateField}>
                 <Text style={styles.label}>Start Date</Text>
-                <View style={styles.dateInputRow}>
-                  <TextInput
-                    style={[styles.input, styles.dateInput]}
-                    value={startDate}
-                    onChangeText={setStartDate}
-                    placeholder="2026-06-10"
-                    placeholderTextColor="#A1A1AA"
-                  />
-                  <TouchableOpacity
-                    style={styles.calendarButton}
-                    activeOpacity={0.86}
-                    onPress={() => setDatePickerField('start')}
-                  >
-                    <Ionicons name="calendar-outline" size={19} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
+                <TextInput
+                  style={styles.input}
+                  value={formatDateForDisplay(startDate)}
+                  onChangeText={(text) => setStartDate(parseDisplayDateToIso(text))}
+                  onFocus={() => scrollToInput('startDate')}
+                  onLayout={registerInputLayout('startDate')}
+                  placeholder="10.06.2026"
+                  placeholderTextColor="#A1A1AA"
+                />
               </View>
 
               <View style={styles.dateField}>
                 <Text style={styles.label}>End Date</Text>
-                <View style={styles.dateInputRow}>
-                  <TextInput
-                    style={[styles.input, styles.dateInput]}
-                    value={endDate}
-                    onChangeText={setEndDate}
-                    placeholder="2026-06-18"
-                    placeholderTextColor="#A1A1AA"
-                  />
-                  <TouchableOpacity
-                    style={styles.calendarButton}
-                    activeOpacity={0.86}
-                    onPress={() => setDatePickerField('end')}
-                  >
-                    <Ionicons name="calendar-outline" size={19} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
+                <TextInput
+                  style={styles.input}
+                  value={formatDateForDisplay(endDate)}
+                  onChangeText={(text) => setEndDate(parseDisplayDateToIso(text))}
+                  onFocus={() => scrollToInput('endDate')}
+                  onLayout={registerInputLayout('endDate')}
+                  placeholder="18.06.2026"
+                  placeholderTextColor="#A1A1AA"
+                />
               </View>
             </View>
+
+            <TouchableOpacity
+              style={styles.dateRangeButton}
+              activeOpacity={0.86}
+              onPress={() => setDatePickerVisible(true)}
+            >
+              <Ionicons name="calendar-outline" size={19} color={colors.primary} />
+              <Text style={styles.dateRangeButtonText}>Choose date range</Text>
+            </TouchableOpacity>
 
             <Text style={styles.label}>Shared Note</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={sharedNote}
               onChangeText={setSharedNote}
+              onFocus={() => scrollToInput('sharedNote')}
+              onLayout={registerInputLayout('sharedNote')}
               placeholder="Bring sunscreen and cash."
               placeholderTextColor="#A1A1AA"
               multiline
@@ -219,13 +351,14 @@ export default function CreateTripModal({
             {!isEditing && onInviteUsersAfterCreate ? (
               <>
                 <Text style={styles.label}>Invite Users</Text>
-                <TextInput
-                  style={styles.input}
+                <UserInviteInput
+                  multiple
+                  inputStyle={styles.input}
                   value={inviteUsernames}
                   onChangeText={setInviteUsernames}
+                  onFocus={() => scrollToInput('inviteUsers')}
+                  onLayout={registerInputLayout('inviteUsers')}
                   placeholder="username, friendname"
-                  placeholderTextColor="#A1A1AA"
-                  autoCapitalize="none"
                 />
               </>
             ) : null}
@@ -241,25 +374,32 @@ export default function CreateTripModal({
             </TouchableOpacity>
           </ScrollView>
         </Pressable>
-      </Pressable>
+        </Animated.View>
+      </View>
 
       <CalendarPickerModal
-        visible={Boolean(datePickerField)}
-        value={datePickerField === 'start' ? startDate : endDate}
-        minDate={datePickerField === 'end' ? startDate : undefined}
-        maxDate={datePickerField === 'start' ? endDate : undefined}
-        onClose={() => setDatePickerField(null)}
-        onSelect={handleSelectDate}
+        visible={datePickerVisible}
+        rangeMode
+        startValue={startDate}
+        endValue={endDate}
+        onClose={() => setDatePickerVisible(false)}
+        onSelectRange={handleSelectDateRange}
       />
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.28)',
     justifyContent: 'flex-end',
+  },
+  backdropOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  backdropPressArea: {
+    ...StyleSheet.absoluteFillObject,
   },
   sheet: {
     maxHeight: '92%',
@@ -269,6 +409,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 28,
+  },
+  scrollContent: {
+    paddingBottom: 4,
   },
   header: {
     flexDirection: 'row',
@@ -315,23 +458,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#222222',
   },
-  dateInputRow: {
+  dateRangeButton: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
-  },
-  dateInput: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  calendarButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: '#FDECEC',
-    alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FDECEC',
+    borderRadius: 16,
+    marginTop: -2,
+    marginBottom: 14,
+    gap: 8,
+  },
+  dateRangeButtonText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.primary,
   },
   textArea: {
     minHeight: 90,

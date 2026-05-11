@@ -44,13 +44,10 @@ def create_application() -> FastAPI:
         if getenv("SKIP_BACKGROUND_DB_PREP") == "1":
             return
 
-        async def run_prepare_database() -> None:
-            try:
-                await asyncio.to_thread(prepare_database)
-            except Exception:
-                logger.exception("Background database preparation failed.")
-
-        asyncio.create_task(run_prepare_database())
+        try:
+            await asyncio.to_thread(prepare_database)
+        except Exception:
+            logger.exception("Database preparation failed.")
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):

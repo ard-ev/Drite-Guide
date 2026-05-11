@@ -128,6 +128,14 @@ def _require_owner(trip: Trip, current_user: User) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the trip owner can do this.")
 
 
+def _user_can_edit_shared_note(trip: Trip, current_user: User) -> bool:
+    if trip.owner_id == current_user.id:
+        return True
+
+    member = _get_current_user_member(trip, current_user)
+    return bool(member and member.status == TripMemberStatus.accepted)
+
+
 def _validate_trip_dates(start_date, end_date) -> None:
     if end_date < start_date:
         raise HTTPException(
@@ -136,8 +144,55 @@ def _validate_trip_dates(start_date, end_date) -> None:
         )
 
 
-@router.get("", response_model=list[TripRead])
-async def list_trips(db: DBSession, current_user: User = Depends(get_current_user)) -> list[TripRead]:
+async def _validate_trip_place_schedule(
+    db: DBSession,
+    trip_id: UUID,
+    visit_date,
+    visit_start_time,
+    visit_end_time,
+    excluded_trip_place_id: UUID | None = None,
+) -> None:
+    if (visit_start_time or visit_end_time) and not visit_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Choose a visit date before setting a time.",
+        )
+
+    if bool(visit_start_time) != bool(visit_end_time):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Set both start time and end time.",
+        )
+
+    if visit_start_time and visit_end_time and visit_end_time < visit_start_time:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Visit end time must be after or equal to visit start time.",
+        )
+
+    if not visit_date or not visit_start_time or not visit_end_time:
+        return
+
+    query = select(TripPlace).where(
+        TripPlace.trip_id == trip_id,
+        TripPlace.visit_date == visit_date,
+        TripPlace.visit_start_time.is_not(None),
+        TripPlace.visit_end_time.is_not(None),
+    )
+    if excluded_trip_place_id:
+        query = query.where(TripPlace.id != excluded_trip_place_id)
+
+    result = await db.scalars(query)
+    for trip_place in result.all():
+        if visit_start_time < trip_place.visit_end_time and visit_end_time > trip_place.visit_start_time:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This visit time overlaps with another place in this trip.",
+            )
+
+
+@router.get("", response_model=list[TripDetailRead])
+async def list_trips(db: DBSession, current_user: User = Depends(get_current_user)) -> list[TripDetailRead]:
     result = await db.scalars(
         select(Trip)
         .where(
@@ -150,11 +205,11 @@ async def list_trips(db: DBSession, current_user: User = Depends(get_current_use
         .order_by(Trip.start_date.asc(), Trip.created_at.desc())
     )
     trips = [trip for trip in result.unique().all() if _user_can_access_trip(trip, current_user)]
-    return [_serialize_trip(trip, current_user) for trip in trips]
+    return [_serialize_trip(trip, current_user, include_details=True) for trip in trips]
 
 
-@router.get("/me", response_model=list[TripRead])
-async def get_my_trips(db: DBSession, current_user: User = Depends(get_current_user)) -> list[TripRead]:
+@router.get("/me", response_model=list[TripDetailRead])
+async def get_my_trips(db: DBSession, current_user: User = Depends(get_current_user)) -> list[TripDetailRead]:
     return await list_trips(db, current_user)
 
 
@@ -213,13 +268,16 @@ async def update_trip(
     current_user: User = Depends(get_current_user),
 ) -> TripDetailRead:
     trip = await _get_trip_or_404(db, trip_id, current_user)
-    _require_owner(trip, current_user)
+    updates = payload.model_dump(exclude_unset=True)
+
+    if trip.owner_id != current_user.id:
+        if set(updates.keys()) != {"shared_note"} or not _user_can_edit_shared_note(trip, current_user):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the trip owner can do this.")
 
     next_start_date = payload.start_date or trip.start_date
     next_end_date = payload.end_date or trip.end_date
     _validate_trip_dates(next_start_date, next_end_date)
 
-    updates = payload.model_dump(exclude_unset=True)
     if "title" in updates:
         updates["title"] = updates["title"].strip()
         if not updates["title"]:
@@ -268,6 +326,14 @@ async def add_trip_place(
     place = await db.get(Place, payload.place_id)
     if not place:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found.")
+
+    await _validate_trip_place_schedule(
+        db,
+        trip_id,
+        payload.visit_date,
+        payload.visit_start_time,
+        payload.visit_end_time,
+    )
 
     existing = await db.scalar(
         select(TripPlace).where(TripPlace.trip_id == trip_id, TripPlace.place_id == payload.place_id)
@@ -325,7 +391,21 @@ async def update_trip_place(
     if not trip_place:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip place not found.")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    updates = payload.model_dump(exclude_unset=True)
+    next_visit_date = updates.get("visit_date", trip_place.visit_date)
+    next_visit_start_time = updates.get("visit_start_time", trip_place.visit_start_time)
+    next_visit_end_time = updates.get("visit_end_time", trip_place.visit_end_time)
+
+    await _validate_trip_place_schedule(
+        db,
+        trip_id,
+        next_visit_date,
+        next_visit_start_time,
+        next_visit_end_time,
+        excluded_trip_place_id=trip_place_id,
+    )
+
+    for field, value in updates.items():
         setattr(trip_place, field, value)
 
     await db.commit()

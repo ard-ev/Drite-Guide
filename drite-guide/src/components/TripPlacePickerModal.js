@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   Image,
   Modal,
   Pressable,
@@ -19,11 +21,79 @@ import { getImageSource } from '../utils/placeMeta';
 export default function TripPlacePickerModal({
   visible,
   existingPlaceIds = [],
+  addingPlaceId = null,
   onClose,
   onSelectPlace,
 }) {
   const { places } = useAppData();
   const [query, setQuery] = useState('');
+  const [isMounted, setIsMounted] = useState(visible);
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(36)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setIsMounted(true);
+      backdropOpacity.setValue(0);
+      sheetTranslateY.setValue(42);
+
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+
+    if (isMounted) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 140,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 30,
+          duration: 180,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setIsMounted(false);
+        }
+      });
+    }
+  }, [backdropOpacity, isMounted, sheetTranslateY, visible]);
+
+  const closeWithAnimation = () => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 140,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: 30,
+        duration: 180,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onClose?.();
+    });
+  };
 
   const existingIds = useMemo(
     () => new Set(existingPlaceIds.filter(Boolean).map(String)),
@@ -54,16 +124,22 @@ export default function TripPlacePickerModal({
   }, [places, query]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => null}>
+    <Modal visible={isMounted} transparent animationType="none" onRequestClose={closeWithAnimation}>
+      <View style={styles.modalRoot}>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.backdropOverlay, { opacity: backdropOpacity }]}
+        />
+        <Pressable style={styles.backdropPressArea} onPress={closeWithAnimation} />
+        <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
+          <Pressable onPress={() => null}>
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>Add Place</Text>
               <Text style={styles.subtitle}>Choose a place for this trip.</Text>
             </View>
 
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <TouchableOpacity style={styles.closeButton} onPress={closeWithAnimation}>
               <Ionicons name="close" size={20} color="#222222" />
             </TouchableOpacity>
           </View>
@@ -96,13 +172,16 @@ export default function TripPlacePickerModal({
                 const isAdded =
                   existingIds.has(String(place.id)) ||
                   existingIds.has(String(place.seededId));
+                const isAdding =
+                  String(addingPlaceId || '') === String(place.id) ||
+                  String(addingPlaceId || '') === String(place.seededId);
 
                 return (
                   <TouchableOpacity
                     key={place.id}
-                    style={[styles.placeOption, isAdded && styles.placeOptionDisabled]}
+                    style={[styles.placeOption, (isAdded || isAdding) && styles.placeOptionDisabled]}
                     activeOpacity={0.88}
-                    disabled={isAdded}
+                    disabled={isAdded || isAdding}
                     onPress={() => onSelectPlace?.(place)}
                   >
                     <Image
@@ -116,14 +195,14 @@ export default function TripPlacePickerModal({
                         {place.name}
                       </Text>
                       <Text style={styles.placeMeta} numberOfLines={1}>
-                        {isAdded ? 'Already in this trip' : place.cityName || 'Albania'}
+                        {isAdding ? 'Adding...' : isAdded ? 'Already in this trip' : place.cityName || 'Albania'}
                       </Text>
                     </View>
 
                     <Ionicons
-                      name={isAdded ? 'checkmark-circle' : 'add-circle-outline'}
+                      name={isAdding || isAdded ? 'checkmark-circle' : 'add-circle-outline'}
                       size={22}
-                      color={isAdded ? '#A1A1AA' : colors.primary}
+                      color={isAdding ? colors.primary : isAdded ? '#A1A1AA' : colors.primary}
                     />
                   </TouchableOpacity>
                 );
@@ -131,16 +210,23 @@ export default function TripPlacePickerModal({
             )}
           </ScrollView>
         </Pressable>
-      </Pressable>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.28)',
     justifyContent: 'flex-end',
+  },
+  backdropOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  backdropPressArea: {
+    ...StyleSheet.absoluteFillObject,
   },
   sheet: {
     maxHeight: '88%',

@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
+  Easing,
   Modal,
   Pressable,
   ScrollView,
@@ -14,9 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 
 import CalendarPickerModal from './CalendarPickerModal';
 import colors from '../theme/colors';
-
-const isIsoDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
-const isTime = (value) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value || '');
+import {
+  formatDateForDisplay,
+  formatDateRangeForDisplay,
+  isIsoDate,
+  normalizeDateInput,
+  parseDisplayDateToIso,
+} from '../utils/dateFormat';
+import { formatTimeForDisplay, isTime, normalizeTimeInput } from '../utils/timeFormat';
 
 export default function TripPlaceScheduleModal({
   visible,
@@ -33,6 +40,54 @@ export default function TripPlaceScheduleModal({
   const [note, setNote] = useState('');
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isMounted, setIsMounted] = useState(visible);
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(36)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setIsMounted(true);
+      backdropOpacity.setValue(0);
+      sheetTranslateY.setValue(42);
+
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 180,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+
+    if (isMounted) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 140,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 30,
+          duration: 180,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) {
+          setIsMounted(false);
+        }
+      });
+    }
+  }, [backdropOpacity, isMounted, sheetTranslateY, visible]);
 
   useEffect(() => {
     if (!visible) {
@@ -40,29 +95,53 @@ export default function TripPlaceScheduleModal({
     }
 
     setVisitDate(initialValues?.visitDate || initialValues?.visit_date || '');
-    setVisitStartTime(initialValues?.visitStartTime || initialValues?.visit_start_time || '');
-    setVisitEndTime(initialValues?.visitEndTime || initialValues?.visit_end_time || '');
+    setVisitStartTime(formatTimeForDisplay(initialValues?.visitStartTime || initialValues?.visit_start_time));
+    setVisitEndTime(formatTimeForDisplay(initialValues?.visitEndTime || initialValues?.visit_end_time));
     setNote(initialValues?.note || '');
     setDatePickerVisible(false);
   }, [initialValues, visible]);
 
+  const closeWithAnimation = (result) => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 140,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: 30,
+        duration: 180,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onClose?.(result);
+    });
+  };
+
   const validate = () => {
-    const trimmedDate = visitDate.trim();
-    const trimmedStartTime = visitStartTime.trim();
-    const trimmedEndTime = visitEndTime.trim();
+    const normalizedVisitDate = normalizeDateInput(visitDate);
+    const trimmedStartTime = normalizeTimeInput(visitStartTime);
+    const trimmedEndTime = normalizeTimeInput(visitEndTime);
 
-    if (trimmedDate && !isIsoDate(trimmedDate)) {
-      Alert.alert('Invalid date', 'Use the date format YYYY-MM-DD.');
+    if (normalizedVisitDate && !isIsoDate(normalizedVisitDate)) {
+      Alert.alert('Invalid date', 'Use the date format DD.MM.YYYY.');
       return false;
     }
 
-    if (trimmedDate && trip?.start_date && trimmedDate < trip.start_date) {
+    if (normalizedVisitDate && trip?.start_date && normalizedVisitDate < trip.start_date) {
       Alert.alert('Invalid visit date', 'Visit date must be within the trip date range.');
       return false;
     }
 
-    if (trimmedDate && trip?.end_date && trimmedDate > trip.end_date) {
+    if (normalizedVisitDate && trip?.end_date && normalizedVisitDate > trip.end_date) {
       Alert.alert('Invalid visit date', 'Visit date must be within the trip date range.');
+      return false;
+    }
+
+    if ((trimmedStartTime || trimmedEndTime) && !normalizedVisitDate) {
+      Alert.alert('Missing visit date', 'Choose a visit date before setting a time.');
       return false;
     }
 
@@ -76,9 +155,52 @@ export default function TripPlaceScheduleModal({
       return false;
     }
 
+    if ((trimmedStartTime && !trimmedEndTime) || (!trimmedStartTime && trimmedEndTime)) {
+      Alert.alert('Missing time', 'Set both start time and end time.');
+      return false;
+    }
+
     if (trimmedStartTime && trimmedEndTime && trimmedEndTime < trimmedStartTime) {
       Alert.alert('Invalid time range', 'Visit end time must be after or equal to visit start time.');
       return false;
+    }
+
+    if (normalizedVisitDate && trimmedStartTime && trimmedEndTime) {
+      const overlappingPlace = (trip?.places || []).filter(Boolean).find((tripPlace) => {
+        const tripPlaceId = tripPlace.id;
+        const initialTripPlaceId = initialValues?.id;
+
+        if (tripPlaceId && initialTripPlaceId && String(tripPlaceId) === String(initialTripPlaceId)) {
+          return false;
+        }
+
+        const tripPlaceDate = normalizeDateInput(tripPlace.visitDate || tripPlace.visit_date);
+        const tripPlaceStartTime = normalizeTimeInput(
+          tripPlace.visitStartTime || tripPlace.visit_start_time
+        );
+        const tripPlaceEndTime = normalizeTimeInput(
+          tripPlace.visitEndTime || tripPlace.visit_end_time
+        );
+
+        if (!tripPlaceDate || !tripPlaceStartTime || !tripPlaceEndTime) {
+          return false;
+        }
+
+        return (
+          tripPlaceDate === normalizedVisitDate &&
+          trimmedStartTime < tripPlaceEndTime &&
+          trimmedEndTime > tripPlaceStartTime
+        );
+      });
+
+      if (overlappingPlace) {
+        const overlappingPlaceName = overlappingPlace.place?.name || 'another place';
+        Alert.alert(
+          'Time already used',
+          `This time overlaps with ${overlappingPlaceName}. Choose another time slot.`
+        );
+        return false;
+      }
     }
 
     return true;
@@ -90,10 +212,13 @@ export default function TripPlaceScheduleModal({
     }
 
     setIsSaving(true);
+    const normalizedVisitDate = normalizeDateInput(visitDate);
+    const normalizedStartTime = normalizeTimeInput(visitStartTime);
+    const normalizedEndTime = normalizeTimeInput(visitEndTime);
     const result = await onSave({
-      visit_date: visitDate.trim() || null,
-      visit_start_time: visitStartTime.trim() || null,
-      visit_end_time: visitEndTime.trim() || null,
+      visit_date: normalizedVisitDate || null,
+      visit_start_time: normalizedStartTime || null,
+      visit_end_time: normalizedEndTime || null,
       note: note.trim() || null,
     });
     setIsSaving(false);
@@ -103,13 +228,19 @@ export default function TripPlaceScheduleModal({
       return;
     }
 
-    onClose?.(result);
+    closeWithAnimation(result);
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => onClose?.()}>
-      <Pressable style={styles.backdrop} onPress={() => onClose?.()}>
-        <Pressable style={styles.sheet} onPress={() => null}>
+    <Modal visible={isMounted} transparent animationType="none" onRequestClose={() => closeWithAnimation()}>
+      <View style={styles.modalRoot}>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.backdropOverlay, { opacity: backdropOpacity }]}
+        />
+        <Pressable style={styles.backdropPressArea} onPress={() => closeWithAnimation()} />
+        <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
+          <Pressable onPress={() => null}>
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>Visit Details</Text>
@@ -118,7 +249,7 @@ export default function TripPlaceScheduleModal({
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.closeButton} onPress={() => onClose?.()}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => closeWithAnimation()}>
               <Ionicons name="close" size={20} color="#222222" />
             </TouchableOpacity>
           </View>
@@ -129,16 +260,16 @@ export default function TripPlaceScheduleModal({
             keyboardShouldPersistTaps="handled"
           >
             <Text style={styles.tripRange}>
-              {trip?.start_date || 'Start date'} - {trip?.end_date || 'End date'}
+              {formatDateRangeForDisplay(trip?.start_date, trip?.end_date)}
             </Text>
 
             <Text style={styles.label}>Visit Date</Text>
             <View style={styles.dateInputRow}>
               <TextInput
                 style={[styles.input, styles.dateInput]}
-                value={visitDate}
-                onChangeText={setVisitDate}
-                placeholder="2026-06-12"
+                value={formatDateForDisplay(visitDate)}
+                onChangeText={(text) => setVisitDate(parseDisplayDateToIso(text))}
+                placeholder="12.06.2026"
                 placeholderTextColor="#A1A1AA"
               />
               <TouchableOpacity
@@ -155,8 +286,8 @@ export default function TripPlaceScheduleModal({
                 <Text style={styles.label}>Start Time</Text>
                 <TextInput
                   style={styles.input}
-                  value={visitStartTime}
-                  onChangeText={setVisitStartTime}
+                  value={formatTimeForDisplay(visitStartTime)}
+                  onChangeText={(text) => setVisitStartTime(normalizeTimeInput(text))}
                   placeholder="10:00"
                   placeholderTextColor="#A1A1AA"
                 />
@@ -166,8 +297,8 @@ export default function TripPlaceScheduleModal({
                 <Text style={styles.label}>End Time</Text>
                 <TextInput
                   style={styles.input}
-                  value={visitEndTime}
-                  onChangeText={setVisitEndTime}
+                  value={formatTimeForDisplay(visitEndTime)}
+                  onChangeText={(text) => setVisitEndTime(normalizeTimeInput(text))}
                   placeholder="14:00"
                   placeholderTextColor="#A1A1AA"
                 />
@@ -195,7 +326,8 @@ export default function TripPlaceScheduleModal({
             </TouchableOpacity>
           </ScrollView>
         </Pressable>
-      </Pressable>
+        </Animated.View>
+      </View>
 
       <CalendarPickerModal
         visible={datePickerVisible}
@@ -213,10 +345,16 @@ export default function TripPlaceScheduleModal({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.28)',
     justifyContent: 'flex-end',
+  },
+  backdropOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  backdropPressArea: {
+    ...StyleSheet.absoluteFillObject,
   },
   sheet: {
     maxHeight: '92%',
