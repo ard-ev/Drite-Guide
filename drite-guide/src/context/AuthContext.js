@@ -20,6 +20,7 @@ import {
 } from '../services/transformers';
 import { safeGetItem, safeRemoveItem, safeSetItem } from '../utils/storage';
 import { translate } from '../i18n/translations';
+import { toAbsoluteAssetUrl } from '../config/api';
 
 const AuthContext = createContext(null);
 
@@ -37,8 +38,9 @@ const FALLBACK_LANGUAGES = [
   { code: 'fr', name: 'French' },
 ];
 
-const DEFAULT_PROFILE_PICTURE =
-  'https://placehold.co/240x240/E5E7EB/222222?text=DG';
+const DEFAULT_PROFILE_PICTURE_PATH =
+  'uploads/profile_pictures/default-profile.png';
+const DEFAULT_PROFILE_PICTURE = toAbsoluteAssetUrl(DEFAULT_PROFILE_PICTURE_PATH);
 
 const PROFILE_PICTURE_PRESETS = [
   DEFAULT_PROFILE_PICTURE,
@@ -687,7 +689,7 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await api.patch('/users/me', {
-        profile_picture_path: 'uploads/profile_pictures/default-profile.svg',
+        profile_picture_path: DEFAULT_PROFILE_PICTURE_PATH,
       });
       setCurrentUser(normalizeUser(response.data));
 

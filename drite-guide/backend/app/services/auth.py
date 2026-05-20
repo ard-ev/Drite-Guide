@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -18,6 +19,9 @@ from app.models.language import Language
 from app.models.user import User, UserRole
 from app.services.email import email_service
 from app.utils.language import extract_language_code
+
+
+logger = logging.getLogger(__name__)
 
 
 async def _resolve_supported_language(session: AsyncSession, preferred_language: str | None) -> str:
@@ -60,7 +64,10 @@ async def register_user(
     session.add(user)
     await session.commit()
     await session.refresh(user)
-    await email_service.send_verification_email(user.email, verification_token)
+    try:
+        await email_service.send_verification_email(user.email, verification_token)
+    except Exception:
+        logger.exception("Could not send verification email to %s.", user.email)
     return user
 
 
