@@ -18,7 +18,7 @@ import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
 import AddToTripModal from '../components/AddToTripModal';
-import { api } from '../services/api';
+import { getPlaceById as fetchPlaceById } from '../services/placesService';
 import { normalizePlace } from '../services/transformers';
 
 const normalizeUrl = (url) => {
@@ -61,8 +61,7 @@ export default function PlaceDetailScreen({ route }) {
 
     async function loadPlaceDetails() {
       try {
-        const response = await api.get(`/places/${placeId}`);
-        const nextPlace = normalizePlace(response.data);
+        const nextPlace = normalizePlace(await fetchPlaceById(placeId));
         if (isMounted && nextPlace) {
           setRemotePlace(nextPlace);
         }

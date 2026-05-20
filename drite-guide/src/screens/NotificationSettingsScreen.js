@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+    Alert,
     View,
     Text,
     StyleSheet,
@@ -17,25 +18,42 @@ import { useAuth } from '../context/AuthContext';
 import { safeGetItem, safeSetItem } from '../utils/storage';
 
 const NOTIFICATION_SETTINGS_STORAGE_KEY = '@drite_guide_notification_settings';
+const DEFAULT_NOTIFICATION_FROM_EMAIL = 'info@driteguide.com';
 
 const DEFAULT_NOTIFICATION_SETTINGS = {
     pushNotifications: true,
     tripUpdates: true,
     savedPlaceAlerts: false,
-    newsAndTips: true,
+    newsAndTips: false,
     emailNotifications: false,
+};
+
+const applyEmailVerificationGate = (nextSettings, canManageEmailContent) => {
+    if (canManageEmailContent) {
+        return nextSettings;
+    }
+
+    return {
+        ...nextSettings,
+        newsAndTips: false,
+        emailNotifications: false,
+    };
 };
 
 export default function NotificationSettingsScreen() {
     const navigation = useNavigation();
     const { t } = useTranslation();
     const { currentUser } = useAuth();
+    const canManageEmailContent = !!currentUser?.email_verified;
 
     const userStorageKey = useMemo(
         () => `${NOTIFICATION_SETTINGS_STORAGE_KEY}:${currentUser?.id || 'device'}`,
         [currentUser?.id]
     );
     const [settings, setSettings] = useState(DEFAULT_NOTIFICATION_SETTINGS);
+    const [notificationFromEmail, setNotificationFromEmail] = useState(
+        DEFAULT_NOTIFICATION_FROM_EMAIL
+    );
 
     useEffect(() => {
         let isMounted = true;
@@ -44,14 +62,21 @@ export default function NotificationSettingsScreen() {
             try {
                 const storedSettings = await safeGetItem(userStorageKey);
                 const parsedSettings = storedSettings ? JSON.parse(storedSettings) : null;
+                const nextSettings = {
+                    ...DEFAULT_NOTIFICATION_SETTINGS,
+                    ...(parsedSettings && typeof parsedSettings === 'object'
+                        ? parsedSettings
+                        : {}),
+                };
 
                 if (isMounted) {
-                    setSettings({
-                        ...DEFAULT_NOTIFICATION_SETTINGS,
-                        ...(parsedSettings && typeof parsedSettings === 'object'
-                            ? parsedSettings
-                            : {}),
-                    });
+                    setNotificationFromEmail(DEFAULT_NOTIFICATION_FROM_EMAIL);
+                    setSettings(
+                        applyEmailVerificationGate(
+                            nextSettings,
+                            !!currentUser?.email_verified
+                        )
+                    );
                 }
             } catch (error) {
                 console.warn('Could not load notification settings:', error?.message);
@@ -63,13 +88,33 @@ export default function NotificationSettingsScreen() {
         return () => {
             isMounted = false;
         };
-    }, [userStorageKey]);
+    }, [currentUser, userStorageKey]);
 
     const updateSetting = async (settingKey, value) => {
-        const nextSettings = {
+        const isEmailContentSetting =
+            settingKey === 'newsAndTips' || settingKey === 'emailNotifications';
+
+        if (isEmailContentSetting && !canManageEmailContent) {
+            const title = currentUser
+                ? t('notifications.emailUnverifiedTitle')
+                : t('notifications.emailLoginRequiredTitle');
+            const message = currentUser
+                ? t('notifications.emailUnverifiedText', {
+                    email: currentUser?.email || t('common.noEmail'),
+                    fromEmail: notificationFromEmail,
+                })
+                : t('notifications.emailLoginRequiredText', {
+                    fromEmail: notificationFromEmail,
+                });
+
+            Alert.alert(title, message);
+            return;
+        }
+
+        const nextSettings = applyEmailVerificationGate({
             ...settings,
             [settingKey]: value,
-        };
+        }, canManageEmailContent);
 
         setSettings(nextSettings);
 
@@ -80,6 +125,10 @@ export default function NotificationSettingsScreen() {
         }
     };
 
+    const emailContentDisabledSubtitle = currentUser
+        ? t('notifications.emailContentDisabledSubtitle')
+        : t('notifications.emailContentLoginSubtitle');
+
     const renderSettingItem = ({
         id,
         title,
@@ -87,22 +136,49 @@ export default function NotificationSettingsScreen() {
         value,
         onValueChange,
         icon,
+        disabled = false,
+        disabledSubtitle,
     }) => (
-        <View key={id} style={styles.settingCard}>
+        <View
+            key={id}
+            style={[
+                styles.settingCard,
+                disabled && styles.settingCardDisabled,
+            ]}
+        >
             <View style={styles.settingLeft}>
                 <View style={styles.iconWrap}>
-                    <Ionicons name={icon} size={20} color="#222222" />
+                    <Ionicons
+                        name={icon}
+                        size={20}
+                        color={disabled ? '#9CA3AF' : '#222222'}
+                    />
                 </View>
 
                 <View style={styles.settingTextWrap}>
-                    <Text style={styles.settingTitle}>{title}</Text>
-                    <Text style={styles.settingSubtitle}>{subtitle}</Text>
+                    <Text
+                        style={[
+                            styles.settingTitle,
+                            disabled && styles.settingTextDisabled,
+                        ]}
+                    >
+                        {title}
+                    </Text>
+                    <Text
+                        style={[
+                            styles.settingSubtitle,
+                            disabled && styles.settingTextDisabled,
+                        ]}
+                    >
+                        {disabled && disabledSubtitle ? disabledSubtitle : subtitle}
+                    </Text>
                 </View>
             </View>
 
             <Switch
                 value={value}
-                onValueChange={onValueChange}
+                onValueChange={disabled ? undefined : onValueChange}
+                disabled={disabled}
                 trackColor={{ false: '#E5E7EB', true: colors.primary }}
                 thumbColor="#FFFFFF"
                 ios_backgroundColor="#E5E7EB"
@@ -163,7 +239,7 @@ export default function NotificationSettingsScreen() {
                             subtitle: t('notifications.tripSubtitle'),
                             value: settings.tripUpdates,
                             onValueChange: (value) => updateSetting('tripUpdates', value),
-                            icon: 'airplane-outline',
+                            icon: 'map-outline',
                         })}
 
                         {renderSettingItem({
@@ -179,6 +255,50 @@ export default function NotificationSettingsScreen() {
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>{t('notifications.emailSection')}</Text>
 
+                        <View style={styles.emailSourceCard}>
+                            <View
+                                style={[
+                                    styles.emailSourceIconWrap,
+                                    canManageEmailContent && styles.emailSourceIconWrapVerified,
+                                ]}
+                            >
+                                <Ionicons
+                                    name={
+                                        canManageEmailContent
+                                            ? 'shield-checkmark-outline'
+                                            : 'mail-unread-outline'
+                                    }
+                                    size={20}
+                                    color={canManageEmailContent ? '#047857' : colors.primary}
+                                />
+                            </View>
+
+                            <View style={styles.emailSourceTextWrap}>
+                                <Text style={styles.emailSourceTitle}>
+                                    {currentUser
+                                        ? canManageEmailContent
+                                            ? t('notifications.emailVerifiedTitle')
+                                            : t('notifications.emailUnverifiedTitle')
+                                        : t('notifications.emailLoginRequiredTitle')}
+                                </Text>
+                                <Text style={styles.emailSourceText}>
+                                    {currentUser
+                                        ? canManageEmailContent
+                                            ? t('notifications.emailVerifiedText', {
+                                                email: currentUser?.email || t('common.noEmail'),
+                                                fromEmail: notificationFromEmail,
+                                            })
+                                            : t('notifications.emailUnverifiedText', {
+                                                email: currentUser?.email || t('common.noEmail'),
+                                                fromEmail: notificationFromEmail,
+                                            })
+                                        : t('notifications.emailLoginRequiredText', {
+                                            fromEmail: notificationFromEmail,
+                                        })}
+                                </Text>
+                            </View>
+                        </View>
+
                         {renderSettingItem({
                             id: 'news',
                             title: t('notifications.newsTitle'),
@@ -186,15 +306,21 @@ export default function NotificationSettingsScreen() {
                             value: settings.newsAndTips,
                             onValueChange: (value) => updateSetting('newsAndTips', value),
                             icon: 'newspaper-outline',
+                            disabled: !canManageEmailContent,
+                            disabledSubtitle: emailContentDisabledSubtitle,
                         })}
 
                         {renderSettingItem({
                             id: 'email',
                             title: t('notifications.emailTitle'),
-                            subtitle: t('notifications.emailSubtitle'),
+                            subtitle: t('notifications.emailSubtitle', {
+                                email: notificationFromEmail,
+                            }),
                             value: settings.emailNotifications,
                             onValueChange: (value) => updateSetting('emailNotifications', value),
                             icon: 'mail-outline',
+                            disabled: !canManageEmailContent,
+                            disabledSubtitle: emailContentDisabledSubtitle,
                         })}
                     </View>
 
@@ -323,6 +449,10 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
 
+    settingCardDisabled: {
+        opacity: 0.7,
+    },
+
     settingLeft: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -352,6 +482,56 @@ const styles = StyleSheet.create({
     },
 
     settingSubtitle: {
+        fontSize: 12,
+        lineHeight: 18,
+        color: '#6B7280',
+    },
+
+    settingTextDisabled: {
+        color: '#9CA3AF',
+    },
+
+    emailSourceCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        marginBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.04,
+        shadowRadius: 12,
+        elevation: 2,
+    },
+
+    emailSourceIconWrap: {
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        backgroundColor: colors.primary + '12',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+
+    emailSourceIconWrapVerified: {
+        backgroundColor: '#D1FAE5',
+    },
+
+    emailSourceTextWrap: {
+        flex: 1,
+    },
+
+    emailSourceTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#222222',
+        marginBottom: 4,
+    },
+
+    emailSourceText: {
         fontSize: 12,
         lineHeight: 18,
         color: '#6B7280',

@@ -54,7 +54,10 @@ export default function SignupScreen() {
             [
                 {
                     text: t('common.continue'),
-                    onPress: () => navigation.navigate('AccountMain'),
+                    onPress: () =>
+                        navigation.navigate(
+                            result.requiresEmailVerification ? 'Login' : 'AccountMain'
+                        ),
                 },
             ]
         );

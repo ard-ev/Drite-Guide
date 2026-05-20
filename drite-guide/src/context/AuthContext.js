@@ -5,27 +5,54 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import * as Linking from 'expo-linking';
 
+import { isSupabaseConfigured } from '../lib/supabase';
 import {
-  api,
-  extractApiErrorMessage,
-  setApiLanguage,
-  setAuthToken,
-} from '../services/api';
+  getCurrentSession,
+  handleAuthRedirectUrl,
+  isEmailNotVerifiedError,
+  onAuthStateChange,
+  resendVerificationEmail,
+  signIn,
+  signOut,
+  signUp,
+} from '../services/authService';
+import {
+  getProfileById,
+  resetProfilePicture as resetProfilePictureInSupabase,
+  updatePreferredLanguage,
+  uploadProfilePicture as uploadProfilePictureToSupabase,
+} from '../services/profileService';
+import {
+  getSavedPlaces as fetchSavedPlaces,
+  removeSavedPlace as removeSavedPlaceFromSupabase,
+  savePlace as savePlaceToSupabase,
+} from '../services/savedService';
+import {
+  addPlaceToTrip as addPlaceToTripInSupabase,
+  createTrip as createTripInSupabase,
+  deleteTrip as deleteTripInSupabase,
+  getTrip as fetchTrip,
+  getTripsForUser,
+  inviteUserToTrip as inviteUserToTripInSupabase,
+  removeTripMember as removeTripMemberInSupabase,
+  removeTripPlace as removeTripPlaceInSupabase,
+  updateTrip as updateTripInSupabase,
+  updateTripPlace as updateTripPlaceInSupabase,
+} from '../services/tripsService';
 import {
   normalizePlace,
   normalizeTrip,
   normalizeTripPlace,
   normalizeUser,
 } from '../services/transformers';
-import { safeGetItem, safeRemoveItem, safeSetItem } from '../utils/storage';
+import { getSupabaseErrorMessage } from '../services/supabaseService';
+import { safeGetItem, safeSetItem } from '../utils/storage';
 import { translate } from '../i18n/translations';
-import { toAbsoluteAssetUrl } from '../config/api';
 
 const AuthContext = createContext(null);
 
-const ACCESS_TOKEN_KEY = '@drite_guide_access_token';
-const REFRESH_TOKEN_KEY = '@drite_guide_refresh_token';
 const GUEST_SAVED_PLACES_KEY = '@drite_guide_guest_saved_places';
 const LANGUAGE_KEY = '@drite_guide_language';
 
@@ -38,9 +65,8 @@ const FALLBACK_LANGUAGES = [
   { code: 'fr', name: 'French' },
 ];
 
-const DEFAULT_PROFILE_PICTURE_PATH =
-  'uploads/profile_pictures/default-profile.png';
-const DEFAULT_PROFILE_PICTURE = toAbsoluteAssetUrl(DEFAULT_PROFILE_PICTURE_PATH);
+const DEFAULT_PROFILE_PICTURE =
+  'https://placehold.co/240x240/E5E7EB/222222?text=DG';
 
 const PROFILE_PICTURE_PRESETS = [
   DEFAULT_PROFILE_PICTURE,
@@ -48,6 +74,18 @@ const PROFILE_PICTURE_PRESETS = [
   'https://placehold.co/240x240/E0F2FE/0C4A6E?text=DG',
   'https://placehold.co/240x240/ECFCCB/3F6212?text=DG',
 ];
+
+function findByAnyPlaceId(items, placeId) {
+  return (items || []).filter(Boolean).find(
+    (item) =>
+      item.id === placeId ||
+      item.legacyId === placeId ||
+      item.seededId === placeId ||
+      String(item.id) === String(placeId) ||
+      String(item.legacyId) === String(placeId) ||
+      String(item.seededId) === String(placeId)
+  );
+}
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -63,62 +101,54 @@ export function AuthProvider({ children }) {
   const isLoggedIn = !!currentUser;
   const t = (key, params) => translate(currentLanguage, key, params);
 
-  const applySession = async ({
-    accessToken: nextAccessToken,
-    refreshToken: nextRefreshToken,
-    user,
-  }) => {
-    setAccessToken(nextAccessToken);
-    setRefreshToken(nextRefreshToken);
+  const applySessionState = async (session, user) => {
+    setAccessTokenState(session?.access_token || null);
+    setRefreshTokenState(session?.refresh_token || null);
     setCurrentUser(normalizeUser(user));
-    await Promise.all([
-      safeSetItem(ACCESS_TOKEN_KEY, nextAccessToken),
-      safeSetItem(REFRESH_TOKEN_KEY, nextRefreshToken),
-    ]);
+
+    if (user?.preferred_language) {
+      await applyLanguage(user.preferred_language);
+    }
   };
 
-  const clearSession = async () => {
-    setAuthToken(null);
+  const clearSessionState = () => {
     setAccessTokenState(null);
     setRefreshTokenState(null);
     setCurrentUser(null);
     setSavedPlaces([]);
     setTrips([]);
-    await Promise.all([
-      safeRemoveItem(ACCESS_TOKEN_KEY),
-      safeRemoveItem(REFRESH_TOKEN_KEY),
-    ]);
-  };
-
-  const setAccessToken = (token) => {
-    setAccessTokenState(token);
-    setAuthToken(token);
-  };
-
-  const setRefreshToken = (token) => {
-    setRefreshTokenState(token);
   };
 
   const applyLanguage = async (languageCode) => {
     const nextLanguage = languageCode || 'en';
     setCurrentLanguageState(nextLanguage);
-    setApiLanguage(nextLanguage);
     await safeSetItem(LANGUAGE_KEY, nextLanguage);
   };
 
   const loadLanguages = async () => {
-    try {
-      const response = await api.get('/languages');
-      const nextLanguages = Array.isArray(response.data) && response.data.length > 0
-        ? response.data
-        : FALLBACK_LANGUAGES;
-      setLanguages(nextLanguages);
-      return nextLanguages;
-    } catch (error) {
-      console.warn('Could not load languages:', error?.message);
-      setLanguages(FALLBACK_LANGUAGES);
-      return FALLBACK_LANGUAGES;
+    setLanguages(FALLBACK_LANGUAGES);
+    return FALLBACK_LANGUAGES;
+  };
+
+  const syncSessionFromAuthRedirect = async (url) => {
+    if (!isSupabaseConfigured || !url) {
+      return false;
     }
+
+    const handled = await handleAuthRedirectUrl(url);
+
+    if (!handled) {
+      return false;
+    }
+
+    const session = await getCurrentSession();
+
+    if (session?.user) {
+      const profile = await getProfileById(session.user.id, session.user.id, session.user);
+      await applySessionState(session, profile);
+    }
+
+    return true;
   };
 
   const loadGuestSavedPlaces = async () => {
@@ -151,17 +181,14 @@ export function AuthProvider({ children }) {
   };
 
   const loadSavedPlaces = async () => {
-    if (!accessToken) {
+    if (!currentUser?.id) {
       setSavedPlaces([]);
       return;
     }
 
     try {
-      const response = await api.get('/saved-places/me');
-      const nextSavedPlaces = (response.data || [])
-        .map((item) => normalizePlace(item?.place))
-        .filter(Boolean);
-      setSavedPlaces(nextSavedPlaces);
+      const nextSavedPlaces = await fetchSavedPlaces(currentUser.id);
+      setSavedPlaces(nextSavedPlaces.map(normalizePlace).filter(Boolean));
     } catch (error) {
       console.warn('Could not load saved places:', error?.message);
       setSavedPlaces([]);
@@ -169,14 +196,14 @@ export function AuthProvider({ children }) {
   };
 
   const loadTrips = async () => {
-    if (!accessToken) {
+    if (!currentUser?.id) {
       setTrips([]);
       return;
     }
 
     try {
-      const response = await api.get('/trips/me');
-      setTrips((response.data || []).map(normalizeTrip).filter(Boolean));
+      const nextTrips = await getTripsForUser(currentUser.id);
+      setTrips((nextTrips || []).map(normalizeTrip).filter(Boolean));
     } catch (error) {
       console.warn('Could not load trips:', error?.message);
       setTrips([]);
@@ -186,52 +213,86 @@ export function AuthProvider({ children }) {
   const bootstrapAuth = async () => {
     try {
       await loadGuestSavedPlaces();
-      const [storedAccessToken, storedRefreshToken, storedLanguage] = await Promise.all([
-        safeGetItem(ACCESS_TOKEN_KEY),
-        safeGetItem(REFRESH_TOKEN_KEY),
-        safeGetItem(LANGUAGE_KEY),
-      ]);
+      const storedLanguage = await safeGetItem(LANGUAGE_KEY);
 
       await applyLanguage(storedLanguage || 'en');
       await loadLanguages();
 
-      if (!storedAccessToken || !storedRefreshToken) {
+      if (!isSupabaseConfigured) {
         return;
       }
 
-      setAccessToken(storedAccessToken);
-      setRefreshToken(storedRefreshToken);
+      await syncSessionFromAuthRedirect(await Linking.getInitialURL());
 
-      try {
-        const meResponse = await api.get('/users/me');
-        const normalizedUser = normalizeUser(meResponse.data);
-        setCurrentUser(normalizedUser);
-        await applyLanguage(normalizedUser.preferred_language || storedLanguage || 'en');
-      } catch (_error) {
-        const refreshResponse = await api.post('/auth/refresh', {
-          refresh_token: storedRefreshToken,
-        });
+      const session = await getCurrentSession();
 
-        await applySession({
-          accessToken: refreshResponse.data.access_token,
-          refreshToken: refreshResponse.data.refresh_token,
-          user: refreshResponse.data.user,
-        });
+      if (!session?.user) {
+        return;
       }
+
+      const profile = await getProfileById(session.user.id, session.user.id, session.user);
+      await applySessionState(session, profile);
     } catch (error) {
       console.warn('Auth bootstrap failed:', error?.message);
-      await clearSession();
+      clearSessionState();
     } finally {
       setIsBootstrapping(false);
     }
   };
 
   useEffect(() => {
+    let isMounted = true;
+
     bootstrapAuth();
+
+    const linkingSubscription = Linking.addEventListener('url', async ({ url }) => {
+      if (!isMounted) {
+        return;
+      }
+
+      try {
+        await syncSessionFromAuthRedirect(url);
+      } catch (error) {
+        console.warn('Auth redirect failed:', error?.message);
+      }
+    });
+
+    if (!isSupabaseConfigured) {
+      return () => {
+        isMounted = false;
+        linkingSubscription?.remove?.();
+      };
+    }
+
+    const { data } = onAuthStateChange(async (_event, session) => {
+      if (!isMounted) {
+        return;
+      }
+
+      if (!session?.user) {
+        clearSessionState();
+        return;
+      }
+
+      try {
+        const profile = await getProfileById(session.user.id, session.user.id, session.user);
+        if (isMounted) {
+          await applySessionState(session, profile);
+        }
+      } catch (error) {
+        console.warn('Auth state sync failed:', error?.message);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      data?.subscription?.unsubscribe?.();
+      linkingSubscription?.remove?.();
+    };
   }, []);
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser?.id) {
       loadSavedPlaces();
       loadTrips();
       return;
@@ -239,7 +300,7 @@ export function AuthProvider({ children }) {
 
     setSavedPlaces([]);
     setTrips([]);
-  }, [currentUser, accessToken]);
+  }, [currentUser?.id]);
 
   const login = async (identifier, password) => {
     const trimmedIdentifier = identifier.trim();
@@ -253,29 +314,20 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.post('/auth/login', {
-        identifier: trimmedIdentifier,
-        password: trimmedPassword,
-      });
-
-      await applySession({
-        accessToken: response.data.access_token,
-        refreshToken: response.data.refresh_token,
-        user: normalizeUser(response.data.user),
-      });
-      await applyLanguage(response.data.user?.preferred_language || currentLanguage);
+      const result = await signIn(trimmedIdentifier, trimmedPassword);
+      await applySessionState(result.session, result.user);
 
       return {
         success: true,
-        user: response.data.user,
+        user: result.user,
       };
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          t('auth.loginFailedFallback')
-        ),
+        requiresEmailVerification: isEmailNotVerifiedError(error),
+        message: isEmailNotVerifiedError(error)
+          ? t('auth.emailNotVerified')
+          : getSupabaseErrorMessage(error, t('auth.loginFailedFallback')),
       };
     }
   };
@@ -299,49 +351,69 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.post('/auth/register', {
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        email: email.trim().toLowerCase(),
-        username: username.trim().toLowerCase(),
+      const result = await signUp({
+        firstName,
+        lastName,
+        email,
+        username,
         password: trimmedPassword,
+        preferredLanguage: currentLanguage,
       });
 
-      const loginResult = await login(email, trimmedPassword);
-
-      if (!loginResult.success) {
-        return {
-          success: true,
-          user: normalizeUser(response.data.user),
-          message: t('auth.accountCreatedVerify'),
-        };
+      if (result.session) {
+        await applySessionState(result.session, result.user);
       }
 
       return {
         success: true,
-        user: loginResult.user,
-        message: response.data.message,
+        user: result.user,
+        requiresEmailVerification: result.requiresEmailVerification,
+        message: result.session
+          ? t('auth.accountCreatedMessage', { name: result.user?.first_name })
+          : t('auth.accountCreatedVerify'),
       };
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          t('auth.signupFailedFallback')
-        ),
+        message: getSupabaseErrorMessage(error, t('auth.signupFailedFallback')),
+      };
+    }
+  };
+
+  const resendEmailVerification = async (email) => {
+    const trimmedEmail = String(email || '').trim().toLowerCase();
+
+    if (!trimmedEmail) {
+      return {
+        success: false,
+        message: t('auth.emailRequiredForVerification'),
+      };
+    }
+
+    try {
+      await resendVerificationEmail(trimmedEmail);
+
+      return {
+        success: true,
+        message: t('auth.verificationEmailSent', { email: trimmedEmail }),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: getSupabaseErrorMessage(error, t('auth.verificationEmailFailed')),
       };
     }
   };
 
   const logout = async () => {
     try {
-      if (accessToken) {
-        await api.post('/auth/logout');
+      if (isSupabaseConfigured) {
+        await signOut();
       }
     } catch (error) {
       console.warn('Logout request failed:', error?.message);
     } finally {
-      await clearSession();
+      clearSessionState();
     }
   };
 
@@ -358,8 +430,7 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.get(`/trips/${tripId}`);
-      const trip = normalizeTrip(response.data);
+      const trip = normalizeTrip(await fetchTrip(tripId));
       setTrips((currentTrips) => {
         const existingTrips = currentTrips.filter(Boolean);
         const hasTrip = existingTrips.some((item) => String(item.id) === String(trip.id));
@@ -375,10 +446,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          'Trip could not be loaded.'
-        ),
+        message: getSupabaseErrorMessage(error, 'Trip could not be loaded.'),
       };
     }
   };
@@ -392,8 +460,7 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.post('/trips', payload);
-      const trip = normalizeTrip(response.data);
+      const trip = normalizeTrip(await createTripInSupabase(currentUser.id, payload));
       await loadTrips();
       return {
         success: true,
@@ -402,10 +469,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          'Trip creation failed.'
-        ),
+        message: getSupabaseErrorMessage(error, 'Trip creation failed.'),
       };
     }
   };
@@ -419,8 +483,9 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.put(`/trips/${tripId}`, payload);
-      const trip = normalizeTrip(response.data);
+      const trip = normalizeTrip(
+        await updateTripInSupabase(tripId, currentUser.id, payload)
+      );
       await loadTrips();
       return {
         success: true,
@@ -429,10 +494,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          'Trip update failed.'
-        ),
+        message: getSupabaseErrorMessage(error, 'Trip update failed.'),
       };
     }
   };
@@ -446,16 +508,13 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      await api.delete(`/trips/${tripId}`);
+      await deleteTripInSupabase(tripId, currentUser.id);
       await loadTrips();
       return { success: true };
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          'Trip deletion failed.'
-        ),
+        message: getSupabaseErrorMessage(error, 'Trip deletion failed.'),
       };
     }
   };
@@ -469,24 +528,8 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.post(`/trips/${tripId}/places`, payload);
-      const tripPlace = normalizeTripPlace(response.data);
-      let trip = null;
-
-      try {
-        const tripResponse = await api.get(`/trips/${tripId}`);
-        trip = normalizeTrip(tripResponse.data);
-        setTrips((currentTrips) => {
-          const existingTrips = currentTrips.filter(Boolean);
-          const hasTrip = existingTrips.some((item) => String(item.id) === String(trip.id));
-          return hasTrip
-            ? existingTrips.map((item) => (String(item.id) === String(trip.id) ? trip : item))
-            : [trip, ...existingTrips];
-        });
-      } catch (error) {
-        console.warn('Could not reload trip after adding place:', error?.message);
-      }
-
+      const tripPlace = normalizeTripPlace(await addPlaceToTripInSupabase(tripId, payload));
+      const trip = normalizeTrip(await fetchTrip(tripId));
       await loadTrips();
       return {
         success: true,
@@ -496,10 +539,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          'Could not add this place to the trip.'
-        ),
+        message: getSupabaseErrorMessage(error, 'Could not add this place to the trip.'),
       };
     }
   };
@@ -513,22 +553,18 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.put(
-        `/trips/${tripId}/places/${tripPlaceId}`,
-        payload
+      const tripPlace = normalizeTripPlace(
+        await updateTripPlaceInSupabase(tripId, tripPlaceId, payload)
       );
       await loadTrips();
       return {
         success: true,
-        tripPlace: normalizeTripPlace(response.data),
+        tripPlace,
       };
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          'Could not update this trip place.'
-        ),
+        message: getSupabaseErrorMessage(error, 'Could not update this trip place.'),
       };
     }
   };
@@ -542,16 +578,13 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      await api.delete(`/trips/${tripId}/places/${tripPlaceId}`);
+      await removeTripPlaceInSupabase(tripId, tripPlaceId);
       await loadTrips();
       return { success: true };
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          'Could not remove this place from the trip.'
-        ),
+        message: getSupabaseErrorMessage(error, 'Could not remove this place from the trip.'),
       };
     }
   };
@@ -565,21 +598,20 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.post(`/trips/${tripId}/invite`, {
+      const member = await inviteUserToTripInSupabase(
+        tripId,
         username,
-      });
+        currentUser.id
+      );
       await loadTrips();
       return {
         success: true,
-        member: response.data,
+        member,
       };
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          'Could not invite this user.'
-        ),
+        message: getSupabaseErrorMessage(error, 'Could not invite this user.'),
       };
     }
   };
@@ -593,16 +625,13 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      await api.delete(`/trips/${tripId}/members/${userId}`);
+      await removeTripMemberInSupabase(tripId, userId);
       await loadTrips();
       return { success: true };
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          'Could not remove this member.'
-        ),
+        message: getSupabaseErrorMessage(error, 'Could not remove this member.'),
       };
     }
   };
@@ -619,10 +648,8 @@ export function AuthProvider({ children }) {
 
     try {
       if (currentUser) {
-        const response = await api.patch('/users/me/language', {
-          preferred_language: languageCode,
-        });
-        setCurrentUser(normalizeUser(response.data));
+        const updatedUser = await updatePreferredLanguage(currentUser.id, languageCode);
+        setCurrentUser(normalizeUser(updatedUser));
       }
 
       await applyLanguage(languageCode);
@@ -630,10 +657,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          t('language.saveError')
-        ),
+        message: getSupabaseErrorMessage(error, t('language.saveError')),
       };
     }
   };
@@ -647,34 +671,19 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const fileName =
-        asset.name || asset.fileName || `profile-picture.${(asset.mimeType || 'image/jpeg').split('/')[1] || 'jpg'}`;
-      const mimeType = asset.mimeType || 'image/jpeg';
-      const formData = new FormData();
-      formData.append('file', {
-        uri: asset.uri,
-        name: fileName,
-        type: mimeType,
-      });
-
-      const response = await api.patch('/users/me/profile-picture', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      setCurrentUser(normalizeUser(response.data));
+      const user = normalizeUser(
+        await uploadProfilePictureToSupabase(currentUser.id, asset)
+      );
+      setCurrentUser(user);
 
       return {
         success: true,
-        user: response.data,
+        user,
       };
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          t('account.profilePicture')
-        ),
+        message: getSupabaseErrorMessage(error, t('account.profilePicture')),
       };
     }
   };
@@ -688,35 +697,32 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.patch('/users/me', {
-        profile_picture_path: DEFAULT_PROFILE_PICTURE_PATH,
-      });
-      setCurrentUser(normalizeUser(response.data));
+      const user = normalizeUser(await resetProfilePictureInSupabase(currentUser.id));
+      setCurrentUser(user);
 
       return {
         success: true,
-        user: response.data,
+        user,
       };
     } catch (error) {
       return {
         success: false,
-        message: await extractApiErrorMessage(
-          error,
-          t('account.profilePicture')
-        ),
+        message: getSupabaseErrorMessage(error, t('account.profilePicture')),
       };
     }
   };
 
   const savePlace = async (place) => {
-    if (!place?.id) {
+    const placeId = place?.seededId || place?.id;
+
+    if (!placeId) {
       return;
     }
 
     if (!currentUser) {
       const alreadySaved = guestSavedPlaces
         .filter(Boolean)
-        .some((item) => item.id === place.id);
+        .some((item) => findByAnyPlaceId([item], placeId));
 
       if (alreadySaved) {
         return;
@@ -727,7 +733,7 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      await api.post(`/saved-places/${place.id}`);
+      await savePlaceToSupabase(currentUser.id, placeId);
       await loadSavedPlaces();
     } catch (error) {
       console.warn('Could not save place:', error?.message);
@@ -741,13 +747,14 @@ export function AuthProvider({ children }) {
 
     if (!currentUser) {
       await persistGuestSavedPlaces(
-        guestSavedPlaces.filter((item) => item && item.id !== placeId)
+        guestSavedPlaces.filter((item) => item && !findByAnyPlaceId([item], placeId))
       );
       return;
     }
 
     try {
-      await api.delete(`/saved-places/${placeId}`);
+      const savedPlace = findByAnyPlaceId(savedPlaces, placeId);
+      await removeSavedPlaceFromSupabase(currentUser.id, savedPlace?.id || placeId);
       await loadSavedPlaces();
     } catch (error) {
       console.warn('Could not remove saved place:', error?.message);
@@ -763,6 +770,7 @@ export function AuthProvider({ children }) {
       refreshToken,
       login,
       signup,
+      resendEmailVerification,
       logout,
       getSavedPlaces,
       getTrips,

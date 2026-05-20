@@ -1,0 +1,31 @@
+The following packages should be updated for best compatibility with the installed expo version:
+  expo@54.0.33 - expected version: ~54.0.34
+  expo-image-picker@17.0.10 - expected version: ~17.0.11
+  expo-linking@8.0.11 - expected version: ~8.0.12
+  expo-web-browser@15.0.10 - expected version: ~15.0.11
+Your project may not work correctly until you install the expected versions of the packages.
+Error: Premature close
+    at onclose (node:internal/streams/end-of-stream:162:30)
+    at processTicksAndRejections (node:internal/process/task_queues:85:11)
+C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@expo\cli\build\src\utils\errors.js:130
+    throw error;
+    ^
+
+Error: ENOENT: no such file or directory, watch 'C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\.agents\skills\supabase\assets'
+    at FSWatcher.<computed> (node:internal/fs/watchers:254:19)
+    at Object.watch (node:fs:2549:36)
+    at FallbackWatcher._watchdir (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\metro-file-map\src\watchers\FallbackWatcher.js:119:33)
+    at C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\metro-file-map\src\watchers\FallbackWatcher.js:219:22
+    at Walker.<anonymous> (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\metro-file-map\src\watchers\FallbackWatcher.js:358:5)
+    at Walker.emit (node:events:519:28)
+    at C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\walker\lib\walker.js:69:16
+    at FSReqCallback.oncomplete (node:fs:187:23)
+    at FSReqCallback.callbackTrampoline (node:internal/async_hooks:130:17) {
+  errno: -4058,
+  syscall: 'watch',
+  code: 'ENOENT',
+  path: 'C:\\Users\\sadik\\OneDrive\\Documents\\GitHub\\Drite-Guide\\drite-guide\\.agents\\skills\\supabase\\assets',
+  filename: 'C:\\Users\\sadik\\OneDrive\\Documents\\GitHub\\Drite-Guide\\drite-guide\\.agents\\skills\\supabase\\assets'
+}
+
+Node.js v22.19.0

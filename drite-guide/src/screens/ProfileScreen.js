@@ -13,9 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import colors from '../theme/colors';
-import { toAbsoluteAssetUrl } from '../config/api';
+import { toAbsoluteAssetUrl } from '../config/assets';
 import { useAuth } from '../context/AuthContext';
-import { api, extractApiErrorMessage } from '../services/api';
+import {
+  followProfile,
+  getProfileByUsername,
+  unfollowProfile,
+} from '../services/profileService';
+import { getSupabaseErrorMessage } from '../services/supabaseService';
 import { useTranslation } from '../context/TranslationContext';
 
 const DEFAULT_PROFILE_PICTURE =
@@ -53,7 +58,7 @@ export default function ProfileScreen() {
     !!(profile?.username || username) &&
     normalizeUsername(currentUser.username) ===
       normalizeUsername(profile?.username || username);
-  const canShowFollowButton = !!(profile || username) && !isOwnProfile;
+  const canShowFollowButton = !!profile && !isOwnProfile;
   const isFollowing = !!profile?.is_following;
   const displayUsername = normalizeUsername(profile?.username || username);
   const connectionCount =
@@ -75,12 +80,12 @@ export default function ProfileScreen() {
 
       try {
         setIsLoading(true);
-        const response = await api.get(`/users/${encodeURIComponent(username)}`);
-        setProfile(response.data);
-        setErrorMessage('');
+        const nextProfile = await getProfileByUsername(username, currentUser?.id);
+        setProfile(nextProfile);
+        setErrorMessage(nextProfile ? '' : t('profile.loadError'));
       } catch (error) {
         setErrorMessage(
-          await extractApiErrorMessage(error, t('profile.loadError'))
+          getSupabaseErrorMessage(error, t('profile.loadError'))
         );
       } finally {
         setIsLoading(false);
@@ -88,7 +93,7 @@ export default function ProfileScreen() {
     };
 
     loadProfile();
-  }, [isLoggedIn, t, username]);
+  }, [currentUser?.id, isLoggedIn, t, username]);
 
   const handleFollowPress = async () => {
     const targetUsername = normalizeUsername(profile?.username || username);
@@ -117,19 +122,14 @@ export default function ProfileScreen() {
     });
 
     try {
-      const profileUsername = encodeURIComponent(targetUsername);
-      const response = nextIsFollowing
-        ? await api.post(`/users/${profileUsername}/follow`)
-        : await api.delete(`/users/${profileUsername}/follow`);
-      const refreshedResponse = await api.get(`/users/${profileUsername}`);
-      setProfile({
-        ...response.data,
-        ...refreshedResponse.data,
-      });
+      const refreshedProfile = nextIsFollowing
+        ? await followProfile(targetUsername, currentUser.id)
+        : await unfollowProfile(targetUsername, currentUser.id);
+      setProfile(refreshedProfile);
     } catch (error) {
       setProfile(previousProfile);
       setFollowMessage(
-        await extractApiErrorMessage(error, t('profile.followError'))
+        getSupabaseErrorMessage(error, t('profile.followError'))
       );
     } finally {
       setIsFollowLoading(false);

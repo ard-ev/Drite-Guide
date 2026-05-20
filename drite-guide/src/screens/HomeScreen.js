@@ -18,9 +18,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import colors from '../theme/colors';
 import { useAppData } from '../context/AppDataContext';
-import { toAbsoluteAssetUrl } from '../config/api';
+import { useAuth } from '../context/AuthContext';
+import { toAbsoluteAssetUrl } from '../config/assets';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
-import { api } from '../services/api';
+import { getProfileByUsername, searchProfiles } from '../services/profileService';
 import { useTranslation } from '../context/TranslationContext';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -48,6 +49,7 @@ export default function HomeScreen({ route }) {
   const heroScrollRef = useRef(null);
   const userSearchRequestRef = useRef(0);
   const { categories, places, cities, errorMessage } = useAppData();
+  const { currentUser } = useAuth();
   const { t, tc, language } = useTranslation();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -349,10 +351,7 @@ export default function HomeScreen({ route }) {
     }
 
     try {
-      const response = await api.get('/users/search', {
-        params: { q: userQuery },
-      });
-      const nextUsers = response.data || [];
+      const nextUsers = await searchProfiles(userQuery, currentUser?.id);
 
       if (requestId === userSearchRequestRef.current) {
         setUserSuggestions(nextUsers.slice(0, 5));
@@ -361,10 +360,8 @@ export default function HomeScreen({ route }) {
       return nextUsers;
     } catch (_searchError) {
       try {
-        const response = await api.get(
-          `/users/${encodeURIComponent(userQuery)}`
-        );
-        const fallbackUsers = response.data ? [response.data] : [];
+        const fallbackProfile = await getProfileByUsername(userQuery, currentUser?.id);
+        const fallbackUsers = fallbackProfile ? [fallbackProfile] : [];
 
         if (requestId === userSearchRequestRef.current) {
           setUserSuggestions(fallbackUsers);
@@ -510,7 +507,7 @@ export default function HomeScreen({ route }) {
     const body = encodeURIComponent(t('home.partnerEmailBody'));
 
     Linking.openURL(
-      `mailto:driteguide@gmail.com?subject=${subject}&body=${body}`
+      `mailto:support@driteguide.com?subject=${subject}&body=${body}`
     );
   };
 

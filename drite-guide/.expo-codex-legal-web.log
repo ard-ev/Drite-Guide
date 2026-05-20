@@ -1,0 +1,30 @@
+
+> drite-guide@1.0.0 web
+> expo start --web --port 8082 --host localhost
+
+Starting project at C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide
+React Compiler enabled
+Starting Metro Bundler
+Waiting on http://localhost:8082
+Logs for your project will appear below.
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo\AppEntry.js ▓▓░░░░░░░░░░░░░░ 14.8% ( 6/16)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  5.0% ( 18/151)
+Web node_modules\expo\AppEntry.js ▓▓▓░░░░░░░░░░░░░ 22.1% (15/33)
+λ node_modules\expo-router\node\render.js ▓▓▓░░░░░░░░░░░░░ 19.8% (140/315)
+Web node_modules\expo\AppEntry.js ▓▓▓▓░░░░░░░░░░░░ 30.3% (30/78)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓░░░░░░░░░░ 43.3% (306/465)
+Web node_modules\expo\AppEntry.js ▓▓▓▓░░░░░░░░░░░░ 30.3% (113/225)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 78.5% (498/562)
+Web node_modules\expo\AppEntry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 54.0% (308/460)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 86.6% (591/635)
+Web node_modules\expo\AppEntry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 54.0% (370/565)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 93.0% (626/649)
+Web node_modules\expo\AppEntry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 82.8% (665/731)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 96.1% (704/737)
+λ Bundled 26670ms node_modules\expo-router\node\render.js (767 modules)
+Web Bundled 28414ms node_modules\expo\AppEntry.js (818 modules)
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 51ms node_modules\expo-router\node\render.js (1 module)
+Web Bundled 1175ms node_modules\expo\AppEntry.js (1 module)

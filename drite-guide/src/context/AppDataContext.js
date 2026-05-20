@@ -6,10 +6,13 @@ import React, {
   useState,
 } from 'react';
 
-import { api, extractApiErrorMessage } from '../services/api';
 import { categories as localCategories } from '../data/categories';
 import { cities as localCities } from '../data/cities';
 import { places as localPlaces } from '../data/places';
+import { getCategories } from '../services/categoriesService';
+import { getCities } from '../services/citiesService';
+import { getPlaces } from '../services/placesService';
+import { getSupabaseErrorMessage } from '../services/supabaseService';
 import {
   normalizeCategory,
   normalizeCity,
@@ -352,15 +355,15 @@ export function AppDataProvider({ children }) {
     try {
       const [categoriesResponse, citiesResponse, placesResponse] =
         await Promise.all([
-          api.get('/categories'),
-          api.get('/cities'),
-          api.get('/places'),
+          getCategories(),
+          getCities(),
+          getPlaces(),
         ]);
 
-      const nextCategories = (categoriesResponse.data || [])
+      const nextCategories = (categoriesResponse || [])
         .map(normalizeCategory)
         .filter(Boolean);
-      const nextCities = (citiesResponse.data || [])
+      const nextCities = (citiesResponse || [])
         .map(normalizeCity)
         .filter(Boolean);
       const categoryNameById = Object.fromEntries(
@@ -369,7 +372,7 @@ export function AppDataProvider({ children }) {
       const cityNameById = Object.fromEntries(
         nextCities.map((item) => [item.id, item.name])
       );
-      const nextPlaces = (placesResponse.data || [])
+      const nextPlaces = (placesResponse || [])
         .map((item) =>
           normalizePlace(item, {
             categoryName: categoryNameById[item?.category_id],
@@ -406,9 +409,9 @@ export function AppDataProvider({ children }) {
       setCities(localizedData.cities);
       setPlaces(localizedData.places);
     } catch (error) {
-      const message = await extractApiErrorMessage(
+      const message = getSupabaseErrorMessage(
         error,
-        'Could not load data from the backend.'
+        'Could not load data from Supabase.'
       );
       setErrorMessage(message);
       const fallbackData = buildLocalFallbackData();

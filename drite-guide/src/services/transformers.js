@@ -1,4 +1,5 @@
-import { toAbsoluteAssetUrl } from '../config/api';
+import { toAbsoluteAssetUrl } from '../config/assets';
+import { STORAGE_BUCKETS } from '../lib/supabase';
 
 export function normalizeCategory(category) {
   if (!category) {
@@ -9,7 +10,7 @@ export function normalizeCategory(category) {
     ...category,
     id: category.id,
     legacyId: category.id,
-    image: toAbsoluteAssetUrl(category.image_path),
+    image: toAbsoluteAssetUrl(category.image_path, STORAGE_BUCKETS.categoryImages),
   };
 }
 
@@ -18,7 +19,10 @@ export function normalizeUser(user) {
     return null;
   }
 
-  const profilePictureUrl = toAbsoluteAssetUrl(user.profile_picture_path);
+  const profilePictureUrl = toAbsoluteAssetUrl(
+    user.profile_picture_path,
+    STORAGE_BUCKETS.profilePictures
+  );
   const profilePictureVersion = user.updated_at
     ? encodeURIComponent(user.updated_at)
     : '';
@@ -42,8 +46,8 @@ export function normalizeCity(city) {
     id: city.id,
     legacyId: city.id,
     name: city.city_name,
-    image: toAbsoluteAssetUrl(city.image_path),
-    heroImage: toAbsoluteAssetUrl(city.hero_image_path),
+    image: toAbsoluteAssetUrl(city.image_path, STORAGE_BUCKETS.cityImages),
+    heroImage: toAbsoluteAssetUrl(city.hero_image_path, STORAGE_BUCKETS.cityImages),
   };
 }
 
@@ -52,7 +56,10 @@ export function normalizePlace(place, options = {}) {
     return null;
   }
 
-  const mainImage = toAbsoluteAssetUrl(place.main_image_path);
+  const mainImage = toAbsoluteAssetUrl(
+    place.main_image_path,
+    STORAGE_BUCKETS.placeImages
+  );
 
   return {
     ...place,
@@ -64,7 +71,9 @@ export function normalizePlace(place, options = {}) {
     categoryName: options.categoryName || '',
     image: mainImage,
     images: Array.isArray(place.images)
-      ? place.images.map((item) => toAbsoluteAssetUrl(item.image_path))
+      ? place.images.map((item) =>
+          toAbsoluteAssetUrl(item.image_path, STORAGE_BUCKETS.placeImages)
+        )
       : mainImage
       ? [mainImage]
       : [],

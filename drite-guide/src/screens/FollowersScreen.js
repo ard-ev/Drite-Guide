@@ -14,9 +14,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import colors from '../theme/colors';
-import { toAbsoluteAssetUrl } from '../config/api';
+import { toAbsoluteAssetUrl } from '../config/assets';
 import { useAuth } from '../context/AuthContext';
-import { api, extractApiErrorMessage } from '../services/api';
+import {
+  followProfile,
+  getProfileConnections,
+  unfollowProfile,
+} from '../services/profileService';
+import { getSupabaseErrorMessage } from '../services/supabaseService';
 import { useTranslation } from '../context/TranslationContext';
 
 const DEFAULT_PROFILE_PICTURE =
@@ -54,14 +59,13 @@ export default function FollowersScreen() {
 
     try {
       setIsLoading(true);
-      const response = await api.get(
-        `/users/${encodeURIComponent(username)}/${listType}`
+      setFollowers(
+        await getProfileConnections(username, listType, currentUser?.id)
       );
-      setFollowers(response.data || []);
       setErrorMessage('');
     } catch (error) {
       setErrorMessage(
-        await extractApiErrorMessage(
+        getSupabaseErrorMessage(
           error,
           t('profile.followersLoadError', { type: pageTitle })
         )
@@ -69,7 +73,7 @@ export default function FollowersScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [listType, pageTitle, t, username]);
+  }, [currentUser?.id, listType, pageTitle, t, username]);
 
   useEffect(() => {
     loadFollowers();
@@ -117,21 +121,21 @@ export default function FollowersScreen() {
     );
 
     try {
-      const response = nextIsFollowing
-        ? await api.post(`/users/${encodeURIComponent(targetUsername)}/follow`)
-        : await api.delete(`/users/${encodeURIComponent(targetUsername)}/follow`);
+      const updatedProfile = nextIsFollowing
+        ? await followProfile(targetUsername, currentUser.id)
+        : await unfollowProfile(targetUsername, currentUser.id);
 
       setFollowers((currentFollowers) =>
         currentFollowers.map((follower) =>
           normalizeUsername(follower.username) === targetUsername
-            ? response.data
+            ? updatedProfile
             : follower
         )
       );
     } catch (error) {
       setFollowers(previousFollowers);
       setErrorMessage(
-        await extractApiErrorMessage(error, t('profile.followError'))
+        getSupabaseErrorMessage(error, t('profile.followError'))
       );
     } finally {
       setUpdatingUsername('');

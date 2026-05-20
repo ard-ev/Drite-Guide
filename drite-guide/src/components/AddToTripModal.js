@@ -20,7 +20,7 @@ import { formatDateRangeForDisplay } from '../utils/dateFormat';
 
 export default function AddToTripModal({ visible, place, onClose, onAdded }) {
   const { getTrips, getTrip, createTrip, addPlaceToTrip, inviteUserToTrip } = useAuth();
-  const backendPlaceId = place?.seededId || place?.id;
+  const supabasePlaceId = place?.seededId || place?.id;
   const trips = (getTrips() || []).filter((trip) => trip?.id);
   const [checkingTripId, setCheckingTripId] = useState(null);
   const [addingTripId, setAddingTripId] = useState(null);
@@ -104,13 +104,13 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
   };
 
   const tripHasPlace = (trip) => {
-    if (!backendPlaceId) {
+    if (!supabasePlaceId) {
       return false;
     }
 
     return (trip?.places || []).filter(Boolean).some((tripPlace) => {
       const tripPlaceId = tripPlace?.placeId || tripPlace?.place_id;
-      return String(tripPlaceId) === String(backendPlaceId);
+      return String(tripPlaceId) === String(supabasePlaceId);
     });
   };
 
@@ -135,7 +135,7 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
 
     setAddingTripId(trip.id);
     const addResult = await addPlaceToTrip(trip.id, {
-      place_id: backendPlaceId,
+      place_id: supabasePlaceId,
     });
     setAddingTripId(null);
 
@@ -157,7 +157,7 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
     if (createdTrip?.id) {
       setAddingTripId(createdTrip.id);
       const addResult = await addPlaceToTrip(createdTrip.id, {
-        place_id: backendPlaceId,
+        place_id: supabasePlaceId,
       });
       setAddingTripId(null);
 

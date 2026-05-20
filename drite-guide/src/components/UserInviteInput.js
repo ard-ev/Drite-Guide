@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { api } from '../services/api';
+import { searchProfiles } from '../services/profileService';
 import colors from '../theme/colors';
 
 const normalizeUsername = (value) => String(value || '').trim().replace(/^@+/, '');
@@ -62,12 +62,9 @@ export default function UserInviteInput({
 
     const timeoutId = setTimeout(async () => {
       try {
-        const response = await api.get('/users/search', {
-          params: { q: query },
-        });
-
         if (requestId === requestIdRef.current) {
-          setSuggestions((response.data || []).slice(0, 5));
+          const users = await searchProfiles(query, null, 5);
+          setSuggestions((users || []).slice(0, 5));
         }
       } catch (_error) {
         if (requestId === requestIdRef.current) {

@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import { getProfileByUsername } from '../services/profileService';
 import { useTranslation } from '../context/TranslationContext';
 
 const CONNECTION_LONG_PRESS_DELAY = 450;
@@ -79,12 +79,10 @@ export default function AccountScreen({ route }) {
             }
 
             try {
-                const response = await api.get(
-                    `/users/${encodeURIComponent(currentUser.username)}`
-                );
-
                 if (isMounted) {
-                    setProfileStats(response.data);
+                    setProfileStats(
+                        await getProfileByUsername(currentUser.username, currentUser.id)
+                    );
                 }
             } catch (_error) {
                 if (isMounted) {
@@ -98,7 +96,7 @@ export default function AccountScreen({ route }) {
         return () => {
             isMounted = false;
         };
-    }, [currentUser?.username, isFocused, isLoggedIn]);
+    }, [currentUser?.id, currentUser?.username, isFocused, isLoggedIn]);
 
     const settingsSections = [
         {

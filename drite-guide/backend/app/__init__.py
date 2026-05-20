@@ -1,1 +1,0 @@
-"""Drite Guide backend package."""

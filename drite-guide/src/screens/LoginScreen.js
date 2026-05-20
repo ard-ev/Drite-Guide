@@ -20,27 +20,39 @@ import { useTranslation } from '../context/TranslationContext';
 
 export default function LoginScreen() {
     const navigation = useNavigation();
-    const { login, isBootstrapping } = useAuth();
+    const { login, isBootstrapping, resendEmailVerification } = useAuth();
     const { t } = useTranslation();
 
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [pendingVerificationEmail, setPendingVerificationEmail] = useState('');
 
     const handleLogin = async () => {
         const result = await login(identifier, password);
 
         if (!result.success) {
+            const canResendVerification = result.requiresEmailVerification && identifier.includes('@');
+            setPendingVerificationEmail(canResendVerification ? identifier.trim().toLowerCase() : '');
             Alert.alert(t('auth.loginFailed'), result.message);
             return;
         }
 
+        setPendingVerificationEmail('');
         Alert.alert(t('auth.loginSuccessful'), t('auth.welcomeBack', { name: result.user.first_name }), [
             {
                 text: t('common.continue'),
                 onPress: () => navigation.navigate('AccountMain'),
             },
         ]);
+    };
+
+    const handleResendVerification = async () => {
+        const result = await resendEmailVerification(pendingVerificationEmail || identifier);
+        Alert.alert(
+            result.success ? t('auth.verificationEmailSentTitle') : t('auth.verificationEmailFailedTitle'),
+            result.message
+        );
     };
 
     return (
@@ -120,6 +132,18 @@ export default function LoginScreen() {
                                     {isBootstrapping ? t('common.pleaseWait') : t('auth.loginTitle')}
                                 </Text>
                             </TouchableOpacity>
+
+                            {pendingVerificationEmail ? (
+                                <TouchableOpacity
+                                    style={styles.secondaryButton}
+                                    activeOpacity={0.85}
+                                    onPress={handleResendVerification}
+                                >
+                                    <Text style={styles.secondaryButtonText}>
+                                        {t('auth.resendVerificationEmail')}
+                                    </Text>
+                                </TouchableOpacity>
+                            ) : null}
 
                             <TouchableOpacity
                                 style={styles.linkButton}
@@ -247,6 +271,21 @@ const styles = StyleSheet.create({
 
     primaryButtonText: {
         color: colors.white,
+        fontSize: 15,
+        fontWeight: '700',
+    },
+
+    secondaryButton: {
+        borderWidth: 1,
+        borderColor: colors.primary,
+        paddingVertical: 14,
+        borderRadius: 16,
+        alignItems: 'center',
+        marginTop: 12,
+    },
+
+    secondaryButtonText: {
+        color: colors.primary,
         fontSize: 15,
         fontWeight: '700',
     },

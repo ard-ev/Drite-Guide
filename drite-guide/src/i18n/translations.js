@@ -198,7 +198,18 @@ const translations = {
       loginFailedFallback: 'Login failed. Please try again.',
       signupFailedFallback: 'Sign up failed. Please try again.',
       accountCreatedVerify:
-        'Account created. Please log in and verify your email from the backend log.',
+        'Account created. Please check your email to verify your account.',
+      emailNotVerified:
+        'Please verify your email address before logging in.',
+      emailRequiredForVerification:
+        'Please enter your email address to resend the verification email.',
+      resendVerificationEmail: 'Resend verification email',
+      verificationEmailSentTitle: 'Verification email sent',
+      verificationEmailSent:
+        'We sent a new verification email to {{email}}.',
+      verificationEmailFailedTitle: 'Email could not be sent',
+      verificationEmailFailed:
+        'Verification email could not be sent. Please try again later.',
     },
     language: {
       title: 'Language',
@@ -234,7 +245,20 @@ const translations = {
       newsTitle: 'News and tips',
       newsSubtitle: 'Travel inspiration, guides and app tips',
       emailTitle: 'Email notifications',
-      emailSubtitle: 'Receive updates and information by email',
+      emailSubtitle: 'Receive updates and information from {{email}}',
+      emailVerifiedTitle: 'Verified email',
+      emailVerifiedText:
+        'Email and content notifications are sent from {{fromEmail}} to {{email}}.',
+      emailUnverifiedTitle: 'Verify your email first',
+      emailUnverifiedText:
+        'Verify {{email}} first. After verification, notifications can be sent from {{fromEmail}}.',
+      emailLoginRequiredTitle: 'Sign in required',
+      emailLoginRequiredText:
+        'Sign in with a verified email to manage email and content notifications from {{fromEmail}}.',
+      emailContentDisabledSubtitle: 'Verify your email to enable this option.',
+      emailContentLoginSubtitle:
+        'Sign in with a verified email to enable this option.',
+      emailUpdateError: 'Notification settings could not be saved.',
       info:
         'You can change these settings at any time. Some notifications may also depend on your device permissions.',
       save: 'Save settings',
@@ -511,7 +535,18 @@ const overrides = {
       loginFailedFallback: 'Login fehlgeschlagen. Bitte versuche es erneut.',
       signupFailedFallback: 'Registrierung fehlgeschlagen. Bitte versuche es erneut.',
       accountCreatedVerify:
-        'Account erstellt. Bitte logge dich ein und bestaetige deine E-Mail ueber das Backend-Log.',
+        'Account erstellt. Bitte pruefe deine E-Mail, um dein Konto zu bestaetigen.',
+      emailNotVerified:
+        'Bitte bestaetige zuerst deine E-Mail-Adresse, bevor du dich einloggst.',
+      emailRequiredForVerification:
+        'Bitte gib deine E-Mail-Adresse ein, um die Bestaetigungs-E-Mail erneut zu senden.',
+      resendVerificationEmail: 'Bestaetigungs-E-Mail erneut senden',
+      verificationEmailSentTitle: 'Bestaetigungs-E-Mail gesendet',
+      verificationEmailSent:
+        'Wir haben eine neue Bestaetigungs-E-Mail an {{email}} gesendet.',
+      verificationEmailFailedTitle: 'E-Mail konnte nicht gesendet werden',
+      verificationEmailFailed:
+        'Die Bestaetigungs-E-Mail konnte nicht gesendet werden. Bitte versuche es spaeter erneut.',
     },
     language: {
       title: 'Sprache',
@@ -546,7 +581,20 @@ const overrides = {
       newsTitle: 'News und Tipps',
       newsSubtitle: 'Reiseinspiration, Guides und App-Tipps',
       emailTitle: 'E-Mail-Benachrichtigungen',
-      emailSubtitle: 'Updates und Informationen per E-Mail erhalten',
+      emailSubtitle: 'Updates und Informationen von {{email}} erhalten',
+      emailVerifiedTitle: 'E-Mail verifiziert',
+      emailVerifiedText:
+        'E-Mail- und Inhaltsbenachrichtigungen werden von {{fromEmail}} an {{email}} gesendet.',
+      emailUnverifiedTitle: 'E-Mail zuerst verifizieren',
+      emailUnverifiedText:
+        'Verifiziere zuerst {{email}}. Danach koennen Benachrichtigungen von {{fromEmail}} gesendet werden.',
+      emailLoginRequiredTitle: 'Login erforderlich',
+      emailLoginRequiredText:
+        'Melde dich mit einer verifizierten E-Mail an, um E-Mail- und Inhaltsbenachrichtigungen von {{fromEmail}} zu verwalten.',
+      emailContentDisabledSubtitle: 'Verifiziere deine E-Mail, um diese Option zu aktivieren.',
+      emailContentLoginSubtitle:
+        'Melde dich mit einer verifizierten E-Mail an, um diese Option zu aktivieren.',
+      emailUpdateError: 'Benachrichtigungseinstellungen konnten nicht gespeichert werden.',
       info:
         'Du kannst diese Einstellungen jederzeit aendern. Manche Benachrichtigungen haengen auch von deinen Geraeteberechtigungen ab.',
       save: 'Einstellungen speichern',
@@ -801,7 +849,7 @@ const overrides = {
       passwordsMismatch: 'Fjalekalimet nuk perputhen.',
       loginFailedFallback: 'Hyrja deshtoi. Provo perseri.',
       signupFailedFallback: 'Regjistrimi deshtoi. Provo perseri.',
-      accountCreatedVerify: 'Llogaria u krijua. Te lutem hyr dhe verifiko emailin nga backend log.',
+      accountCreatedVerify: 'Llogaria u krijua. Te lutem kontrollo emailin per te verifikuar llogarine.',
     },
     language: {
       title: 'Gjuha',
@@ -1105,7 +1153,7 @@ const overrides = {
       passwordsMismatch: 'Les mots de passe ne correspondent pas.',
       loginFailedFallback: 'Connexion echouee. Reessaie.',
       signupFailedFallback: 'Inscription echouee. Reessaie.',
-      accountCreatedVerify: 'Compte cree. Connecte-toi et verifie ton e-mail depuis le backend log.',
+      accountCreatedVerify: 'Compte cree. Verifie ton e-mail pour confirmer ton compte.',
     },
     notifications: {
       title: 'Notifications',
@@ -1391,7 +1439,7 @@ const overrides = {
       passwordsMismatch: 'Le password non coincidono.',
       loginFailedFallback: 'Accesso non riuscito. Riprova.',
       signupFailedFallback: 'Registrazione non riuscita. Riprova.',
-      accountCreatedVerify: 'Account creato. Accedi e verifica l email dal backend log.',
+      accountCreatedVerify: 'Account creato. Controlla l email per verificare il tuo account.',
     },
     notifications: {
       title: 'Notifiche',
@@ -1677,7 +1725,7 @@ const overrides = {
       passwordsMismatch: 'Las contrasenas no coinciden.',
       loginFailedFallback: 'Error al iniciar sesion. Intentalo de nuevo.',
       signupFailedFallback: 'Registro fallido. Intentalo de nuevo.',
-      accountCreatedVerify: 'Cuenta creada. Inicia sesion y verifica tu email desde el backend log.',
+      accountCreatedVerify: 'Cuenta creada. Revisa tu email para verificar tu cuenta.',
     },
     notifications: {
       title: 'Notificaciones',

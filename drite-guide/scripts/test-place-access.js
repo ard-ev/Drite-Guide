@@ -4,7 +4,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 
 function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), 'utf8');
+  return fs.readFileSync(path.join(root, relativePath), 'utf8').replace(/\r\n/g, '\n');
 }
 
 function assertIncludes(file, expected, message) {
@@ -34,7 +34,7 @@ assertIncludes(
 
 assertIncludes(
   'src/screens/PlaceDetailScreen.js',
-  'api.get(`/places/${placeId}`)',
+  'fetchPlaceById(placeId)',
   'PlaceDetailScreen must have a remote fallback when app data lookup misses.'
 );
 
@@ -58,8 +58,14 @@ assertIncludes(
 
 assertIncludes(
   'src/components/AddToTripModal.js',
-  'if (!selectedTrip?.id || !backendPlaceId)',
-  'AddToTripModal must not save with a missing selected trip or place id.'
+  'if (!supabasePlaceId)',
+  'AddToTripModal must not check trip places with a missing place id.'
+);
+
+assertIncludes(
+  'src/components/AddToTripModal.js',
+  'if (!trip?.id || checkingTripId || addingTripId || addedTripId)',
+  'AddToTripModal must not save with a missing selected trip.'
 );
 
 assertIncludes(

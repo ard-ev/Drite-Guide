@@ -160,7 +160,7 @@ export default function SavedScreen({ route }) {
                     onPress={() => navigation.navigate('TripDetails', { tripId: trip.id })}
                   >
                     <View style={styles.tripBadge}>
-                      <Ionicons name="airplane-outline" size={16} color={colors.primary} />
+                      <Ionicons name="map-outline" size={16} color={colors.primary} />
                     </View>
 
                     <View style={styles.tripContent}>
