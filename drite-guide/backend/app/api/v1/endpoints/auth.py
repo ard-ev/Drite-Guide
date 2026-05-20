@@ -38,7 +38,7 @@ async def register(payload: RegisterRequest, db: DBSession) -> RegisterResponse:
     return RegisterResponse(
         user=UserRead.model_validate(user),
         role=user.role,
-        message="Registration successful. Check backend logs for the verification link in development.",
+        message="Registration successful. Please verify your email address.",
     )
 
 

@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
 
     DEFAULT_LANGUAGE: str = "en"
-    DEFAULT_PROFILE_PICTURE: str = "uploads/profile_pictures/default-profile.svg"
+    DEFAULT_PROFILE_PICTURE: str = "uploads/profile_pictures/default-profile.png"
 
     MAX_UPLOAD_SIZE_BYTES: int = 5 * 1024 * 1024
     UPLOAD_DIR: str = str(BASE_DIR / "app" / "uploads")
@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     CATEGORY_UPLOADS_DIR: str = "categories"
 
     FRONTEND_BASE_URL: str = "https://drite-guide-production.up.railway.app"
+    BACKEND_PUBLIC_BASE_URL: str = "https://drite-guide-api-production.up.railway.app"
+
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_NAME: str = "Drite Guide"
+    SMTP_USE_TLS: bool = True
 
     @model_validator(mode="after")
     def normalize_database_urls(self) -> "Settings":

@@ -18,9 +18,17 @@ export function normalizeUser(user) {
     return null;
   }
 
+  const profilePictureUrl = toAbsoluteAssetUrl(user.profile_picture_path);
+  const profilePictureVersion = user.updated_at
+    ? encodeURIComponent(user.updated_at)
+    : '';
+
   return {
     ...user,
-    profile_picture_path: toAbsoluteAssetUrl(user.profile_picture_path),
+    profile_picture_path:
+      profilePictureUrl && profilePictureVersion
+        ? `${profilePictureUrl}${profilePictureUrl.includes('?') ? '&' : '?'}v=${profilePictureVersion}`
+        : profilePictureUrl,
   };
 }
 

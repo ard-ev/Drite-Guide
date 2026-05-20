@@ -123,20 +123,6 @@ export default function TripsScreen() {
             </View>
           ) : (
             <View style={styles.section}>
-              <TouchableOpacity
-                style={styles.createTripCard}
-                activeOpacity={0.88}
-                onPress={handleCreateTripPress}
-              >
-                <View style={styles.createTripIcon}>
-                  <Ionicons name="add" size={20} color="#FFFFFF" />
-                </View>
-                <View style={styles.tripContent}>
-                  <Text style={styles.createTripTitle}>Create Trip</Text>
-                  <Text style={styles.tripSubtitle}>Start a new plan with dates, notes, places, and invited users.</Text>
-                </View>
-              </TouchableOpacity>
-
               {trips.map((trip) => (
                 <TouchableOpacity
                   key={trip.id}
@@ -260,32 +246,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
-  },
-  createTripCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  createTripIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  createTripTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: colors.primary,
   },
   tripCard: {
     backgroundColor: '#FFFFFF',

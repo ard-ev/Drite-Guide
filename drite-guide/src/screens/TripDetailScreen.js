@@ -417,7 +417,7 @@ export default function TripDetailScreen({ route }) {
                   activeOpacity={0.88}
                   onPress={() => setInviteVisible(true)}
                 >
-                  <Ionicons name="person-add-outline" size={18} color={colors.primary} />
+                  <Ionicons name="person-add-outline" size={18} color={colors.white} />
                   <Text style={styles.actionButtonText}>Invite User</Text>
                 </TouchableOpacity>
               ) : null}
@@ -428,7 +428,7 @@ export default function TripDetailScreen({ route }) {
                   activeOpacity={0.88}
                   onPress={() => setPlacePickerVisible(true)}
                 >
-                  <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+                  <Ionicons name="add-circle-outline" size={18} color={colors.white} />
                   <Text style={styles.actionButtonText}>Add Place</Text>
                 </TouchableOpacity>
               ) : null}
@@ -439,7 +439,7 @@ export default function TripDetailScreen({ route }) {
                   activeOpacity={0.88}
                   onPress={handleDeleteTrip}
                 >
-                  <Ionicons name="trash-outline" size={18} color={colors.primary} />
+                  <Ionicons name="trash-outline" size={18} color={colors.white} />
                   <Text style={styles.actionButtonText}>Delete</Text>
                 </TouchableOpacity>
               ) : null}
@@ -753,18 +753,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+    borderWidth: 0,
     borderRadius: 16,
     paddingVertical: 13,
     gap: 8,
   },
   dangerButton: {
-    backgroundColor: '#FFF5F5',
+    backgroundColor: colors.primary,
   },
   actionButtonText: {
-    color: colors.primary,
+    color: colors.white,
     fontSize: 14,
     fontWeight: '800',
   },

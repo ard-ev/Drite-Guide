@@ -53,6 +53,7 @@ backend/app/uploads/places/*.png
 backend/app/uploads/profile_pictures/*.jpg
 backend/app/uploads/profile_pictures/*.jpeg
 backend/app/uploads/profile_pictures/*.png
+!backend/app/uploads/profile_pictures/default-profile.png
 
 app-example
 

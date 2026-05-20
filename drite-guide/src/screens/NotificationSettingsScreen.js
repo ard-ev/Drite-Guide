@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -13,16 +13,72 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useTranslation } from '../context/TranslationContext';
+import { useAuth } from '../context/AuthContext';
+import { safeGetItem, safeSetItem } from '../utils/storage';
+
+const NOTIFICATION_SETTINGS_STORAGE_KEY = '@drite_guide_notification_settings';
+
+const DEFAULT_NOTIFICATION_SETTINGS = {
+    pushNotifications: true,
+    tripUpdates: true,
+    savedPlaceAlerts: false,
+    newsAndTips: true,
+    emailNotifications: false,
+};
 
 export default function NotificationSettingsScreen() {
     const navigation = useNavigation();
     const { t } = useTranslation();
+    const { currentUser } = useAuth();
 
-    const [pushNotifications, setPushNotifications] = useState(true);
-    const [tripUpdates, setTripUpdates] = useState(true);
-    const [savedPlaceAlerts, setSavedPlaceAlerts] = useState(false);
-    const [newsAndTips, setNewsAndTips] = useState(true);
-    const [emailNotifications, setEmailNotifications] = useState(false);
+    const userStorageKey = useMemo(
+        () => `${NOTIFICATION_SETTINGS_STORAGE_KEY}:${currentUser?.id || 'device'}`,
+        [currentUser?.id]
+    );
+    const [settings, setSettings] = useState(DEFAULT_NOTIFICATION_SETTINGS);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadSettings = async () => {
+            try {
+                const storedSettings = await safeGetItem(userStorageKey);
+                const parsedSettings = storedSettings ? JSON.parse(storedSettings) : null;
+
+                if (isMounted) {
+                    setSettings({
+                        ...DEFAULT_NOTIFICATION_SETTINGS,
+                        ...(parsedSettings && typeof parsedSettings === 'object'
+                            ? parsedSettings
+                            : {}),
+                    });
+                }
+            } catch (error) {
+                console.warn('Could not load notification settings:', error?.message);
+            }
+        };
+
+        loadSettings();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [userStorageKey]);
+
+    const updateSetting = async (settingKey, value) => {
+        const nextSettings = {
+            ...settings,
+            [settingKey]: value,
+        };
+
+        setSettings(nextSettings);
+
+        try {
+            await safeSetItem(userStorageKey, JSON.stringify(nextSettings));
+        } catch (error) {
+            console.warn('Could not save notification settings:', error?.message);
+        }
+    };
 
     const renderSettingItem = ({
         id,
@@ -47,9 +103,9 @@ export default function NotificationSettingsScreen() {
             <Switch
                 value={value}
                 onValueChange={onValueChange}
-                trackColor={{ false: '#D1D5DB', true: colors.primary + '66' }}
-                thumbColor={value ? colors.primary : '#FFFFFF'}
-                ios_backgroundColor="#D1D5DB"
+                trackColor={{ false: '#E5E7EB', true: colors.primary }}
+                thumbColor="#FFFFFF"
+                ios_backgroundColor="#E5E7EB"
             />
         </View>
     );
@@ -96,8 +152,8 @@ export default function NotificationSettingsScreen() {
                             id: 'push',
                             title: t('notifications.pushTitle'),
                             subtitle: t('notifications.pushSubtitle'),
-                            value: pushNotifications,
-                            onValueChange: setPushNotifications,
+                            value: settings.pushNotifications,
+                            onValueChange: (value) => updateSetting('pushNotifications', value),
                             icon: 'phone-portrait-outline',
                         })}
 
@@ -105,8 +161,8 @@ export default function NotificationSettingsScreen() {
                             id: 'tripUpdates',
                             title: t('notifications.tripTitle'),
                             subtitle: t('notifications.tripSubtitle'),
-                            value: tripUpdates,
-                            onValueChange: setTripUpdates,
+                            value: settings.tripUpdates,
+                            onValueChange: (value) => updateSetting('tripUpdates', value),
                             icon: 'airplane-outline',
                         })}
 
@@ -114,8 +170,8 @@ export default function NotificationSettingsScreen() {
                             id: 'savedPlaces',
                             title: t('notifications.savedPlacesTitle'),
                             subtitle: t('notifications.savedPlacesSubtitle'),
-                            value: savedPlaceAlerts,
-                            onValueChange: setSavedPlaceAlerts,
+                            value: settings.savedPlaceAlerts,
+                            onValueChange: (value) => updateSetting('savedPlaceAlerts', value),
                             icon: 'bookmark-outline',
                         })}
                     </View>
@@ -127,8 +183,8 @@ export default function NotificationSettingsScreen() {
                             id: 'news',
                             title: t('notifications.newsTitle'),
                             subtitle: t('notifications.newsSubtitle'),
-                            value: newsAndTips,
-                            onValueChange: setNewsAndTips,
+                            value: settings.newsAndTips,
+                            onValueChange: (value) => updateSetting('newsAndTips', value),
                             icon: 'newspaper-outline',
                         })}
 
@@ -136,8 +192,8 @@ export default function NotificationSettingsScreen() {
                             id: 'email',
                             title: t('notifications.emailTitle'),
                             subtitle: t('notifications.emailSubtitle'),
-                            value: emailNotifications,
-                            onValueChange: setEmailNotifications,
+                            value: settings.emailNotifications,
+                            onValueChange: (value) => updateSetting('emailNotifications', value),
                             icon: 'mail-outline',
                         })}
                     </View>
