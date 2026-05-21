@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,7 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import colors from '../theme/colors';
-import { toAbsoluteAssetUrl } from '../config/assets';
+import ProfileAvatar from '../components/ProfileAvatar';
+import { DEFAULT_PROFILE_PICTURE_URL } from '../config/assets';
 import { useAuth } from '../context/AuthContext';
 import {
   followProfile,
@@ -24,8 +24,7 @@ import {
 import { getSupabaseErrorMessage } from '../services/supabaseService';
 import { useTranslation } from '../context/TranslationContext';
 
-const DEFAULT_PROFILE_PICTURE =
-  'https://placehold.co/240x240/E5E7EB/222222?text=DG';
+const DEFAULT_PROFILE_PICTURE = DEFAULT_PROFILE_PICTURE_URL;
 
 const normalizeUsername = (value) =>
   String(value || '')
@@ -154,12 +153,9 @@ export default function FollowersScreen() {
         activeOpacity={0.85}
         onPress={() => handleProfilePress(user)}
       >
-        <Image
-          source={{
-            uri:
-              toAbsoluteAssetUrl(user.profile_picture_path) ||
-              DEFAULT_PROFILE_PICTURE,
-          }}
+        <ProfileAvatar
+          profilePicturePath={user.profile_picture_path}
+          fallbackUri={DEFAULT_PROFILE_PICTURE}
           style={styles.avatar}
         />
 

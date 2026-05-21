@@ -7,26 +7,25 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Dimensions,
   Keyboard,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import ProfileAvatar from '../components/ProfileAvatar';
 import colors from '../theme/colors';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
-import { toAbsoluteAssetUrl } from '../config/assets';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { getProfileByUsername, searchProfiles } from '../services/profileService';
 import { useTranslation } from '../context/TranslationContext';
 
-const { width: screenWidth } = Dimensions.get('window');
-const HERO_WIDTH = screenWidth - 40;
 const HERO_COUNT = 3;
+const SCREEN_HORIZONTAL_PADDING = 20;
 const VIDEO_HERO_INDEX = 1;
 const CATEGORY_PRIORITY = [
   'restaurants',
@@ -45,8 +44,10 @@ const HIDDEN_HOME_CATEGORY_KEYS = ['mosque', 'mosques', 'church', 'churches'];
 export default function HomeScreen({ route }) {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
+  const { width: windowWidth, fontScale } = useWindowDimensions();
   const screenScrollRef = useRef(null);
   const heroScrollRef = useRef(null);
+  const activeHeroIndexRef = useRef(0);
   const userSearchRequestRef = useRef(0);
   const { categories, places, cities, errorMessage } = useAppData();
   const { currentUser } = useAuth();
@@ -64,6 +65,10 @@ export default function HomeScreen({ route }) {
   const [categoryResults, setCategoryResults] = useState([]);
   const [cityResults, setCityResults] = useState([]);
   const refreshKey = route?.params?.refreshKey;
+  const heroWidth = Math.max(windowWidth - SCREEN_HORIZONTAL_PADDING * 2, 0);
+  const baseHeroHeight = heroWidth < 330 ? 268 : heroWidth < 370 ? 252 : 236;
+  const heroHeight = Math.round(baseHeroHeight * Math.max(1, fontScale));
+  const heroFrameStyle = { width: heroWidth, height: heroHeight };
 
   const heroVideoPlayer = useVideoPlayer(
     require('../../assets/videos/albania-hero.mp4'),
@@ -85,14 +90,27 @@ export default function HomeScreen({ route }) {
   }, [heroVideoPlayer, isFocused, activeHeroIndex]);
 
   useEffect(() => {
-    if (hasSearched) return;
+    activeHeroIndexRef.current = activeHeroIndex;
+  }, [activeHeroIndex]);
+
+  useEffect(() => {
+    if (heroWidth <= 0) return;
+
+    heroScrollRef.current?.scrollTo({
+      x: activeHeroIndexRef.current * heroWidth,
+      animated: false,
+    });
+  }, [heroWidth]);
+
+  useEffect(() => {
+    if (hasSearched || heroWidth <= 0) return;
 
     const interval = setInterval(() => {
       setActiveHeroIndex((currentIndex) => {
         const nextIndex = (currentIndex + 1) % HERO_COUNT;
 
         heroScrollRef.current?.scrollTo({
-          x: nextIndex * HERO_WIDTH,
+          x: nextIndex * heroWidth,
           animated: true,
         });
 
@@ -101,7 +119,7 @@ export default function HomeScreen({ route }) {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [hasSearched]);
+  }, [hasSearched, heroWidth]);
 
   const normalizeCategoryKey = (value) =>
     String(value || '')
@@ -513,8 +531,8 @@ export default function HomeScreen({ route }) {
 
   const handleHeroScrollEnd = (event) => {
     const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / HERO_WIDTH);
-    setActiveHeroIndex(index);
+    const index = heroWidth > 0 ? Math.round(offsetX / heroWidth) : 0;
+    setActiveHeroIndex(Math.max(0, Math.min(index, HERO_COUNT - 1)));
   };
 
   return (
@@ -642,12 +660,9 @@ export default function HomeScreen({ route }) {
                   onPress={() => navigateToProfile(user)}
                 >
                   <View style={styles.userSuggestionAvatarWrap}>
-                    <Image
-                      source={{
-                        uri:
-                          toAbsoluteAssetUrl(user.profile_picture_path) ||
-                          'https://placehold.co/120x120/E5E7EB/222222?text=DG',
-                      }}
+                    <ProfileAvatar
+                      profilePicturePath={user.profile_picture_path}
+                      fallbackUri="https://placehold.co/120x120/E5E7EB/222222?text=DG"
                       style={styles.userSuggestionAvatar}
                     />
                   </View>
@@ -770,12 +785,9 @@ export default function HomeScreen({ route }) {
                           activeOpacity={0.85}
                           onPress={() => navigateToProfile(user)}
                         >
-                          <Image
-                            source={{
-                              uri:
-                                toAbsoluteAssetUrl(user.profile_picture_path) ||
-                                'https://placehold.co/120x120/E5E7EB/222222?text=DG',
-                            }}
+                          <ProfileAvatar
+                            profilePicturePath={user.profile_picture_path}
+                            fallbackUri="https://placehold.co/120x120/E5E7EB/222222?text=DG"
                             style={styles.userResultAvatar}
                           />
                           <View style={styles.userResultContent}>
@@ -843,18 +855,20 @@ export default function HomeScreen({ route }) {
           ) : (
             <>
               <View style={styles.heroSection}>
-                <View style={styles.heroViewport}>
+                <View style={[styles.heroViewport, heroFrameStyle]}>
                   <ScrollView
                     ref={heroScrollRef}
+                    style={heroFrameStyle}
                     horizontal
                     pagingEnabled
+                    snapToInterval={heroWidth || undefined}
                     showsHorizontalScrollIndicator={false}
                     decelerationRate="fast"
                     bounces={false}
                     onMomentumScrollEnd={handleHeroScrollEnd}
                     scrollEventThrottle={16}
                   >
-                    <View style={styles.heroCard}>
+                    <View style={[styles.heroCard, heroFrameStyle]}>
                       <Text style={styles.heroEyebrow}>{t('home.heroEyebrow')}</Text>
                       <Text style={styles.heroTitle}>
                         {t('home.heroTitle')}
@@ -864,7 +878,7 @@ export default function HomeScreen({ route }) {
                       </Text>
                     </View>
 
-                    <View style={styles.videoHeroCard}>
+                    <View style={[styles.videoHeroCard, heroFrameStyle]}>
                       <VideoView
                         style={styles.videoHero}
                         player={heroVideoPlayer}
@@ -876,7 +890,7 @@ export default function HomeScreen({ route }) {
                       />
                     </View>
 
-                    <View style={styles.partnerHeroCard}>
+                    <View style={[styles.partnerHeroCard, heroFrameStyle]}>
                       <View style={styles.partnerHeroGlowOne} />
                       <View style={styles.partnerHeroGlowTwo} />
 
@@ -1134,16 +1148,15 @@ const styles = StyleSheet.create({
   },
 
   heroViewport: {
-    width: HERO_WIDTH,
     overflow: 'hidden',
     borderRadius: 24,
   },
 
   heroCard: {
-    width: HERO_WIDTH,
     backgroundColor: colors.white,
     borderRadius: 24,
     padding: 22,
+    justifyContent: 'center',
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
@@ -1152,8 +1165,6 @@ const styles = StyleSheet.create({
   },
 
   videoHeroCard: {
-    width: HERO_WIDTH,
-    height: 190,
     borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: colors.white,
@@ -1171,12 +1182,11 @@ const styles = StyleSheet.create({
   },
 
   partnerHeroCard: {
-    width: HERO_WIDTH,
-    height: 190,
     borderRadius: 24,
     padding: 18,
     overflow: 'hidden',
     backgroundColor: '#101418',
+    justifyContent: 'space-between',
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
@@ -1208,7 +1218,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   partnerHeroEyebrow: {
@@ -1233,23 +1243,23 @@ const styles = StyleSheet.create({
   },
 
   partnerHeroTitle: {
-    maxWidth: '88%',
+    maxWidth: '94%',
     fontSize: 22,
     fontWeight: '800',
     color: colors.white,
     lineHeight: 27,
-    marginBottom: 8,
+    marginBottom: 6,
   },
 
   partnerHeroText: {
-    maxWidth: '92%',
+    maxWidth: '94%',
     fontSize: 12,
     lineHeight: 18,
     color: 'rgba(255, 255, 255, 0.82)',
   },
 
   partnerHeroFooter: {
-    marginTop: 0,
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',

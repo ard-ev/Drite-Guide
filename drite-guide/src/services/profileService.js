@@ -1,3 +1,6 @@
+import { decode } from 'base64-arraybuffer';
+import * as FileSystem from 'expo-file-system/legacy';
+
 import { STORAGE_BUCKETS, assertSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   normalizeUsername,
@@ -6,6 +9,15 @@ import {
 } from './supabaseService';
 
 const DEFAULT_PROFILE_PICTURE_PATH = null;
+const MIME_TYPES_BY_EXTENSION = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  heic: 'image/heic',
+  heif: 'image/heif',
+};
 
 function pickProfileMetadata(authUser, fallback = {}) {
   const metadata = authUser?.user_metadata || {};
@@ -181,6 +193,25 @@ export async function getProfileByUsername(username, currentUserId = null) {
   return hydrateProfile(data, currentUserId);
 }
 
+export async function isUsernameAvailable(username) {
+  assertSupabaseConfigured();
+
+  const normalizedUsername = normalizeUsername(username);
+
+  if (normalizedUsername.length < 3) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('username', normalizedUsername)
+    .maybeSingle();
+
+  throwIfSupabaseError(error, 'Could not check username.');
+  return !data;
+}
+
 export async function searchProfiles(query, currentUserId = null, limit = 8) {
   assertSupabaseConfigured();
 
@@ -247,6 +278,38 @@ function getAssetFileName(asset) {
     .replace(/^-+|-+$/g, '') || 'profile-picture.jpg';
 }
 
+function getAssetMimeType(asset) {
+  if (asset?.mimeType) {
+    return asset.mimeType;
+  }
+
+  const fileName = getAssetFileName(asset);
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  return MIME_TYPES_BY_EXTENSION[extension] || 'image/jpeg';
+}
+
+function stripBase64DataUrl(value) {
+  return String(value || '').replace(/^data:[^;]+;base64,/, '');
+}
+
+async function readAssetAsArrayBuffer(asset) {
+  const base64 =
+    asset?.base64 ||
+    (asset?.uri?.startsWith('data:')
+      ? stripBase64DataUrl(asset.uri)
+      : await FileSystem.readAsStringAsync(asset.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        }));
+
+  const fileBody = decode(stripBase64DataUrl(base64).replace(/\s/g, ''));
+
+  if (!fileBody.byteLength) {
+    throw new Error('Profile image file is empty.');
+  }
+
+  return fileBody;
+}
+
 export async function uploadProfilePicture(userId, asset) {
   assertSupabaseConfigured();
 
@@ -254,10 +317,9 @@ export async function uploadProfilePicture(userId, asset) {
     throw new Error('Missing profile image.');
   }
 
-  const response = await fetch(asset.uri);
-  const fileBody = await response.blob();
+  const fileBody = await readAssetAsArrayBuffer(asset);
   const fileName = getAssetFileName(asset);
-  const mimeType = asset.mimeType || 'image/jpeg';
+  const mimeType = getAssetMimeType(asset);
   const filePath = `${userId}/${Date.now()}-${fileName}`;
 
   const { data, error } = await supabase.storage

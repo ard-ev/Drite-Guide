@@ -28,7 +28,14 @@ export function normalizeUsername(value) {
   return String(value || '')
     .trim()
     .replace(/^@+/, '')
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '')
+    .slice(0, 32);
+}
+
+export function isStrongSignupPassword(value) {
+  const password = String(value || '');
+  return password.length >= 8 && /[A-Z]/.test(password) && /\d/.test(password);
 }
 
 export function sanitizeSearchTerm(value) {

@@ -13,6 +13,20 @@ begin
 end;
 $$;
 
+create or replace function public.is_strong_signup_password(password_value text)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(
+    length(password_value) >= 8
+    and password_value ~ '[A-Z]'
+    and password_value ~ '[0-9]',
+    false
+  );
+$$;
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   first_name text not null default '',
@@ -25,6 +39,13 @@ create table if not exists public.profiles (
   email_verified boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+create table if not exists public.signup_attempts (
+  id uuid primary key default gen_random_uuid(),
+  email_hash text not null,
+  ip_hash text not null,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.categories (
@@ -143,6 +164,10 @@ create table if not exists public.trip_places (
 );
 
 create index if not exists categories_name_idx on public.categories (name);
+create index if not exists signup_attempts_email_created_at_idx
+  on public.signup_attempts (email_hash, created_at desc);
+create index if not exists signup_attempts_ip_created_at_idx
+  on public.signup_attempts (ip_hash, created_at desc);
 create index if not exists cities_city_name_idx on public.cities (city_name);
 create index if not exists places_city_id_idx on public.places (city_id);
 create index if not exists places_category_id_idx on public.places (category_id);
@@ -209,7 +234,36 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  base_username text;
+  candidate_username text;
+  suffix integer := 0;
 begin
+  base_username := lower(
+    regexp_replace(
+      coalesce(
+        nullif(btrim(new.raw_user_meta_data ->> 'username'), ''),
+        split_part(coalesce(new.email, ''), '@', 1),
+        'user'
+      ),
+      '[^a-z0-9._-]+',
+      '',
+      'g'
+    )
+  );
+  base_username := left(coalesce(nullif(base_username, ''), 'user'), 28);
+  candidate_username := base_username;
+
+  while exists (
+    select 1
+    from public.profiles
+    where username = candidate_username
+      and id <> new.id
+  ) loop
+    suffix := suffix + 1;
+    candidate_username := base_username || suffix::text;
+  end loop;
+
   insert into public.profiles (
     id,
     first_name,
@@ -221,10 +275,10 @@ begin
   )
   values (
     new.id,
-    coalesce(new.raw_user_meta_data ->> 'first_name', ''),
-    coalesce(new.raw_user_meta_data ->> 'last_name', ''),
+    coalesce(btrim(new.raw_user_meta_data ->> 'first_name'), ''),
+    coalesce(btrim(new.raw_user_meta_data ->> 'last_name'), ''),
     lower(new.email),
-    lower(coalesce(new.raw_user_meta_data ->> 'username', split_part(new.email, '@', 1))),
+    candidate_username,
     coalesce(new.raw_user_meta_data ->> 'preferred_language', 'en'),
     new.email_confirmed_at is not null
   )
@@ -308,6 +362,7 @@ revoke all on function public.is_trip_member(uuid) from public;
 grant execute on function public.is_trip_member(uuid) to authenticated;
 
 alter table public.profiles enable row level security;
+alter table public.signup_attempts enable row level security;
 alter table public.categories enable row level security;
 alter table public.cities enable row level security;
 alter table public.places enable row level security;
@@ -319,7 +374,10 @@ alter table public.trip_members enable row level security;
 alter table public.trip_places enable row level security;
 
 grant usage on schema public to anon, authenticated;
+revoke all on function public.is_strong_signup_password(text) from public;
+grant execute on function public.is_strong_signup_password(text) to service_role;
 grant select on public.profiles to anon, authenticated;
+revoke all on public.signup_attempts from anon, authenticated;
 grant select on public.categories to anon, authenticated;
 grant select on public.cities to anon, authenticated;
 grant select on public.places to anon, authenticated;
@@ -336,6 +394,13 @@ drop policy if exists "Public can read profiles" on public.profiles;
 create policy "Public can read profiles"
 on public.profiles for select
 using (true);
+
+drop policy if exists "No client access to signup attempts" on public.signup_attempts;
+create policy "No client access to signup attempts"
+on public.signup_attempts for all
+to anon, authenticated
+using (false)
+with check (false);
 
 drop policy if exists "Users can insert their own profile" on public.profiles;
 create policy "Users can insert their own profile"

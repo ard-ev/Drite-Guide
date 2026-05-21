@@ -7,7 +7,6 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    Image,
     Modal,
     Pressable,
     Alert,
@@ -16,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
+import ProfileAvatar from '../components/ProfileAvatar';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { getProfileByUsername } from '../services/profileService';
@@ -257,6 +257,7 @@ export default function AccountScreen({ route }) {
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.85,
+            base64: true,
         });
 
         if (result.canceled || !result.assets?.[0]) {
@@ -278,6 +279,7 @@ export default function AccountScreen({ route }) {
             allowsEditing: true,
             aspect: [1, 1],
             quality: 0.85,
+            base64: true,
         });
 
         if (result.canceled || !result.assets?.[0]) {
@@ -383,12 +385,9 @@ export default function AccountScreen({ route }) {
                     ) : (
                         <>
                             <View style={styles.profileCard}>
-                                <Image
-                                    source={{
-                                        uri:
-                                            currentUser?.profile_picture_path ||
-                                            defaultProfilePicture,
-                                    }}
+                                <ProfileAvatar
+                                    profilePicturePath={currentUser?.profile_picture_path}
+                                    fallbackUri={defaultProfilePicture}
                                     style={styles.avatar}
                                 />
 

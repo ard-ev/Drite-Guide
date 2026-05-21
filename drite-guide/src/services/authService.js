@@ -4,17 +4,27 @@ import { assertSupabaseConfigured, supabase } from '../lib/supabase';
 import { ensureUserProfile, getProfileByUsername } from './profileService';
 import {
   getSupabaseErrorMessage,
+  isStrongSignupPassword,
   normalizeUsername,
   throwIfSupabaseError,
 } from './supabaseService';
 
 const AUTH_CALLBACK_PATH = 'auth/callback';
 const PASSWORD_RESET_PATH = 'reset-password';
+const SIGNUP_FUNCTION_NAME = 'signup-with-profile';
 const EMAIL_NOT_VERIFIED_CODE = 'email_not_verified';
+const EMAIL_RATE_LIMIT_CODE = 'email_rate_limit_exceeded';
 
 function createEmailNotVerifiedError() {
   const error = new Error('Please verify your email address before logging in.');
   error.code = EMAIL_NOT_VERIFIED_CODE;
+  return error;
+}
+
+function createCodedError(message, code, status = null) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = status;
   return error;
 }
 
@@ -25,6 +35,22 @@ export function isEmailNotVerifiedError(error) {
     message.includes('email not confirmed') ||
     message.includes('not verified')
   );
+}
+
+export function isEmailRateLimitError(error) {
+  const message = getSupabaseErrorMessage(error, '').toLowerCase();
+  return (
+    error?.code === EMAIL_RATE_LIMIT_CODE ||
+    error?.status === 429 ||
+    message.includes('email rate limit') ||
+    message.includes('over_email_send_rate_limit') ||
+    message.includes('rate limit exceeded')
+  );
+}
+
+function isSignupFunctionMissingError(error) {
+  const message = getSupabaseErrorMessage(error, '').toLowerCase();
+  return error?.status === 404 || message.includes('function not found');
 }
 
 function getConfiguredRedirectUrl(path) {
@@ -41,6 +67,54 @@ function getConfiguredRedirectUrl(path) {
 
 function getAuthRedirectUrl(path) {
   return getConfiguredRedirectUrl(path) || Linking.createURL(path);
+}
+
+async function getFunctionErrorPayload(error) {
+  if (!error?.context?.json) {
+    return null;
+  }
+
+  try {
+    return await error.context.json();
+  } catch (_parseError) {
+    return null;
+  }
+}
+
+async function signUpWithSupabaseFunction(payload) {
+  const { data, error } = await supabase.functions.invoke(SIGNUP_FUNCTION_NAME, {
+    body: payload,
+  });
+
+  if (error) {
+    const errorPayload = await getFunctionErrorPayload(error);
+    const message =
+      errorPayload?.message ||
+      errorPayload?.error ||
+      getSupabaseErrorMessage(error, 'Signup failed.');
+    throw createCodedError(message, errorPayload?.code || error.code, error.status);
+  }
+
+  if (data?.error) {
+    throw createCodedError(data.message || data.error, data.code, data.status);
+  }
+
+  if (!data?.session?.access_token || !data?.session?.refresh_token) {
+    throw new Error('Signup did not return a valid session.');
+  }
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+  });
+
+  throwIfSupabaseError(sessionError, 'Could not start your session.');
+
+  return {
+    session: sessionData?.session || data.session,
+    user: data.profile || data.user || null,
+    requiresEmailVerification: false,
+  };
 }
 
 function getUrlParams(url) {
@@ -177,6 +251,31 @@ export async function signUp({
 
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const normalizedUsername = normalizeUsername(username);
+
+  if (!isStrongSignupPassword(password)) {
+    throw createCodedError(
+      'Password must be at least 8 characters and include one uppercase letter and one number.',
+      'weak_password',
+      400
+    );
+  }
+
+  const signupPayload = {
+    firstName: String(firstName || '').trim(),
+    lastName: String(lastName || '').trim(),
+    email: normalizedEmail,
+    username: normalizedUsername,
+    password,
+    preferredLanguage,
+  };
+
+  try {
+    return await signUpWithSupabaseFunction(signupPayload);
+  } catch (edgeFunctionError) {
+    if (!isSignupFunctionMissingError(edgeFunctionError)) {
+      throw edgeFunctionError;
+    }
+  }
 
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,

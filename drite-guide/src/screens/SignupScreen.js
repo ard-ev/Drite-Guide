@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -10,18 +10,26 @@ import {
     Platform,
     ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/TranslationContext';
+import { isUsernameAvailable } from '../services/profileService';
+import { isStrongSignupPassword, normalizeUsername } from '../services/supabaseService';
+
+const USERNAME_CHECK_DELAY_MS = 400;
 
 export default function SignupScreen() {
     const navigation = useNavigation();
+    const tabBarHeight = useBottomTabBarHeight();
+    const insets = useSafeAreaInsets();
     const { signup } = useAuth();
     const { t } = useTranslation();
+    const bottomScrollPadding = Math.max(tabBarHeight + insets.bottom + 120, 220);
 
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -29,38 +37,168 @@ export default function SignupScreen() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [usernameStatus, setUsernameStatus] = useState('idle');
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const handleSignUp = async () => {
-        const result = await signup({
-            firstName,
-            lastName,
-            email,
-            username,
-            password,
-            confirmPassword,
-        });
+    const normalizedUsername = normalizeUsername(username);
+    const passwordRules = [
+        {
+            key: 'length',
+            label: t('auth.passwordRuleLength'),
+            met: password.length >= 8,
+        },
+        {
+            key: 'uppercase',
+            label: t('auth.passwordRuleUppercase'),
+            met: /[A-Z]/.test(password),
+        },
+        {
+            key: 'number',
+            label: t('auth.passwordRuleNumber'),
+            met: /\d/.test(password),
+        },
+    ];
+    const isEnteredPasswordWeak = password.length > 0 && !isStrongSignupPassword(password);
+    const isEnteredUsernameTooShort = username.trim().length > 0 && normalizedUsername.length < 3;
+    const isUsernameBlockingSignup =
+        usernameStatus === 'checking' || usernameStatus === 'taken' || isEnteredUsernameTooShort;
+    const isCreateDisabled = isSubmitting || isEnteredPasswordWeak || isUsernameBlockingSignup;
 
-        if (!result.success) {
-            Alert.alert(t('auth.signupFailed'), result.message);
+    const usernameFeedback = (() => {
+        if (usernameStatus === 'too_short') {
+            return { text: t('auth.invalidUsername'), tone: 'error' };
+        }
+
+        if (usernameStatus === 'checking') {
+            return { text: t('auth.usernameChecking'), tone: 'neutral' };
+        }
+
+        if (usernameStatus === 'available') {
+            return { text: t('auth.usernameAvailable'), tone: 'success' };
+        }
+
+        if (usernameStatus === 'taken') {
+            return { text: t('auth.usernameTaken'), tone: 'error' };
+        }
+
+        if (usernameStatus === 'error') {
+            return { text: t('auth.usernameCheckFailed'), tone: 'neutral' };
+        }
+
+        return null;
+    })();
+
+    useEffect(() => {
+        if (!username.trim()) {
+            setUsernameStatus('idle');
+            return undefined;
+        }
+
+        const nextUsername = normalizeUsername(username);
+
+        if (nextUsername.length < 3) {
+            setUsernameStatus('too_short');
+            return undefined;
+        }
+
+        let isActive = true;
+        setUsernameStatus('checking');
+
+        const timeoutId = setTimeout(async () => {
+            try {
+                const available = await isUsernameAvailable(nextUsername);
+
+                if (isActive) {
+                    setUsernameStatus(available ? 'available' : 'taken');
+                }
+            } catch (_error) {
+                if (isActive) {
+                    setUsernameStatus('error');
+                }
+            }
+        }, USERNAME_CHECK_DELAY_MS);
+
+        return () => {
+            isActive = false;
+            clearTimeout(timeoutId);
+        };
+    }, [username]);
+
+    const handleUsernameChange = (value) => {
+        setUsername(value);
+
+        const nextUsername = normalizeUsername(value);
+
+        if (!value.trim()) {
+            setUsernameStatus('idle');
+        } else if (nextUsername.length < 3) {
+            setUsernameStatus('too_short');
+        } else {
+            setUsernameStatus('checking');
+        }
+    };
+
+    const handleSignUp = async () => {
+        if (isSubmitting) {
             return;
         }
 
-        Alert.alert(
-            t('auth.accountCreated'),
-            result.message || t('auth.accountCreatedMessage', { name: result.user.first_name }),
-            [
-                {
-                    text: t('common.continue'),
-                    onPress: () =>
-                        navigation.navigate(
-                            result.requiresEmailVerification ? 'Login' : 'AccountMain'
-                        ),
-                },
-            ]
-        );
+        if (isEnteredUsernameTooShort) {
+            Alert.alert(t('auth.signupFailed'), t('auth.invalidUsername'));
+            return;
+        }
+
+        if (usernameStatus === 'taken') {
+            Alert.alert(t('auth.signupFailed'), t('auth.usernameTaken'));
+            return;
+        }
+
+        if (usernameStatus === 'checking') {
+            Alert.alert(t('auth.signupFailed'), t('auth.usernameChecking'));
+            return;
+        }
+
+        if (isEnteredPasswordWeak) {
+            Alert.alert(t('auth.signupFailed'), t('auth.passwordRequirements'));
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            const result = await signup({
+                firstName,
+                lastName,
+                email,
+                username,
+                password,
+                confirmPassword,
+            });
+
+            if (!result.success) {
+                Alert.alert(t('auth.signupFailed'), result.message);
+                return;
+            }
+
+            Alert.alert(
+                t('auth.accountCreated'),
+                result.message || t('auth.accountCreatedMessage', { name: result.user.first_name }),
+                [
+                    {
+                        text: t('common.continue'),
+                        onPress: () =>
+                            navigation.navigate(
+                                result.requiresEmailVerification ? 'Login' : 'AccountMain'
+                            ),
+                    },
+                ]
+            );
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -74,7 +212,12 @@ export default function SignupScreen() {
                 >
                     <ScrollView
                         showsVerticalScrollIndicator={false}
-                        contentContainerStyle={styles.content}
+                        contentContainerStyle={[
+                            styles.content,
+                            { paddingBottom: bottomScrollPadding },
+                        ]}
+                        scrollIndicatorInsets={{ bottom: bottomScrollPadding }}
+                        keyboardShouldPersistTaps="handled"
                     >
                         <TouchableOpacity
                             style={styles.backButton}
@@ -99,6 +242,7 @@ export default function SignupScreen() {
                                     placeholderTextColor="#9CA3AF"
                                     value={firstName}
                                     onChangeText={setFirstName}
+                                    editable={!isSubmitting}
                                 />
                             </View>
 
@@ -110,6 +254,7 @@ export default function SignupScreen() {
                                     placeholderTextColor="#9CA3AF"
                                     value={lastName}
                                     onChangeText={setLastName}
+                                    editable={!isSubmitting}
                                 />
                             </View>
 
@@ -124,6 +269,7 @@ export default function SignupScreen() {
                                     autoCorrect={false}
                                     value={email}
                                     onChangeText={setEmail}
+                                    editable={!isSubmitting}
                                 />
                             </View>
 
@@ -136,8 +282,22 @@ export default function SignupScreen() {
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                     value={username}
-                                    onChangeText={setUsername}
+                                    onChangeText={handleUsernameChange}
+                                    editable={!isSubmitting}
                                 />
+                                {usernameFeedback ? (
+                                    <Text
+                                        style={[
+                                            styles.fieldFeedback,
+                                            usernameFeedback.tone === 'success' &&
+                                                styles.fieldFeedbackSuccess,
+                                            usernameFeedback.tone === 'error' &&
+                                                styles.fieldFeedbackError,
+                                        ]}
+                                    >
+                                        {usernameFeedback.text}
+                                    </Text>
+                                ) : null}
                             </View>
 
                             <View style={styles.inputGroup}>
@@ -152,10 +312,12 @@ export default function SignupScreen() {
                                         autoCorrect={false}
                                         value={password}
                                         onChangeText={setPassword}
+                                        editable={!isSubmitting}
                                     />
                                     <TouchableOpacity
                                         onPress={() => setShowPassword((prev) => !prev)}
                                         activeOpacity={0.8}
+                                        disabled={isSubmitting}
                                     >
                                         <Ionicons
                                             name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -163,6 +325,25 @@ export default function SignupScreen() {
                                             color="#6B7280"
                                         />
                                     </TouchableOpacity>
+                                </View>
+                                <View style={styles.passwordRules}>
+                                    {passwordRules.map((rule) => (
+                                        <View key={rule.key} style={styles.passwordRule}>
+                                            <Ionicons
+                                                name={rule.met ? 'checkmark-circle' : 'ellipse-outline'}
+                                                size={16}
+                                                color={rule.met ? '#15803D' : '#9CA3AF'}
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.passwordRuleText,
+                                                    rule.met && styles.passwordRuleTextMet,
+                                                ]}
+                                            >
+                                                {rule.label}
+                                            </Text>
+                                        </View>
+                                    ))}
                                 </View>
                             </View>
 
@@ -178,10 +359,12 @@ export default function SignupScreen() {
                                         autoCorrect={false}
                                         value={confirmPassword}
                                         onChangeText={setConfirmPassword}
+                                        editable={!isSubmitting}
                                     />
                                     <TouchableOpacity
                                         onPress={() => setShowConfirmPassword((prev) => !prev)}
                                         activeOpacity={0.8}
+                                        disabled={isSubmitting}
                                     >
                                         <Ionicons
                                             name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -193,17 +376,24 @@ export default function SignupScreen() {
                             </View>
 
                             <TouchableOpacity
-                                style={styles.primaryButton}
+                                style={[
+                                    styles.primaryButton,
+                                    isCreateDisabled && styles.primaryButtonDisabled,
+                                ]}
                                 activeOpacity={0.88}
                                 onPress={handleSignUp}
+                                disabled={isCreateDisabled}
                             >
-                                <Text style={styles.primaryButtonText}>{t('auth.createAccount')}</Text>
+                                <Text style={styles.primaryButtonText}>
+                                    {isSubmitting ? t('common.pleaseWait') : t('auth.createAccount')}
+                                </Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 style={styles.linkButton}
                                 activeOpacity={0.8}
                                 onPress={() => navigation.navigate('Login')}
+                                disabled={isSubmitting}
                             >
                                 <Text style={styles.linkText}>
                                     {t('auth.alreadyAccount')}
@@ -233,6 +423,7 @@ const styles = StyleSheet.create({
     },
 
     content: {
+        flexGrow: 1,
         paddingHorizontal: 20,
         paddingBottom: 40,
     },
@@ -316,12 +507,54 @@ const styles = StyleSheet.create({
         color: '#222222',
     },
 
+    fieldFeedback: {
+        marginTop: 8,
+        fontSize: 12,
+        lineHeight: 18,
+        color: '#6B7280',
+    },
+
+    fieldFeedbackSuccess: {
+        color: '#15803D',
+    },
+
+    fieldFeedbackError: {
+        color: '#B91C1C',
+    },
+
+    passwordRules: {
+        marginTop: 8,
+    },
+
+    passwordRule: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 6,
+    },
+
+    passwordRuleText: {
+        marginLeft: 8,
+        fontSize: 12,
+        lineHeight: 18,
+        color: '#6B7280',
+        flex: 1,
+    },
+
+    passwordRuleTextMet: {
+        color: '#15803D',
+        fontWeight: '600',
+    },
+
     primaryButton: {
         backgroundColor: colors.primary,
         paddingVertical: 15,
         borderRadius: 16,
         alignItems: 'center',
         marginTop: 8,
+    },
+
+    primaryButtonDisabled: {
+        opacity: 0.65,
     },
 
     primaryButtonText: {
@@ -332,6 +565,7 @@ const styles = StyleSheet.create({
 
     linkButton: {
         marginTop: 16,
+        marginBottom: 16,
         alignItems: 'center',
     },
 

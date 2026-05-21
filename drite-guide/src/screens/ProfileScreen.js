@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import colors from '../theme/colors';
-import { toAbsoluteAssetUrl } from '../config/assets';
+import ProfileAvatar from '../components/ProfileAvatar';
+import { DEFAULT_PROFILE_PICTURE_URL } from '../config/assets';
 import { useAuth } from '../context/AuthContext';
 import {
   followProfile,
@@ -23,8 +23,7 @@ import {
 import { getSupabaseErrorMessage } from '../services/supabaseService';
 import { useTranslation } from '../context/TranslationContext';
 
-const DEFAULT_PROFILE_PICTURE =
-  'https://placehold.co/240x240/E5E7EB/222222?text=DG';
+const DEFAULT_PROFILE_PICTURE = DEFAULT_PROFILE_PICTURE_URL;
 const CONNECTION_LONG_PRESS_DELAY = 450;
 
 const normalizeUsername = (value) =>
@@ -241,12 +240,9 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <View style={styles.profileCard}>
-            <Image
-              source={{
-                uri:
-                  toAbsoluteAssetUrl(profile?.profile_picture_path) ||
-                  DEFAULT_PROFILE_PICTURE,
-              }}
+            <ProfileAvatar
+              profilePicturePath={profile?.profile_picture_path}
+              fallbackUri={DEFAULT_PROFILE_PICTURE}
               style={styles.avatar}
             />
 

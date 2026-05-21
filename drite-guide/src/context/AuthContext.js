@@ -11,6 +11,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import {
   getCurrentSession,
   handleAuthRedirectUrl,
+  isEmailRateLimitError,
   isEmailNotVerifiedError,
   onAuthStateChange,
   resendVerificationEmail,
@@ -47,7 +48,11 @@ import {
   normalizeTripPlace,
   normalizeUser,
 } from '../services/transformers';
-import { getSupabaseErrorMessage } from '../services/supabaseService';
+import {
+  getSupabaseErrorMessage,
+  isStrongSignupPassword,
+  normalizeUsername,
+} from '../services/supabaseService';
 import { safeGetItem, safeSetItem } from '../utils/storage';
 import { translate } from '../i18n/translations';
 
@@ -340,8 +345,48 @@ export function AuthProvider({ children }) {
     password,
     confirmPassword,
   }) => {
-    const trimmedPassword = password.trim();
-    const trimmedConfirmPassword = confirmPassword.trim();
+    const trimmedFirstName = String(firstName || '').trim();
+    const trimmedLastName = String(lastName || '').trim();
+    const trimmedEmail = String(email || '').trim().toLowerCase();
+    const trimmedUsername = String(username || '').trim();
+    const normalizedUsername = normalizeUsername(trimmedUsername);
+    const trimmedPassword = String(password || '').trim();
+    const trimmedConfirmPassword = String(confirmPassword || '').trim();
+
+    if (
+      !trimmedFirstName ||
+      !trimmedLastName ||
+      !trimmedEmail ||
+      !trimmedUsername ||
+      !trimmedPassword ||
+      !trimmedConfirmPassword
+    ) {
+      return {
+        success: false,
+        message: t('auth.missingSignupFields'),
+      };
+    }
+
+    if (!trimmedEmail.includes('@')) {
+      return {
+        success: false,
+        message: t('auth.invalidEmail'),
+      };
+    }
+
+    if (normalizedUsername.length < 3) {
+      return {
+        success: false,
+        message: t('auth.invalidUsername'),
+      };
+    }
+
+    if (!isStrongSignupPassword(trimmedPassword)) {
+      return {
+        success: false,
+        message: t('auth.passwordRequirements'),
+      };
+    }
 
     if (trimmedPassword !== trimmedConfirmPassword) {
       return {
@@ -352,10 +397,10 @@ export function AuthProvider({ children }) {
 
     try {
       const result = await signUp({
-        firstName,
-        lastName,
-        email,
-        username,
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        email: trimmedEmail,
+        username: normalizedUsername,
         password: trimmedPassword,
         preferredLanguage: currentLanguage,
       });
@@ -375,7 +420,9 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        message: getSupabaseErrorMessage(error, t('auth.signupFailedFallback')),
+        message: isEmailRateLimitError(error)
+          ? t('auth.emailRateLimit')
+          : getSupabaseErrorMessage(error, t('auth.signupFailedFallback')),
       };
     }
   };
@@ -400,7 +447,9 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        message: getSupabaseErrorMessage(error, t('auth.verificationEmailFailed')),
+        message: isEmailRateLimitError(error)
+          ? t('auth.emailRateLimit')
+          : getSupabaseErrorMessage(error, t('auth.verificationEmailFailed')),
       };
     }
   };

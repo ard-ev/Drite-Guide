@@ -1,4 +1,4 @@
-import { toAbsoluteAssetUrl } from '../config/assets';
+import { getProfilePictureUrl, toAbsoluteAssetUrl } from '../config/assets';
 import { STORAGE_BUCKETS } from '../lib/supabase';
 
 export function normalizeCategory(category) {
@@ -19,10 +19,7 @@ export function normalizeUser(user) {
     return null;
   }
 
-  const profilePictureUrl = toAbsoluteAssetUrl(
-    user.profile_picture_path,
-    STORAGE_BUCKETS.profilePictures
-  );
+  const profilePictureUrl = getProfilePictureUrl(user.profile_picture_path);
   const profilePictureVersion = user.updated_at
     ? encodeURIComponent(user.updated_at)
     : '';

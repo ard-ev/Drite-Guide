@@ -194,9 +194,24 @@ const translations = {
       accountCreatedMessage:
         'Welcome, {{name}}! Your account has been created successfully.',
       missingLogin: 'Please enter your email or username and your password.',
+      missingSignupFields: 'Please fill in all signup fields.',
+      invalidEmail: 'Please enter a valid email address.',
+      invalidUsername: 'Username must be at least 3 characters.',
+      usernameChecking: 'Checking username...',
+      usernameAvailable: 'Username is available.',
+      usernameTaken: 'Username is already taken.',
+      usernameCheckFailed: 'Could not check username right now.',
+      passwordTooShort: 'Password must be at least 6 characters.',
+      passwordRequirements:
+        'Password must be at least 8 characters and include one uppercase letter and one number.',
+      passwordRuleLength: 'At least 8 characters',
+      passwordRuleUppercase: 'One uppercase letter',
+      passwordRuleNumber: 'One number',
       passwordsMismatch: 'The passwords do not match.',
       loginFailedFallback: 'Login failed. Please try again.',
       signupFailedFallback: 'Sign up failed. Please try again.',
+      emailRateLimit:
+        'Too many verification emails were requested. Please try again later.',
       accountCreatedVerify:
         'Account created. Please check your email to verify your account.',
       emailNotVerified:
@@ -531,9 +546,24 @@ const overrides = {
       accountCreated: 'Account erstellt',
       accountCreatedMessage: 'Willkommen, {{name}}! Dein Account wurde erfolgreich erstellt.',
       missingLogin: 'Bitte gib deine E-Mail oder deinen Benutzernamen und dein Passwort ein.',
+      missingSignupFields: 'Bitte fuelle alle Felder fuer die Registrierung aus.',
+      invalidEmail: 'Bitte gib eine gueltige E-Mail-Adresse ein.',
+      invalidUsername: 'Der Benutzername muss mindestens 3 Zeichen lang sein.',
+      usernameChecking: 'Benutzername wird geprueft...',
+      usernameAvailable: 'Benutzername ist verfuegbar.',
+      usernameTaken: 'Benutzername ist bereits vergeben.',
+      usernameCheckFailed: 'Benutzername konnte gerade nicht geprueft werden.',
+      passwordTooShort: 'Das Passwort muss mindestens 6 Zeichen lang sein.',
+      passwordRequirements:
+        'Das Passwort muss mindestens 8 Zeichen lang sein und einen Grossbuchstaben sowie eine Zahl enthalten.',
+      passwordRuleLength: 'Mindestens 8 Zeichen',
+      passwordRuleUppercase: 'Ein Grossbuchstabe',
+      passwordRuleNumber: 'Eine Zahl',
       passwordsMismatch: 'Die Passwoerter stimmen nicht ueberein.',
       loginFailedFallback: 'Login fehlgeschlagen. Bitte versuche es erneut.',
       signupFailedFallback: 'Registrierung fehlgeschlagen. Bitte versuche es erneut.',
+      emailRateLimit:
+        'Es wurden zu viele Bestaetigungs-E-Mails angefordert. Bitte versuche es spaeter erneut.',
       accountCreatedVerify:
         'Account erstellt. Bitte pruefe deine E-Mail, um dein Konto zu bestaetigen.',
       emailNotVerified:
