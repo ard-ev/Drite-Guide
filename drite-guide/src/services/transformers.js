@@ -57,9 +57,14 @@ export function normalizePlace(place, options = {}) {
     place.main_image_path,
     STORAGE_BUCKETS.placeImages
   );
+  const imagePaths = Array.isArray(place.images)
+    ? place.images.map((item) => item?.image_path).filter(Boolean)
+    : [];
 
   return {
     ...place,
+    imageSourcePath: place.main_image_path || null,
+    imageSourcePaths: imagePaths,
     id: place.id,
     legacyId: place.id,
     cityId: place.city_id,
@@ -68,8 +73,8 @@ export function normalizePlace(place, options = {}) {
     categoryName: options.categoryName || '',
     image: mainImage,
     images: Array.isArray(place.images)
-      ? place.images.map((item) =>
-          toAbsoluteAssetUrl(item.image_path, STORAGE_BUCKETS.placeImages)
+      ? imagePaths.map((imagePath) =>
+          toAbsoluteAssetUrl(imagePath, STORAGE_BUCKETS.placeImages)
         )
       : mainImage
       ? [mainImage]

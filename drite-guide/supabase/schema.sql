@@ -105,6 +105,11 @@ create table if not exists public.place_images (
   constraint place_images_place_sort_unique unique (place_id, sort_order)
 );
 
+comment on column public.places.main_image_path is
+  'Main place photo. Use a full https URL, a supabase://place-images/... reference, or a place-images/... storage path.';
+comment on column public.place_images.image_path is
+  'Place gallery photo. Use a full https URL, a supabase://place-images/... reference, or a place-images/... storage path.';
+
 create table if not exists public.saved_places (
   user_id uuid not null references public.profiles(id) on delete cascade,
   place_id uuid not null references public.places(id) on delete cascade,

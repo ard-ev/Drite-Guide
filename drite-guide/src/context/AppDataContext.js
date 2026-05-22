@@ -195,6 +195,19 @@ function findFallbackMatch(fallbackItems, item, candidates = []) {
   });
 }
 
+function isPreferredDatabaseImagePath(value) {
+  const imagePath = String(value || '').trim();
+
+  return (
+    imagePath.startsWith('http://') ||
+    imagePath.startsWith('https://') ||
+    imagePath.startsWith('file://') ||
+    imagePath.startsWith('data:') ||
+    imagePath.startsWith('supabase://') ||
+    imagePath.startsWith('place-images/')
+  );
+}
+
 function enrichCategory(item, fallbackCategories) {
   const fallbackMatch = findFallbackMatch(fallbackCategories, item);
   const localImage = resolveCategoryImage(item) || fallbackMatch?.image;
@@ -226,20 +239,37 @@ function enrichPlace(item, fallbackPlaces) {
       : fallbackMatch?.image
         ? [fallbackMatch.image]
         : [];
+  const itemImages =
+    Array.isArray(item.images) && item.images.length > 0
+      ? item.images
+      : item.image
+        ? [item.image]
+        : [];
+  const hasPreferredDatabaseMainImage = isPreferredDatabaseImagePath(
+    item.imageSourcePath || item.main_image_path
+  );
+  const hasPreferredDatabaseImages =
+    Array.isArray(item.imageSourcePaths) &&
+    item.imageSourcePaths.some(isPreferredDatabaseImagePath);
+  const preferredDatabaseImages = hasPreferredDatabaseImages
+    ? itemImages
+    : hasPreferredDatabaseMainImage && item.image
+      ? [item.image]
+      : [];
 
   return {
     ...item,
     legacyId: fallbackMatch?.legacyId || item.legacyId,
     seededId: fallbackMatch?.seededId || item.seededId,
-    image: fallbackMatch?.image || item.image || null,
+    image: hasPreferredDatabaseMainImage
+      ? item.image || fallbackMatch?.image || null
+      : fallbackMatch?.image || item.image || null,
     images:
-      fallbackImages.length > 0
+      preferredDatabaseImages.length > 0
+        ? preferredDatabaseImages
+        : fallbackImages.length > 0
         ? fallbackImages
-        : Array.isArray(item.images) && item.images.length > 0
-          ? item.images
-          : item.image
-            ? [item.image]
-            : [],
+        : itemImages,
   };
 }
 
