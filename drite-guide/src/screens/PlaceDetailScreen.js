@@ -36,8 +36,7 @@ export default function PlaceDetailScreen({ route }) {
   const placeId =
     routeParams.placeId ||
     routeParams.id ||
-    routeParams.place?.id ||
-    routeParams.place?.seededId;
+    routeParams.place?.id;
   const { getSavedPlaces, savePlace, removeSavedPlace, isLoggedIn } =
     useAuth();
   const { getPlaceById, getCityById } = useAppData();

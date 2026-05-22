@@ -58,7 +58,6 @@ import { translate } from '../i18n/translations';
 
 const AuthContext = createContext(null);
 
-const GUEST_SAVED_PLACES_KEY = '@drite_guide_guest_saved_places';
 const LANGUAGE_KEY = '@drite_guide_language';
 
 const FALLBACK_LANGUAGES = [
@@ -84,11 +83,7 @@ function findByAnyPlaceId(items, placeId) {
   return (items || []).filter(Boolean).find(
     (item) =>
       item.id === placeId ||
-      item.legacyId === placeId ||
-      item.seededId === placeId ||
-      String(item.id) === String(placeId) ||
-      String(item.legacyId) === String(placeId) ||
-      String(item.seededId) === String(placeId)
+      String(item.id) === String(placeId)
   );
 }
 
@@ -97,7 +92,6 @@ export function AuthProvider({ children }) {
   const [accessToken, setAccessTokenState] = useState(null);
   const [refreshToken, setRefreshTokenState] = useState(null);
   const [savedPlaces, setSavedPlaces] = useState([]);
-  const [guestSavedPlaces, setGuestSavedPlaces] = useState([]);
   const [trips, setTrips] = useState([]);
   const [languages, setLanguages] = useState(FALLBACK_LANGUAGES);
   const [currentLanguage, setCurrentLanguageState] = useState('en');
@@ -156,35 +150,6 @@ export function AuthProvider({ children }) {
     return true;
   };
 
-  const loadGuestSavedPlaces = async () => {
-    try {
-      const stored = await safeGetItem(GUEST_SAVED_PLACES_KEY);
-      const parsed = stored ? JSON.parse(stored) : [];
-      const nextGuestSavedPlaces = Array.isArray(parsed)
-        ? parsed.filter(Boolean)
-        : [];
-      setGuestSavedPlaces(nextGuestSavedPlaces);
-      if (Array.isArray(parsed) && parsed.length !== nextGuestSavedPlaces.length) {
-        await safeSetItem(
-          GUEST_SAVED_PLACES_KEY,
-          JSON.stringify(nextGuestSavedPlaces)
-        );
-      }
-    } catch (error) {
-      console.warn('Could not load guest saved places:', error?.message);
-      setGuestSavedPlaces([]);
-    }
-  };
-
-  const persistGuestSavedPlaces = async (nextSavedPlaces) => {
-    const compactSavedPlaces = (nextSavedPlaces || []).filter(Boolean);
-    setGuestSavedPlaces(compactSavedPlaces);
-    await safeSetItem(
-      GUEST_SAVED_PLACES_KEY,
-      JSON.stringify(compactSavedPlaces)
-    );
-  };
-
   const loadSavedPlaces = async () => {
     if (!currentUser?.id) {
       setSavedPlaces([]);
@@ -217,7 +182,6 @@ export function AuthProvider({ children }) {
 
   const bootstrapAuth = async () => {
     try {
-      await loadGuestSavedPlaces();
       const storedLanguage = await safeGetItem(LANGUAGE_KEY);
 
       await applyLanguage(storedLanguage || 'en');
@@ -466,8 +430,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const getSavedPlaces = () =>
-    (currentUser ? savedPlaces : guestSavedPlaces).filter(Boolean);
+  const getSavedPlaces = () => (currentUser ? savedPlaces : []).filter(Boolean);
   const getTrips = () => trips.filter((trip) => trip?.id);
 
   const getTrip = async (tripId) => {
@@ -762,23 +725,17 @@ export function AuthProvider({ children }) {
   };
 
   const savePlace = async (place) => {
-    const placeId = place?.seededId || place?.id;
+    const placeId = place?.id;
 
     if (!placeId) {
       return;
     }
 
     if (!currentUser) {
-      const alreadySaved = guestSavedPlaces
-        .filter(Boolean)
-        .some((item) => findByAnyPlaceId([item], placeId));
-
-      if (alreadySaved) {
-        return;
-      }
-
-      await persistGuestSavedPlaces([...guestSavedPlaces.filter(Boolean), place]);
-      return;
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
     }
 
     try {
@@ -800,10 +757,10 @@ export function AuthProvider({ children }) {
     }
 
     if (!currentUser) {
-      await persistGuestSavedPlaces(
-        guestSavedPlaces.filter((item) => item && !findByAnyPlaceId([item], placeId))
-      );
-      return;
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
     }
 
     try {
@@ -862,7 +819,6 @@ export function AuthProvider({ children }) {
       accessToken,
       refreshToken,
       savedPlaces,
-      guestSavedPlaces,
       trips,
       languages,
       currentLanguage,

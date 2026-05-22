@@ -20,7 +20,7 @@ import { formatDateRangeForDisplay } from '../utils/dateFormat';
 
 export default function AddToTripModal({ visible, place, onClose, onAdded }) {
   const { getTrips, getTrip, createTrip, addPlaceToTrip, inviteUserToTrip } = useAuth();
-  const supabasePlaceId = place?.seededId || place?.id;
+  const supabasePlaceId = place?.id;
   const trips = (getTrips() || []).filter((trip) => trip?.id);
   const [checkingTripId, setCheckingTripId] = useState(null);
   const [addingTripId, setAddingTripId] = useState(null);

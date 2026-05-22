@@ -11,26 +11,26 @@ drop policy if exists "Users can read their saved places" on public.saved_places
 create policy "Users can read their saved places"
 on public.saved_places for select
 to authenticated
-using (public.current_profile_id() = user_id);
+using (public.current_app_user_id() = user_id);
 
 drop policy if exists "Users can save places for themselves" on public.saved_places;
 create policy "Users can save places for themselves"
 on public.saved_places for insert
 to authenticated
-with check (public.current_profile_id() = user_id);
+with check (public.current_app_user_id() = user_id);
 
 drop policy if exists "Users can update their saved places" on public.saved_places;
 create policy "Users can update their saved places"
 on public.saved_places for update
 to authenticated
-using (public.current_profile_id() = user_id)
-with check (public.current_profile_id() = user_id);
+using (public.current_app_user_id() = user_id)
+with check (public.current_app_user_id() = user_id);
 
 drop policy if exists "Users can delete their saved places" on public.saved_places;
 create policy "Users can delete their saved places"
 on public.saved_places for delete
 to authenticated
-using (public.current_profile_id() = user_id);
+using (public.current_app_user_id() = user_id);
 
 drop policy if exists "Trip members can read trips" on public.trips;
 create policy "Trip members can read trips"
@@ -42,20 +42,20 @@ drop policy if exists "Users can create their own trips" on public.trips;
 create policy "Users can create their own trips"
 on public.trips for insert
 to authenticated
-with check (public.current_profile_id() = owner_id);
+with check (public.current_app_user_id() = owner_id);
 
 drop policy if exists "Trip owners can update trips" on public.trips;
 create policy "Trip owners can update trips"
 on public.trips for update
 to authenticated
-using (public.current_profile_id() = owner_id)
-with check (public.current_profile_id() = owner_id);
+using (public.current_app_user_id() = owner_id)
+with check (public.current_app_user_id() = owner_id);
 
 drop policy if exists "Trip owners can delete trips" on public.trips;
 create policy "Trip owners can delete trips"
 on public.trips for delete
 to authenticated
-using (public.current_profile_id() = owner_id);
+using (public.current_app_user_id() = owner_id);
 
 drop policy if exists "Trip members can read trip members" on public.trip_members;
 create policy "Trip members can read trip members"
@@ -67,7 +67,7 @@ drop policy if exists "Trip owners can add trip members" on public.trip_members;
 create policy "Trip owners can add trip members"
 on public.trip_members for insert
 to authenticated
-with check (public.is_trip_owner(trip_id) or public.current_profile_id() = user_id);
+with check (public.is_trip_owner(trip_id) or public.current_app_user_id() = user_id);
 
 drop policy if exists "Trip owners can update trip members" on public.trip_members;
 create policy "Trip owners can update trip members"
@@ -80,7 +80,7 @@ drop policy if exists "Trip owners and members can delete memberships" on public
 create policy "Trip owners and members can delete memberships"
 on public.trip_members for delete
 to authenticated
-using (public.is_trip_owner(trip_id) or public.current_profile_id() = user_id);
+using (public.is_trip_owner(trip_id) or public.current_app_user_id() = user_id);
 
 drop policy if exists "Trip members can read trip places" on public.trip_places;
 create policy "Trip members can read trip places"

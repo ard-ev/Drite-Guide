@@ -16,8 +16,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
-import { places } from '../data/places';
-import { cities } from '../data/cities';
+import { useAppData } from '../context/AppDataContext';
+import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
+import { useTranslation } from '../context/TranslationContext';
 import colors from '../theme/colors';
 
 const FALLBACK_LOCATION = {
@@ -60,6 +61,8 @@ const getStableRandomScore = (city) => {
 export default function ExploreScreen({ route }) {
   const navigation = useNavigation();
   const screenScrollRef = useRef(null);
+  const { places, cities } = useAppData();
+  const { language } = useTranslation();
 
   const [showMapExpanded, setShowMapExpanded] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
@@ -79,15 +82,7 @@ export default function ExploreScreen({ route }) {
       }
       return acc;
     }, {});
-  }, []);
-
-  const formatCategory = (categoryId) => {
-    if (!categoryId) return 'Place';
-
-    return categoryId
-      .replace(/[-_]/g, ' ')
-      .replace(/\b\w/g, (char) => char.toUpperCase());
-  };
+  }, [cities]);
 
   const getUserLocation = async () => {
     try {
@@ -140,7 +135,7 @@ export default function ExploreScreen({ route }) {
 
       return getStableRandomScore(left) - getStableRandomScore(right);
     });
-  }, []);
+  }, [cities]);
 
   const getPlacesCount = (cityId) => {
     return places.filter((place) => place.cityId === cityId).length;
@@ -174,7 +169,7 @@ export default function ExploreScreen({ route }) {
         typeof place.latitude === 'number' &&
         typeof place.longitude === 'number'
     );
-  }, []);
+  }, [places]);
 
   const nearbyPlaces = useMemo(() => {
     if (!userLocation) {
@@ -239,7 +234,7 @@ export default function ExploreScreen({ route }) {
         onPress={() => handleCityPress(city?.id)}
       >
         <ImageBackground
-          source={city.image}
+          source={getImageSource(city.image)}
           style={styles.cityImage}
           imageStyle={styles.cityImageStyle}
           resizeMode="cover"
@@ -276,7 +271,7 @@ export default function ExploreScreen({ route }) {
 
   const selectedCity = selectedPlace ? cityMap[selectedPlace.cityId] : null;
   const selectedCategory = selectedPlace
-    ? formatCategory(selectedPlace.categoryId)
+    ? getCategoryLabel(selectedPlace.categoryId, selectedPlace.categoryName, language)
     : 'Place';
 
   return (
@@ -413,7 +408,7 @@ export default function ExploreScreen({ route }) {
 
                     {selectedPlace.image && (
                       <Image
-                        source={selectedPlace.image}
+                        source={getImageSource(selectedPlace.image)}
                         style={styles.placePreviewImage}
                         resizeMode="cover"
                       />

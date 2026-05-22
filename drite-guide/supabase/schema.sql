@@ -49,7 +49,7 @@ begin
 end;
 $$;
 
-create or replace function public.generate_profile_public_id()
+create or replace function public.generate_user_public_id()
 returns text
 language sql
 volatile
@@ -58,13 +58,13 @@ as $$
   select public.generate_prefixed_id('usr', 'public.user_id_seq'::regclass);
 $$;
 
-create or replace function public.set_profile_public_id()
+create or replace function public.set_user_public_id()
 returns trigger
 language plpgsql
 as $$
 begin
   if new.id is null or btrim(new.id) = '' then
-    new.id := public.generate_profile_public_id();
+    new.id := public.generate_user_public_id();
   end if;
 
   return new;
@@ -119,8 +119,8 @@ begin
 end;
 $$;
 
-create table if not exists public.profiles (
-  id text primary key default public.generate_profile_public_id()
+create table if not exists public.users (
+  id text primary key default public.generate_user_public_id()
     check (id ~ '^usr_[0-9]{6}$'),
   auth_user_id uuid not null unique references auth.users(id) on delete cascade,
   first_name text not null default '',
@@ -135,8 +135,8 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
-comment on column public.profiles.profile_picture_path is
-  'Profile photo stored in the public profile-pictures bucket. Store either the object path, a profile-pictures/... storage path, or a full image URL.';
+comment on column public.users.profile_picture_path is
+  'User photo stored in the public profile-pictures bucket. Store either the object path, a profile-pictures/... storage path, or a full image URL.';
 
 create table if not exists public.signup_attempts (
   id uuid primary key default gen_random_uuid(),
@@ -153,6 +153,9 @@ create table if not exists public.categories (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+comment on column public.categories.image_path is
+  'Category image stored in the public category-images bucket. Store either the object path, a supabase://category-images/... reference, a category-images/... storage path, or a full image URL.';
 
 create table if not exists public.cities (
   id text primary key check (id ~ '^cty_[0-9]{6}$'),
@@ -186,7 +189,7 @@ create table if not exists public.places (
   rating_average numeric(3, 2) not null default 0,
   ratings_count integer not null default 0,
   is_featured boolean not null default false,
-  created_by_user_id text references public.profiles(id) on delete set null,
+  created_by_user_id text references public.users(id) on delete set null,
   deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -208,7 +211,7 @@ comment on column public.place_images.image_path is
   'Place gallery photo. Use a full https URL, a supabase://place-images/... reference, or a place-images/... storage path.';
 
 create table if not exists public.saved_places (
-  user_id text not null references public.profiles(id) on delete cascade,
+  user_id text not null references public.users(id) on delete cascade,
   place_id text not null references public.places(id) on delete cascade,
   priority integer,
   is_favorite boolean not null default false,
@@ -218,8 +221,8 @@ create table if not exists public.saved_places (
 );
 
 create table if not exists public.user_follows (
-  follower_id text not null references public.profiles(id) on delete cascade,
-  following_id text not null references public.profiles(id) on delete cascade,
+  follower_id text not null references public.users(id) on delete cascade,
+  following_id text not null references public.users(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (follower_id, following_id),
@@ -228,7 +231,7 @@ create table if not exists public.user_follows (
 
 create table if not exists public.trips (
   id uuid primary key default gen_random_uuid(),
-  owner_id text not null references public.profiles(id) on delete cascade,
+  owner_id text not null references public.users(id) on delete cascade,
   title text not null,
   description text,
   start_date date not null,
@@ -242,10 +245,10 @@ create table if not exists public.trips (
 create table if not exists public.trip_members (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references public.trips(id) on delete cascade,
-  user_id text not null references public.profiles(id) on delete cascade,
+  user_id text not null references public.users(id) on delete cascade,
   role text not null default 'member' check (role in ('owner', 'member')),
   status text not null default 'invited' check (status in ('invited', 'accepted')),
-  invited_by_user_id text references public.profiles(id) on delete set null,
+  invited_by_user_id text references public.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint trip_members_trip_user_unique unique (trip_id, user_id)
@@ -266,7 +269,7 @@ create table if not exists public.trip_places (
 );
 
 create index if not exists categories_name_idx on public.categories (name);
-create index if not exists profiles_auth_user_id_idx on public.profiles (auth_user_id);
+create index if not exists users_auth_user_id_idx on public.users (auth_user_id);
 create index if not exists signup_attempts_email_created_at_idx
   on public.signup_attempts (email_hash, created_at desc);
 create index if not exists signup_attempts_ip_created_at_idx
@@ -286,10 +289,10 @@ create index if not exists trip_members_user_id_idx on public.trip_members (user
 create index if not exists trip_places_trip_id_idx on public.trip_places (trip_id);
 create index if not exists trip_places_place_id_idx on public.trip_places (place_id);
 
-drop trigger if exists profiles_set_public_id on public.profiles;
-create trigger profiles_set_public_id
-before insert on public.profiles
-for each row execute function public.set_profile_public_id();
+drop trigger if exists users_set_public_id on public.users;
+create trigger users_set_public_id
+before insert on public.users
+for each row execute function public.set_user_public_id();
 
 drop trigger if exists categories_set_readable_id on public.categories;
 drop trigger if exists categories_set_public_id on public.categories;
@@ -309,9 +312,9 @@ create trigger places_set_public_id
 before insert on public.places
 for each row execute function public.set_place_public_id();
 
-drop trigger if exists profiles_set_updated_at on public.profiles;
-create trigger profiles_set_updated_at
-before update on public.profiles
+drop trigger if exists users_set_updated_at on public.users;
+create trigger users_set_updated_at
+before update on public.users
 for each row execute function public.set_updated_at();
 
 drop trigger if exists categories_set_updated_at on public.categories;
@@ -382,7 +385,7 @@ begin
 
   while exists (
     select 1
-    from public.profiles
+    from public.users
     where username = candidate_username
       and auth_user_id <> new.id
   ) loop
@@ -390,7 +393,7 @@ begin
     candidate_username := base_username || suffix::text;
   end loop;
 
-  insert into public.profiles (
+  insert into public.users (
     auth_user_id,
     first_name,
     last_name,
@@ -424,7 +427,7 @@ security definer
 set search_path = public
 as $$
 begin
-  update public.profiles
+  update public.users
   set
     email = lower(new.email),
     email_verified = new.email_confirmed_at is not null,
@@ -445,7 +448,7 @@ create trigger on_auth_user_email_updated
 after update of email, email_confirmed_at on auth.users
 for each row execute function public.handle_user_email_update();
 
-create or replace function public.current_profile_id()
+create or replace function public.current_app_user_id()
 returns text
 language sql
 stable
@@ -453,13 +456,13 @@ security definer
 set search_path = public
 as $$
   select id
-  from public.profiles
+  from public.users
   where auth_user_id = (select auth.uid())
   limit 1;
 $$;
 
-revoke all on function public.current_profile_id() from public;
-grant execute on function public.current_profile_id() to authenticated;
+revoke all on function public.current_app_user_id() from public;
+grant execute on function public.current_app_user_id() to authenticated;
 
 create or replace function public.is_trip_owner(trip_uuid uuid)
 returns boolean
@@ -472,7 +475,7 @@ as $$
     select 1
     from public.trips
     where id = trip_uuid
-      and owner_id = public.current_profile_id()
+      and owner_id = public.current_app_user_id()
   );
 $$;
 
@@ -490,20 +493,20 @@ as $$
     select 1
     from public.trips
     where id = trip_uuid
-      and owner_id = public.current_profile_id()
+      and owner_id = public.current_app_user_id()
   )
   or exists (
     select 1
     from public.trip_members
     where trip_id = trip_uuid
-      and user_id = public.current_profile_id()
+      and user_id = public.current_app_user_id()
   );
 $$;
 
 revoke all on function public.is_trip_member(uuid) from public;
 grant execute on function public.is_trip_member(uuid) to authenticated;
 
-alter table public.profiles enable row level security;
+alter table public.users enable row level security;
 alter table public.signup_attempts enable row level security;
 alter table public.categories enable row level security;
 alter table public.cities enable row level security;
@@ -522,23 +525,23 @@ grant usage, select on sequence public.city_id_seq to authenticated;
 grant usage, select on sequence public.place_id_seq to authenticated;
 revoke all on function public.is_strong_signup_password(text) from public;
 grant execute on function public.is_strong_signup_password(text) to service_role;
-grant select on public.profiles to anon, authenticated;
+grant select on public.users to anon, authenticated;
 revoke all on public.signup_attempts from anon, authenticated;
 grant select on public.categories to anon, authenticated;
 grant select on public.cities to anon, authenticated;
 grant select on public.places to anon, authenticated;
 grant select on public.place_images to anon, authenticated;
 
-grant select, insert, update on public.profiles to authenticated;
+grant select, insert, update on public.users to authenticated;
 grant select, insert, update, delete on public.saved_places to authenticated;
 grant select, insert, delete on public.user_follows to authenticated;
 grant select, insert, update, delete on public.trips to authenticated;
 grant select, insert, update, delete on public.trip_members to authenticated;
 grant select, insert, update, delete on public.trip_places to authenticated;
 
-drop policy if exists "Public can read profiles" on public.profiles;
-create policy "Public can read profiles"
-on public.profiles for select
+drop policy if exists "Public can read users" on public.users;
+create policy "Public can read users"
+on public.users for select
 using (true);
 
 drop policy if exists "No client access to signup attempts" on public.signup_attempts;
@@ -548,14 +551,16 @@ to anon, authenticated
 using (false)
 with check (false);
 
-drop policy if exists "Users can insert their own profile" on public.profiles;
-create policy "Users can insert their own profile"
-on public.profiles for insert
+drop policy if exists "Users can insert their own profile" on public.users;
+drop policy if exists "Users can insert themselves" on public.users;
+create policy "Users can insert themselves"
+on public.users for insert
 with check ((select auth.uid()) = auth_user_id);
 
-drop policy if exists "Users can update their own profile" on public.profiles;
-create policy "Users can update their own profile"
-on public.profiles for update
+drop policy if exists "Users can update their own profile" on public.users;
+drop policy if exists "Users can update themselves" on public.users;
+create policy "Users can update themselves"
+on public.users for update
 using ((select auth.uid()) = auth_user_id)
 with check ((select auth.uid()) = auth_user_id);
 
@@ -582,23 +587,23 @@ using (true);
 drop policy if exists "Users can read their saved places" on public.saved_places;
 create policy "Users can read their saved places"
 on public.saved_places for select
-using (public.current_profile_id() = user_id);
+using (public.current_app_user_id() = user_id);
 
 drop policy if exists "Users can save places for themselves" on public.saved_places;
 create policy "Users can save places for themselves"
 on public.saved_places for insert
-with check (public.current_profile_id() = user_id);
+with check (public.current_app_user_id() = user_id);
 
 drop policy if exists "Users can update their saved places" on public.saved_places;
 create policy "Users can update their saved places"
 on public.saved_places for update
-using (public.current_profile_id() = user_id)
-with check (public.current_profile_id() = user_id);
+using (public.current_app_user_id() = user_id)
+with check (public.current_app_user_id() = user_id);
 
 drop policy if exists "Users can delete their saved places" on public.saved_places;
 create policy "Users can delete their saved places"
 on public.saved_places for delete
-using (public.current_profile_id() = user_id);
+using (public.current_app_user_id() = user_id);
 
 drop policy if exists "Public can read follows" on public.user_follows;
 create policy "Public can read follows"
@@ -608,12 +613,12 @@ using (true);
 drop policy if exists "Users can follow as themselves" on public.user_follows;
 create policy "Users can follow as themselves"
 on public.user_follows for insert
-with check (public.current_profile_id() = follower_id);
+with check (public.current_app_user_id() = follower_id);
 
 drop policy if exists "Users can unfollow as themselves" on public.user_follows;
 create policy "Users can unfollow as themselves"
 on public.user_follows for delete
-using (public.current_profile_id() = follower_id);
+using (public.current_app_user_id() = follower_id);
 
 drop policy if exists "Trip members can read trips" on public.trips;
 create policy "Trip members can read trips"
@@ -623,18 +628,18 @@ using (public.is_trip_member(id));
 drop policy if exists "Users can create their own trips" on public.trips;
 create policy "Users can create their own trips"
 on public.trips for insert
-with check (public.current_profile_id() = owner_id);
+with check (public.current_app_user_id() = owner_id);
 
 drop policy if exists "Trip owners can update trips" on public.trips;
 create policy "Trip owners can update trips"
 on public.trips for update
-using (public.current_profile_id() = owner_id)
-with check (public.current_profile_id() = owner_id);
+using (public.current_app_user_id() = owner_id)
+with check (public.current_app_user_id() = owner_id);
 
 drop policy if exists "Trip owners can delete trips" on public.trips;
 create policy "Trip owners can delete trips"
 on public.trips for delete
-using (public.current_profile_id() = owner_id);
+using (public.current_app_user_id() = owner_id);
 
 drop policy if exists "Trip members can read trip members" on public.trip_members;
 create policy "Trip members can read trip members"
@@ -644,7 +649,7 @@ using (public.is_trip_member(trip_id));
 drop policy if exists "Trip owners can add trip members" on public.trip_members;
 create policy "Trip owners can add trip members"
 on public.trip_members for insert
-with check (public.is_trip_owner(trip_id) or public.current_profile_id() = user_id);
+with check (public.is_trip_owner(trip_id) or public.current_app_user_id() = user_id);
 
 drop policy if exists "Trip owners can update trip members" on public.trip_members;
 create policy "Trip owners can update trip members"
@@ -655,7 +660,7 @@ with check (public.is_trip_owner(trip_id));
 drop policy if exists "Trip owners and members can delete memberships" on public.trip_members;
 create policy "Trip owners and members can delete memberships"
 on public.trip_members for delete
-using (public.is_trip_owner(trip_id) or public.current_profile_id() = user_id);
+using (public.is_trip_owner(trip_id) or public.current_app_user_id() = user_id);
 
 drop policy if exists "Trip members can read trip places" on public.trip_places;
 create policy "Trip members can read trip places"
@@ -706,7 +711,7 @@ on storage.objects for insert
 to authenticated
 with check (
   bucket_id = 'profile-pictures'
-  and (storage.foldername(name))[1] = public.current_profile_id()
+  and (storage.foldername(name))[1] = public.current_app_user_id()
 );
 
 drop policy if exists "Users can update their profile pictures" on storage.objects;
@@ -715,11 +720,11 @@ on storage.objects for update
 to authenticated
 using (
   bucket_id = 'profile-pictures'
-  and (storage.foldername(name))[1] = public.current_profile_id()
+  and (storage.foldername(name))[1] = public.current_app_user_id()
 )
 with check (
   bucket_id = 'profile-pictures'
-  and (storage.foldername(name))[1] = public.current_profile_id()
+  and (storage.foldername(name))[1] = public.current_app_user_id()
 );
 
 drop policy if exists "Users can delete their profile pictures" on storage.objects;
@@ -728,5 +733,5 @@ on storage.objects for delete
 to authenticated
 using (
   bucket_id = 'profile-pictures'
-  and (storage.foldername(name))[1] = public.current_profile_id()
+  and (storage.foldername(name))[1] = public.current_app_user_id()
 );

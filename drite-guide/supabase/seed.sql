@@ -3,15 +3,15 @@
 
 insert into public.categories (id, name, image_path)
 values
-  ('cat_000001', 'Hotels', 'assets/catimg/hotels.jpg'),
-  ('cat_000002', 'Restaurants', 'assets/catimg/restaurant.jpg'),
-  ('cat_000003', 'Beaches', 'assets/catimg/beaches.jpg'),
-  ('cat_000004', 'Bars', 'assets/catimg/bars.jpg'),
-  ('cat_000005', 'Cafes', 'assets/catimg/cafe.jpg'),
-  ('cat_000006', 'Historical Sites', 'assets/catimg/historical.jpg'),
-  ('cat_000007', 'Hidden Gems', 'assets/catimg/hiddengems.jpg'),
-  ('cat_000008', 'Government Help', 'assets/catimg/governmentservices.jpg'),
-  ('cat_000009', 'Religious Sites', 'assets/catimg/religious.jpg')
+  ('cat_000001', 'Hotels', 'hotels.jpg'),
+  ('cat_000002', 'Restaurants', 'restaurant.jpg'),
+  ('cat_000003', 'Beaches', 'beaches.jpg'),
+  ('cat_000004', 'Bars', 'bars.jpg'),
+  ('cat_000005', 'Cafes', 'cafe.jpg'),
+  ('cat_000006', 'Historical Sites', 'historical.jpg'),
+  ('cat_000007', 'Hidden Gems', 'hiddengems.jpg'),
+  ('cat_000008', 'Government Help', 'governmentservices.jpg'),
+  ('cat_000009', 'Religious Sites', 'religious.jpg')
 on conflict (id) do update set name = excluded.name, image_path = excluded.image_path, updated_at = excluded.updated_at;
 
 insert into public.cities (id, city_name, image_path, hero_image_path, location_text, latitude, longitude, description, is_featured)

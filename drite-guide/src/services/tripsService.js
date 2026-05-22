@@ -48,7 +48,7 @@ async function getTripMembers(tripId) {
   }
 
   const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
+    .from('users')
     .select('*')
     .in('id', userIds);
 

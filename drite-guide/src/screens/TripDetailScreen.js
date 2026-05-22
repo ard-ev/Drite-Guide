@@ -212,7 +212,7 @@ export default function TripDetailScreen({ route }) {
       return;
     }
 
-    const nextAddingPlaceId = place.seededId || place.id;
+    const nextAddingPlaceId = place.id;
     setAddingPlaceId(nextAddingPlaceId);
     const result = await addPlaceToTrip(trip.id, {
       place_id: nextAddingPlaceId,
@@ -318,7 +318,6 @@ export default function TripDetailScreen({ route }) {
     (tripPlace) =>
       tripPlace.placeId ||
       tripPlace.place_id ||
-      tripPlace.place?.seededId ||
       tripPlace.place?.id
   );
 

@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
   });
 
   const { data: existingUsername, error: usernameError } = await admin
-    .from('profiles')
+    .from('users')
     .select('id')
     .eq('username', username)
     .maybeSingle();
@@ -261,7 +261,7 @@ Deno.serve(async (req) => {
   };
 
   const { data: profile, error: profileError } = await admin
-    .from('profiles')
+    .from('users')
     .upsert(profilePayload, { onConflict: 'auth_user_id' })
     .select('*')
     .single();

@@ -38,7 +38,7 @@ export async function getAuthenticatedProfileId(expectedProfileId = null) {
   }
 
   const { data: profile, error: profileError } = await supabase
-    .from('profiles')
+    .from('users')
     .select('id')
     .eq('auth_user_id', authUserId)
     .maybeSingle();

@@ -119,7 +119,7 @@ export async function getProfileById(userId, currentUserId = null, authUser = nu
   }
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .select('*')
     .eq('id', userId)
     .maybeSingle();
@@ -140,7 +140,7 @@ export async function getProfileByAuthUserId(
   }
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .select('*')
     .eq('auth_user_id', authUserId)
     .maybeSingle();
@@ -170,7 +170,7 @@ export async function ensureUserProfile(authUser, fallback = {}) {
     };
 
     const { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .update(updatePayload)
       .eq('auth_user_id', authUser.id)
       .select('*')
@@ -190,7 +190,7 @@ export async function ensureUserProfile(authUser, fallback = {}) {
   };
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .insert(profilePayload)
     .select('*')
     .single();
@@ -209,7 +209,7 @@ export async function getProfileByUsername(username, currentUserId = null) {
   }
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .select('*')
     .eq('username', normalizedUsername)
     .maybeSingle();
@@ -228,7 +228,7 @@ export async function isUsernameAvailable(username) {
   }
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .select('id')
     .eq('username', normalizedUsername)
     .maybeSingle();
@@ -248,7 +248,7 @@ export async function searchProfiles(query, currentUserId = null, limit = 8) {
 
   const normalizedTerm = normalizeUsername(term);
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .select('*')
     .or(
       `username.ilike.%${normalizedTerm}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`
@@ -278,7 +278,7 @@ export async function updateProfile(userId, updates) {
   }
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('users')
     .update(safeUpdates)
     .eq('id', userId)
     .select('*')
@@ -435,7 +435,7 @@ export async function getProfileConnections(username, listType, currentUserId = 
   }
 
   const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
+    .from('users')
     .select('*')
     .in('id', targetIds);
 

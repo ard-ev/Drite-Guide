@@ -169,12 +169,8 @@ export default function TripPlacePickerModal({
               </View>
             ) : (
               filteredPlaces.map((place) => {
-                const isAdded =
-                  existingIds.has(String(place.id)) ||
-                  existingIds.has(String(place.seededId));
-                const isAdding =
-                  String(addingPlaceId || '') === String(place.id) ||
-                  String(addingPlaceId || '') === String(place.seededId);
+                const isAdded = existingIds.has(String(place.id));
+                const isAdding = String(addingPlaceId || '') === String(place.id);
 
                 return (
                   <TouchableOpacity
