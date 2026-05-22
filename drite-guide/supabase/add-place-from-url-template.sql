@@ -1,10 +1,13 @@
--- Add a new place from Supabase using image URLs.
+-- Add a new place from Supabase using image URLs or Storage object paths.
 -- Edit the values in new_place_input and photo_input, then run this file in
 -- the Supabase SQL editor.
 --
 -- The app reads public.places and public.place_images automatically.
--- Photo values can be full https URLs, supabase://place-images/... references,
--- or place-images/... storage paths.
+-- Recommended: upload files to the public place-images bucket, then store the
+-- object path, for example: coffee-shops/example-coffee-shop/main.jpg
+-- The app maps that path to a public Supabase URL automatically.
+-- Photo values can also be full https URLs, supabase://place-images/...
+-- references, or place-images/... storage paths.
 
 with new_place_input as (
   select
@@ -16,7 +19,7 @@ with new_place_input as (
     'https://maps.google.com'::text as google_maps_link,
     41.3275::double precision as latitude,
     19.8187::double precision as longitude,
-    'https://YOUR-PROJECT.supabase.co/storage/v1/object/public/place-images/example-coffee-shop/main.jpg'::text as main_image_url,
+    'coffee-shops/example-coffee-shop/main.jpg'::text as main_image_url,
     null::text as phone,
     null::text as website,
     0::numeric(3, 2) as rating_average,
@@ -26,9 +29,9 @@ photo_input as (
   select *
   from (
     values
-      (0, 'https://YOUR-PROJECT.supabase.co/storage/v1/object/public/place-images/example-coffee-shop/main.jpg'),
-      (1, 'https://YOUR-PROJECT.supabase.co/storage/v1/object/public/place-images/example-coffee-shop/interior.jpg'),
-      (2, 'https://YOUR-PROJECT.supabase.co/storage/v1/object/public/place-images/example-coffee-shop/coffee.jpg')
+      (0, 'coffee-shops/example-coffee-shop/main.jpg'),
+      (1, 'coffee-shops/example-coffee-shop/interior.jpg'),
+      (2, 'coffee-shops/example-coffee-shop/coffee.jpg')
   ) as photos(sort_order, image_url)
 ),
 matching_city as (

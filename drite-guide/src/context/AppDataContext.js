@@ -198,14 +198,22 @@ function findFallbackMatch(fallbackItems, item, candidates = []) {
 function isPreferredDatabaseImagePath(value) {
   const imagePath = String(value || '').trim();
 
-  return (
+  if (!imagePath || imagePath.startsWith('assets/')) {
+    return false;
+  }
+
+  if (
     imagePath.startsWith('http://') ||
     imagePath.startsWith('https://') ||
     imagePath.startsWith('file://') ||
     imagePath.startsWith('data:') ||
     imagePath.startsWith('supabase://') ||
     imagePath.startsWith('place-images/')
-  );
+  ) {
+    return true;
+  }
+
+  return /\.(avif|gif|jpe?g|png|webp)$/i.test(imagePath);
 }
 
 function enrichCategory(item, fallbackCategories) {
