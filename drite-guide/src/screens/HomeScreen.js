@@ -66,7 +66,7 @@ export default function HomeScreen({ route }) {
   const [cityResults, setCityResults] = useState([]);
   const refreshKey = route?.params?.refreshKey;
   const heroWidth = Math.max(windowWidth - SCREEN_HORIZONTAL_PADDING * 2, 0);
-  const baseHeroHeight = heroWidth < 330 ? 268 : heroWidth < 370 ? 252 : 236;
+  const baseHeroHeight = heroWidth < 250 ? 230 : heroWidth < 370 ? 218 : 206;
   const heroHeight = Math.round(baseHeroHeight * Math.max(1, fontScale));
   const heroFrameStyle = { width: heroWidth, height: heroHeight };
 
@@ -1183,7 +1183,8 @@ const styles = StyleSheet.create({
 
   partnerHeroCard: {
     borderRadius: 24,
-    padding: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     overflow: 'hidden',
     backgroundColor: '#101418',
     justifyContent: 'space-between',
@@ -1259,7 +1260,7 @@ const styles = StyleSheet.create({
   },
 
   partnerHeroFooter: {
-    marginTop: 10,
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
