@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+
 export function getSupabaseErrorMessage(error, fallbackMessage = 'Something went wrong.') {
   if (!error) {
     return fallbackMessage;
@@ -22,6 +24,24 @@ export function throwIfSupabaseError(error, fallbackMessage) {
   if (error) {
     throw new Error(getSupabaseErrorMessage(error, fallbackMessage));
   }
+}
+
+export async function getAuthenticatedUserId(expectedUserId = null) {
+  const { data, error } = await supabase.auth.getUser();
+
+  throwIfSupabaseError(error, 'Please sign in again.');
+
+  const authUserId = data?.user?.id;
+
+  if (!authUserId) {
+    throw new Error('Please sign in again.');
+  }
+
+  if (expectedUserId && String(expectedUserId) !== String(authUserId)) {
+    throw new Error('Your session changed. Please sign out and sign back in.');
+  }
+
+  return authUserId;
 }
 
 export function normalizeUsername(value) {

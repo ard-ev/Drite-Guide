@@ -161,13 +161,22 @@ export default function PlaceDetailScreen({ route }) {
     }
   };
 
-  const handleToggleSaved = () => {
+  const handleToggleSaved = async () => {
     if (isSaved) {
-      removeSavedPlace(safePlaceId);
+      const result = await removeSavedPlace(safePlaceId);
+
+      if (result && !result.success) {
+        Alert.alert('Save failed', result.message);
+      }
+
       return;
     }
 
-    savePlace(place);
+    const result = await savePlace(place);
+
+    if (result && !result.success) {
+      Alert.alert('Save failed', result.message);
+    }
   };
 
   return (

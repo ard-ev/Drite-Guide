@@ -784,8 +784,13 @@ export function AuthProvider({ children }) {
     try {
       await savePlaceToSupabase(currentUser.id, placeId);
       await loadSavedPlaces();
+      return { success: true };
     } catch (error) {
       console.warn('Could not save place:', error?.message);
+      return {
+        success: false,
+        message: getSupabaseErrorMessage(error, 'Could not save this place.'),
+      };
     }
   };
 
@@ -805,8 +810,13 @@ export function AuthProvider({ children }) {
       const savedPlace = findByAnyPlaceId(savedPlaces, placeId);
       await removeSavedPlaceFromSupabase(currentUser.id, savedPlace?.id || placeId);
       await loadSavedPlaces();
+      return { success: true };
     } catch (error) {
       console.warn('Could not remove saved place:', error?.message);
+      return {
+        success: false,
+        message: getSupabaseErrorMessage(error, 'Could not remove this saved place.'),
+      };
     }
   };
 
