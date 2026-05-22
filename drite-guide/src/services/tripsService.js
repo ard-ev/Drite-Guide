@@ -1,7 +1,7 @@
 import { assertSupabaseConfigured, supabase } from '../lib/supabase';
 import { getPlacesByIds } from './placesService';
 import { getProfileByUsername } from './profileService';
-import { getAuthenticatedUserId, throwIfSupabaseError } from './supabaseService';
+import { getAuthenticatedProfileId, throwIfSupabaseError } from './supabaseService';
 
 function normalizeDatePayload(payload) {
   const nextPayload = {};
@@ -167,12 +167,12 @@ export async function getTripsForUser(userId) {
 
 export async function createTrip(userId, payload) {
   assertSupabaseConfigured();
-  const authUserId = await getAuthenticatedUserId(userId);
+  const profileId = await getAuthenticatedProfileId(userId);
 
   const { data, error } = await supabase
     .from('trips')
     .insert({
-      owner_id: authUserId,
+      owner_id: profileId,
       ...normalizeDatePayload(payload),
     })
     .select('*')
@@ -184,10 +184,10 @@ export async function createTrip(userId, payload) {
     .from('trip_members')
     .insert({
       trip_id: data.id,
-      user_id: authUserId,
+      user_id: profileId,
       role: 'owner',
       status: 'accepted',
-      invited_by_user_id: authUserId,
+      invited_by_user_id: profileId,
     });
 
   throwIfSupabaseError(memberError, 'Trip owner could not be added.');
@@ -196,7 +196,7 @@ export async function createTrip(userId, payload) {
 
 export async function updateTrip(tripId, userId, payload) {
   assertSupabaseConfigured();
-  const authUserId = await getAuthenticatedUserId(userId);
+  const profileId = await getAuthenticatedProfileId(userId);
 
   const { data, error } = await supabase
     .from('trips')
@@ -205,7 +205,7 @@ export async function updateTrip(tripId, userId, payload) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', tripId)
-    .eq('owner_id', authUserId)
+    .eq('owner_id', profileId)
     .select('*')
     .single();
 
@@ -215,20 +215,20 @@ export async function updateTrip(tripId, userId, payload) {
 
 export async function deleteTrip(tripId, userId) {
   assertSupabaseConfigured();
-  const authUserId = await getAuthenticatedUserId(userId);
+  const profileId = await getAuthenticatedProfileId(userId);
 
   const { error } = await supabase
     .from('trips')
     .delete()
     .eq('id', tripId)
-    .eq('owner_id', authUserId);
+    .eq('owner_id', profileId);
 
   throwIfSupabaseError(error, 'Trip deletion failed.');
 }
 
 export async function addPlaceToTrip(tripId, payload) {
   assertSupabaseConfigured();
-  await getAuthenticatedUserId();
+  await getAuthenticatedProfileId();
 
   const { count } = await supabase
     .from('trip_places')
@@ -260,7 +260,7 @@ export async function addPlaceToTrip(tripId, payload) {
 
 export async function updateTripPlace(tripId, tripPlaceId, payload) {
   assertSupabaseConfigured();
-  await getAuthenticatedUserId();
+  await getAuthenticatedProfileId();
 
   const { data, error } = await supabase
     .from('trip_places')
@@ -288,7 +288,7 @@ export async function updateTripPlace(tripId, tripPlaceId, payload) {
 
 export async function removeTripPlace(tripId, tripPlaceId) {
   assertSupabaseConfigured();
-  await getAuthenticatedUserId();
+  await getAuthenticatedProfileId();
 
   const { error } = await supabase
     .from('trip_places')
@@ -301,9 +301,9 @@ export async function removeTripPlace(tripId, tripPlaceId) {
 
 export async function inviteUserToTrip(tripId, username, invitedByUserId) {
   assertSupabaseConfigured();
-  const authUserId = await getAuthenticatedUserId(invitedByUserId);
+  const profileId = await getAuthenticatedProfileId(invitedByUserId);
 
-  const targetProfile = await getProfileByUsername(username, authUserId);
+  const targetProfile = await getProfileByUsername(username, profileId);
 
   if (!targetProfile?.id) {
     throw new Error('User account could not be found.');
@@ -317,7 +317,7 @@ export async function inviteUserToTrip(tripId, username, invitedByUserId) {
         user_id: targetProfile.id,
         role: 'member',
         status: 'invited',
-        invited_by_user_id: authUserId,
+        invited_by_user_id: profileId,
       },
       { onConflict: 'trip_id,user_id' }
     )
@@ -334,7 +334,7 @@ export async function inviteUserToTrip(tripId, username, invitedByUserId) {
 
 export async function removeTripMember(tripId, userId) {
   assertSupabaseConfigured();
-  await getAuthenticatedUserId();
+  await getAuthenticatedProfileId();
 
   const { error } = await supabase
     .from('trip_members')

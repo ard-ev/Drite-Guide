@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
   }
 
   const profilePayload = {
-    id: createdUser.user.id,
+    auth_user_id: createdUser.user.id,
     first_name: firstName,
     last_name: lastName,
     email,
@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
 
   const { data: profile, error: profileError } = await admin
     .from('profiles')
-    .upsert(profilePayload, { onConflict: 'id' })
+    .upsert(profilePayload, { onConflict: 'auth_user_id' })
     .select('*')
     .single();
 

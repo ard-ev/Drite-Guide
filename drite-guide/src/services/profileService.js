@@ -27,7 +27,7 @@ function pickProfileMetadata(authUser, fallback = {}) {
     normalizeUsername(email.split('@')[0]);
 
   return {
-    id: authUser?.id || fallback.id,
+    auth_user_id: authUser?.id || fallback.auth_user_id || fallback.authUserId,
     first_name: metadata.first_name || fallback.first_name || fallback.firstName || '',
     last_name: metadata.last_name || fallback.last_name || fallback.lastName || '',
     email: email.toLowerCase(),
@@ -128,6 +128,27 @@ export async function getProfileById(userId, currentUserId = null, authUser = nu
   return hydrateProfile(data, currentUserId, authUser);
 }
 
+export async function getProfileByAuthUserId(
+  authUserId,
+  currentUserId = null,
+  authUser = null
+) {
+  assertSupabaseConfigured();
+
+  if (!authUserId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('auth_user_id', authUserId)
+    .maybeSingle();
+
+  throwIfSupabaseError(error, 'Could not load profile.');
+  return hydrateProfile(data, currentUserId, authUser);
+}
+
 export async function ensureUserProfile(authUser, fallback = {}) {
   assertSupabaseConfigured();
 
@@ -135,7 +156,11 @@ export async function ensureUserProfile(authUser, fallback = {}) {
     return null;
   }
 
-  const existingProfile = await getProfileById(authUser.id, authUser.id, authUser);
+  const existingProfile = await getProfileByAuthUserId(
+    authUser.id,
+    null,
+    authUser
+  );
 
   if (existingProfile) {
     const updatePayload = {
@@ -147,7 +172,7 @@ export async function ensureUserProfile(authUser, fallback = {}) {
     const { data, error } = await supabase
       .from('profiles')
       .update(updatePayload)
-      .eq('id', authUser.id)
+      .eq('auth_user_id', authUser.id)
       .select('*')
       .single();
 
@@ -155,7 +180,7 @@ export async function ensureUserProfile(authUser, fallback = {}) {
       return existingProfile;
     }
 
-    return hydrateProfile(data, authUser.id, authUser);
+    return hydrateProfile(data, existingProfile.id, authUser);
   }
 
   const profilePayload = {
@@ -171,7 +196,7 @@ export async function ensureUserProfile(authUser, fallback = {}) {
     .single();
 
   throwIfSupabaseError(error, 'Could not create profile.');
-  return hydrateProfile(data, authUser.id, authUser);
+  return hydrateProfile(data, data?.id, authUser);
 }
 
 export async function getProfileByUsername(username, currentUserId = null) {

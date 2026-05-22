@@ -20,7 +20,7 @@ import {
   signUp,
 } from '../services/authService';
 import {
-  getProfileById,
+  ensureUserProfile,
   resetProfilePicture as resetProfilePictureInSupabase,
   updatePreferredLanguage,
   uploadProfilePicture as uploadProfilePictureToSupabase,
@@ -149,7 +149,7 @@ export function AuthProvider({ children }) {
     const session = await getCurrentSession();
 
     if (session?.user) {
-      const profile = await getProfileById(session.user.id, session.user.id, session.user);
+      const profile = await ensureUserProfile(session.user);
       await applySessionState(session, profile);
     }
 
@@ -235,7 +235,7 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      const profile = await getProfileById(session.user.id, session.user.id, session.user);
+      const profile = await ensureUserProfile(session.user);
       await applySessionState(session, profile);
     } catch (error) {
       console.warn('Auth bootstrap failed:', error?.message);
@@ -280,7 +280,7 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const profile = await getProfileById(session.user.id, session.user.id, session.user);
+        const profile = await ensureUserProfile(session.user);
         if (isMounted) {
           await applySessionState(session, profile);
         }

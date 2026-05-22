@@ -26,7 +26,7 @@ export function throwIfSupabaseError(error, fallbackMessage) {
   }
 }
 
-export async function getAuthenticatedUserId(expectedUserId = null) {
+export async function getAuthenticatedProfileId(expectedProfileId = null) {
   const { data, error } = await supabase.auth.getUser();
 
   throwIfSupabaseError(error, 'Please sign in again.');
@@ -37,12 +37,28 @@ export async function getAuthenticatedUserId(expectedUserId = null) {
     throw new Error('Please sign in again.');
   }
 
-  if (expectedUserId && String(expectedUserId) !== String(authUserId)) {
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', authUserId)
+    .maybeSingle();
+
+  throwIfSupabaseError(profileError, 'Please sign in again.');
+
+  const profileId = profile?.id;
+
+  if (!profileId) {
+    throw new Error('Profile could not be loaded. Please sign out and sign back in.');
+  }
+
+  if (expectedProfileId && String(expectedProfileId) !== String(profileId)) {
     throw new Error('Your session changed. Please sign out and sign back in.');
   }
 
-  return authUserId;
+  return profileId;
 }
+
+export const getAuthenticatedUserId = getAuthenticatedProfileId;
 
 export function normalizeUsername(value) {
   return String(value || '')

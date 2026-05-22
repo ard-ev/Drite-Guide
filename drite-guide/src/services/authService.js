@@ -307,7 +307,8 @@ export async function signUp({
       : null;
   } catch (_profileError) {
     profile = {
-      id: data?.user?.id,
+      id: null,
+      auth_user_id: data?.user?.id,
       first_name: String(firstName || '').trim(),
       last_name: String(lastName || '').trim(),
       email: normalizedEmail,

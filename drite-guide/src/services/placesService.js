@@ -11,9 +11,6 @@ const PLACE_WITH_IMAGES_SELECT = `
   )
 `;
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 function sortPlaceImages(place) {
   if (!Array.isArray(place?.images)) {
     return place;
@@ -83,8 +80,7 @@ export async function getPlaces(filters = {}) {
 export async function getPlacesByIds(placeIds = []) {
   assertSupabaseConfigured();
 
-  const uniqueIds = [...new Set((placeIds || []).filter(Boolean))]
-    .filter((placeId) => UUID_PATTERN.test(String(placeId)));
+  const uniqueIds = [...new Set((placeIds || []).filter(Boolean).map(String))];
 
   if (uniqueIds.length === 0) {
     return [];
@@ -107,7 +103,7 @@ export async function getPlacesByIds(placeIds = []) {
 export async function getPlaceById(placeId) {
   assertSupabaseConfigured();
 
-  if (!placeId || !UUID_PATTERN.test(String(placeId))) {
+  if (!placeId) {
     return null;
   }
 

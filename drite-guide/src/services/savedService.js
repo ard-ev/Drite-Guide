@@ -1,6 +1,6 @@
 import { assertSupabaseConfigured, supabase } from '../lib/supabase';
 import { getPlacesByIds } from './placesService';
-import { getAuthenticatedUserId, throwIfSupabaseError } from './supabaseService';
+import { getAuthenticatedProfileId, throwIfSupabaseError } from './supabaseService';
 
 export async function getSavedPlaces(userId) {
   assertSupabaseConfigured();
@@ -23,13 +23,13 @@ export async function getSavedPlaces(userId) {
 
 export async function savePlace(userId, placeId) {
   assertSupabaseConfigured();
-  const authUserId = await getAuthenticatedUserId(userId);
+  const profileId = await getAuthenticatedProfileId(userId);
 
   const { error } = await supabase
     .from('saved_places')
     .upsert(
       {
-        user_id: authUserId,
+        user_id: profileId,
         place_id: placeId,
       },
       { onConflict: 'user_id,place_id' }
@@ -40,12 +40,12 @@ export async function savePlace(userId, placeId) {
 
 export async function removeSavedPlace(userId, placeId) {
   assertSupabaseConfigured();
-  const authUserId = await getAuthenticatedUserId(userId);
+  const profileId = await getAuthenticatedProfileId(userId);
 
   const { error } = await supabase
     .from('saved_places')
     .delete()
-    .eq('user_id', authUserId)
+    .eq('user_id', profileId)
     .eq('place_id', placeId);
 
   throwIfSupabaseError(error, 'Could not remove this saved place.');
