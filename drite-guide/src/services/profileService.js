@@ -333,7 +333,7 @@ export async function uploadProfilePicture(userId, asset) {
   throwIfSupabaseError(error, 'Could not upload profile picture.');
 
   return updateProfile(userId, {
-    profile_picture_path: `${STORAGE_BUCKETS.profilePictures}/${data?.path || filePath}`,
+    profile_picture_path: data?.path || filePath,
   });
 }
 

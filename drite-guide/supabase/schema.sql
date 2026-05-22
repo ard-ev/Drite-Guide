@@ -41,6 +41,9 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+comment on column public.profiles.profile_picture_path is
+  'Profile photo stored in the public profile-pictures bucket. Store either the object path, a profile-pictures/... storage path, or a full image URL.';
+
 create table if not exists public.signup_attempts (
   id uuid primary key default gen_random_uuid(),
   email_hash text not null,
