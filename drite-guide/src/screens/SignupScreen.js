@@ -63,54 +63,52 @@ export default function SignupScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const normalizedUsername = normalizeUsername(username);
-
     const usernameTakenText = t('auth.usernameTaken') || 'Username already taken';
 
     const passwordRules = [
         {
             key: 'length',
-            label: t('auth.passwordRuleLength'),
+            label: t('auth.passwordRuleLength') || 'At least 8 characters',
             met: password.length >= 8,
         },
         {
             key: 'uppercase',
-            label: t('auth.passwordRuleUppercase'),
+            label: t('auth.passwordRuleUppercase') || 'One uppercase letter',
             met: /[A-Z]/.test(password),
         },
         {
             key: 'number',
-            label: t('auth.passwordRuleNumber'),
+            label: t('auth.passwordRuleNumber') || 'One number',
             met: /\d/.test(password),
         },
     ];
 
-    const isEnteredPasswordWeak = password.length > 0 && !isStrongSignupPassword(password);
-
-    const isEnteredUsernameTooShort =
-        username.trim().length > 0 && normalizedUsername.length < 3;
+    const finalUsername = normalizeUsername(username);
+    const isPasswordWeak = password.length > 0 && !isStrongSignupPassword(password);
+    const isUsernameTooShort = username.trim().length > 0 && finalUsername.length < 3;
 
     const isUsernameBlockingSignup =
         usernameStatus === 'checking' ||
         usernameStatus === 'taken' ||
-        isEnteredUsernameTooShort;
+        usernameStatus === 'too_short' ||
+        isUsernameTooShort;
 
     const isCreateDisabled =
         isSubmitting ||
-        isEnteredPasswordWeak ||
+        isPasswordWeak ||
         isUsernameBlockingSignup;
 
     const usernameFeedback = (() => {
         if (usernameStatus === 'too_short') {
-            return { text: t('auth.invalidUsername'), tone: 'error' };
+            return { text: t('auth.invalidUsername') || 'Username must be at least 3 characters.', tone: 'error' };
         }
 
         if (usernameStatus === 'checking') {
-            return { text: t('auth.usernameChecking'), tone: 'neutral' };
+            return { text: t('auth.usernameChecking') || 'Checking username...', tone: 'neutral' };
         }
 
         if (usernameStatus === 'available') {
-            return { text: t('auth.usernameAvailable'), tone: 'success' };
+            return { text: t('auth.usernameAvailable') || 'Username is available.', tone: 'success' };
         }
 
         if (usernameStatus === 'taken') {
@@ -118,7 +116,7 @@ export default function SignupScreen() {
         }
 
         if (usernameStatus === 'error') {
-            return { text: t('auth.usernameCheckFailed'), tone: 'neutral' };
+            return { text: t('auth.usernameCheckFailed') || 'Could not check username.', tone: 'neutral' };
         }
 
         return null;
@@ -147,7 +145,9 @@ export default function SignupScreen() {
                 if (isActive) {
                     setUsernameStatus(available ? 'available' : 'taken');
                 }
-            } catch (_error) {
+            } catch (error) {
+                console.log('Username check failed:', error);
+
                 if (isActive) {
                     setUsernameStatus('error');
                 }
@@ -161,13 +161,16 @@ export default function SignupScreen() {
     }, [username]);
 
     const handleUsernameChange = (value) => {
-        const cleanUsername = value.trimStart();
+        const cleanUsername = value
+            .trimStart()
+            .replace(/\s/g, '')
+            .toLowerCase();
 
         setUsername(cleanUsername);
 
         const nextUsername = normalizeUsername(cleanUsername);
 
-        if (!cleanUsername.trim()) {
+        if (!nextUsername) {
             setUsernameStatus('idle');
         } else if (nextUsername.length < 3) {
             setUsernameStatus('too_short');
@@ -177,81 +180,117 @@ export default function SignupScreen() {
     };
 
     const handleSignUp = async () => {
-        if (isSubmitting) {
+        if (isSubmitting) return;
+
+        const cleanFirstName = firstName.trim();
+        const cleanLastName = lastName.trim();
+        const cleanEmail = email.trim().toLowerCase();
+        const cleanUsername = normalizeUsername(username);
+
+        if (!cleanFirstName || !cleanLastName || !cleanEmail || !cleanUsername || !password || !confirmPassword) {
+            Alert.alert(
+                t('auth.signupFailed') || 'Sign up failed',
+                t('auth.fillAllFields') || 'Please fill in all fields.'
+            );
             return;
         }
 
-        const finalUsername = normalizeUsername(username);
+        if (!cleanEmail.includes('@')) {
+            Alert.alert(
+                t('auth.signupFailed') || 'Sign up failed',
+                t('auth.invalidEmail') || 'Please enter a valid email address.'
+            );
+            return;
+        }
 
-        if (!finalUsername || finalUsername.length < 3) {
-            Alert.alert(t('auth.signupFailed'), t('auth.invalidUsername'));
+        if (cleanUsername.length < 3) {
+            Alert.alert(
+                t('auth.signupFailed') || 'Sign up failed',
+                t('auth.invalidUsername') || 'Username must be at least 3 characters.'
+            );
             return;
         }
 
         if (usernameStatus === 'checking') {
-            Alert.alert(t('auth.signupFailed'), t('auth.usernameChecking'));
+            Alert.alert(
+                t('auth.signupFailed') || 'Sign up failed',
+                t('auth.usernameChecking') || 'Username is still being checked.'
+            );
             return;
         }
 
         if (usernameStatus === 'taken') {
-            Alert.alert(t('auth.signupFailed'), usernameTakenText);
+            Alert.alert(t('auth.signupFailed') || 'Sign up failed', usernameTakenText);
             return;
         }
 
-        if (isEnteredPasswordWeak) {
-            Alert.alert(t('auth.signupFailed'), t('auth.passwordRequirements'));
+        if (!isStrongSignupPassword(password)) {
+            Alert.alert(
+                t('auth.signupFailed') || 'Sign up failed',
+                t('auth.passwordRequirements') ||
+                    'Password must have at least 8 characters, one uppercase letter and one number.'
+            );
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            Alert.alert(
+                t('auth.signupFailed') || 'Sign up failed',
+                t('auth.passwordsDoNotMatch') || 'Passwords do not match.'
+            );
             return;
         }
 
         setIsSubmitting(true);
 
-        let available = false;
         try {
-            available = await isUsernameAvailable(finalUsername);
-        } catch (_error) {
-            Alert.alert(
-                t('auth.signupFailed'),
-                t('auth.usernameCheckFailed') ||
-                'Could not check username. Please try again.'
-            );
-            setIsSubmitting(false);
-            return;
-        }
+            const available = await isUsernameAvailable(cleanUsername);
 
-        if (!available) {
-            setUsernameStatus('taken');
-            Alert.alert(t('auth.signupFailed'), usernameTakenText);
-            setIsSubmitting(false);
-            return;
-        }
+            if (!available) {
+                setUsernameStatus('taken');
+                Alert.alert(t('auth.signupFailed') || 'Sign up failed', usernameTakenText);
+                return;
+            }
 
-        setUsernameStatus('available');
+            setUsernameStatus('available');
 
-        try {
             const result = await signup({
-                firstName,
-                lastName,
-                email,
-                username: finalUsername,
+                firstName: cleanFirstName,
+                lastName: cleanLastName,
+                email: cleanEmail,
+                username: cleanUsername,
                 password,
                 confirmPassword,
             });
 
-            if (!result.success) {
-                Alert.alert(t('auth.signupFailed'), result.message);
+            console.log('Signup result:', result);
+
+            if (!result?.success) {
+                Alert.alert(
+                    t('auth.signupFailed') || 'Sign up failed',
+                    result?.message || t('auth.signupFailedFallback') || 'Could not create account.'
+                );
                 return;
             }
 
             if (result.requiresEmailVerification) {
+                Alert.alert(
+                    t('Verify your Email') || 'Verify your email',
+                    t('Your Account was created. Please check your Email and verify your Account.') ||
+                        'Your account was created. Please check your email and verify your account.'
+                );
+
                 navigation.navigate('Login');
                 return;
             }
 
             navigateToProfile(navigation, result.user);
         } catch (error) {
+            console.log('Signup screen error:', error);
+
             Alert.alert(
-                t('auth.signupFailed'),
-                error?.message || t('auth.signupFailedFallback')
+                t('auth.signupFailed') || 'Sign up failed',
+                error?.message || t('auth.signupFailedFallback') || 'Could not create account.'
             );
         } finally {
             setIsSubmitting(false);
@@ -298,6 +337,7 @@ export default function SignupScreen() {
                                     value={firstName}
                                     onChangeText={setFirstName}
                                     editable={!isSubmitting}
+                                    autoCorrect={false}
                                 />
                             </View>
 
@@ -310,6 +350,7 @@ export default function SignupScreen() {
                                     value={lastName}
                                     onChangeText={setLastName}
                                     editable={!isSubmitting}
+                                    autoCorrect={false}
                                 />
                             </View>
 
@@ -350,9 +391,9 @@ export default function SignupScreen() {
                                         style={[
                                             styles.fieldFeedback,
                                             usernameFeedback.tone === 'success' &&
-                                            styles.fieldFeedbackSuccess,
+                                                styles.fieldFeedbackSuccess,
                                             usernameFeedback.tone === 'error' &&
-                                            styles.fieldFeedbackError,
+                                                styles.fieldFeedbackError,
                                         ]}
                                     >
                                         {usernameFeedback.text}
@@ -382,11 +423,7 @@ export default function SignupScreen() {
                                         disabled={isSubmitting}
                                     >
                                         <Ionicons
-                                            name={
-                                                showPassword
-                                                    ? 'eye-off-outline'
-                                                    : 'eye-outline'
-                                            }
+                                            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                                             size={20}
                                             color="#6B7280"
                                         />
@@ -397,11 +434,7 @@ export default function SignupScreen() {
                                     {passwordRules.map((rule) => (
                                         <View key={rule.key} style={styles.passwordRule}>
                                             <Ionicons
-                                                name={
-                                                    rule.met
-                                                        ? 'checkmark-circle'
-                                                        : 'ellipse-outline'
-                                                }
+                                                name={rule.met ? 'checkmark-circle' : 'ellipse-outline'}
                                                 size={16}
                                                 color={rule.met ? '#15803D' : '#9CA3AF'}
                                             />
@@ -409,8 +442,7 @@ export default function SignupScreen() {
                                             <Text
                                                 style={[
                                                     styles.passwordRuleText,
-                                                    rule.met &&
-                                                    styles.passwordRuleTextMet,
+                                                    rule.met && styles.passwordRuleTextMet,
                                                 ]}
                                             >
                                                 {rule.label}
@@ -421,9 +453,7 @@ export default function SignupScreen() {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>
-                                    {t('auth.confirmPassword')}
-                                </Text>
+                                <Text style={styles.label}>{t('auth.confirmPassword')}</Text>
 
                                 <View style={styles.passwordWrap}>
                                     <TextInput
@@ -439,18 +469,12 @@ export default function SignupScreen() {
                                     />
 
                                     <TouchableOpacity
-                                        onPress={() =>
-                                            setShowConfirmPassword((prev) => !prev)
-                                        }
+                                        onPress={() => setShowConfirmPassword((prev) => !prev)}
                                         activeOpacity={0.8}
                                         disabled={isSubmitting}
                                     >
                                         <Ionicons
-                                            name={
-                                                showConfirmPassword
-                                                    ? 'eye-off-outline'
-                                                    : 'eye-outline'
-                                            }
+                                            name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
                                             size={20}
                                             color="#6B7280"
                                         />

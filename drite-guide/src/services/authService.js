@@ -13,6 +13,7 @@ import {
 
 const AUTH_CALLBACK_PATH = 'auth/callback';
 const PASSWORD_RESET_PATH = 'reset-password';
+
 const EMAIL_NOT_VERIFIED_CODE = 'email_not_verified';
 const EMAIL_RATE_LIMIT_CODE = 'email_rate_limit_exceeded';
 
@@ -31,6 +32,7 @@ function createCodedError(message, code, status = null) {
 
 export function isEmailNotVerifiedError(error) {
   const message = getSupabaseErrorMessage(error, '').toLowerCase();
+
   return (
     error?.code === EMAIL_NOT_VERIFIED_CODE ||
     message.includes('email not confirmed') ||
@@ -40,6 +42,7 @@ export function isEmailNotVerifiedError(error) {
 
 export function isEmailRateLimitError(error) {
   const message = getSupabaseErrorMessage(error, '').toLowerCase();
+
   return (
     error?.code === EMAIL_RATE_LIMIT_CODE ||
     error?.status === 429 ||
@@ -51,6 +54,7 @@ export function isEmailRateLimitError(error) {
 
 export function isInvalidRefreshTokenError(error) {
   const message = getSupabaseErrorMessage(error, '').toLowerCase();
+
   return (
     message.includes('invalid refresh token') ||
     message.includes('refresh token not found')
@@ -95,6 +99,7 @@ function getUrlParams(url) {
 
   const hash = String(url || '').split('#')[1] || '';
   const hashParams = new URLSearchParams(hash.replace(/^\?/, ''));
+
   hashParams.forEach((value, key) => {
     params[key] = value;
   });
@@ -108,11 +113,13 @@ export function isAuthRedirectUrl(url) {
   }
 
   const rawUrl = String(url);
+
   return (
     rawUrl.includes(AUTH_CALLBACK_PATH) ||
     rawUrl.includes('access_token=') ||
     rawUrl.includes('token_hash=') ||
-    rawUrl.includes('error_description=')
+    rawUrl.includes('error_description=') ||
+    rawUrl.includes('code=')
   );
 }
 
@@ -167,12 +174,14 @@ export async function getCurrentSession() {
   assertSupabaseConfigured();
 
   const { data, error } = await supabase.auth.getSession();
+
   if (isInvalidRefreshTokenError(error)) {
     await clearInvalidAuthSession();
     return null;
   }
 
   throwIfSupabaseError(error, 'Could not load current session.');
+
   return data?.session || null;
 }
 
@@ -184,6 +193,8 @@ export async function signIn(identifier, password) {
   assertSupabaseConfigured();
 
   const trimmedIdentifier = String(identifier || '').trim();
+  const cleanPassword = String(password || '');
+
   let email = trimmedIdentifier.toLowerCase();
 
   if (!email.includes('@')) {
@@ -197,7 +208,7 @@ export async function signIn(identifier, password) {
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
-    password,
+    password: cleanPassword,
   });
 
   if (error) {
@@ -212,8 +223,10 @@ export async function signIn(identifier, password) {
 
   if (!data?.user?.email_confirmed_at) {
     await supabase.auth.signOut();
+
     const emailNotVerifiedError = createEmailNotVerifiedError();
     emailNotVerifiedError.verificationEmail = data?.user?.email || email;
+
     throw emailNotVerifiedError;
   }
 
@@ -235,14 +248,34 @@ export async function signUp({
 }) {
   assertSupabaseConfigured();
 
-  const normalizedEmail = normalizeEmail(email);
-  const normalizedUsername = normalizeUsername(username);
+  const cleanFirstName = String(firstName || '').trim();
+  const cleanLastName = String(lastName || '').trim();
+  const cleanEmail = normalizeEmail(email);
+  const cleanUsername = normalizeUsername(username);
+  const cleanPassword = String(password || '');
+  const cleanPreferredLanguage = String(preferredLanguage || 'en').trim() || 'en';
 
-  if (!isValidEmailAddress(normalizedEmail)) {
+  if (!cleanFirstName) {
+    throw createCodedError('First name is required.', 'missing_first_name', 400);
+  }
+
+  if (!cleanLastName) {
+    throw createCodedError('Last name is required.', 'missing_last_name', 400);
+  }
+
+  if (!isValidEmailAddress(cleanEmail)) {
     throw createCodedError('Please enter a valid email address.', 'invalid_email', 400);
   }
 
-  if (!isStrongSignupPassword(password)) {
+  if (!cleanUsername || cleanUsername.length < 3) {
+    throw createCodedError(
+      'Username must be at least 3 characters.',
+      'invalid_username',
+      400
+    );
+  }
+
+  if (!isStrongSignupPassword(cleanPassword)) {
     throw createCodedError(
       'Password must be at least 8 characters and include one uppercase letter and one number.',
       'weak_password',
@@ -250,51 +283,73 @@ export async function signUp({
     );
   }
 
-  const { data, error } = await supabase.auth.signUp({
-    email: normalizedEmail,
-    password,
+  const signupPayload = {
+    email: cleanEmail,
+    password: cleanPassword,
     options: {
       emailRedirectTo: getAuthRedirectUrl(AUTH_CALLBACK_PATH),
       data: {
-        first_name: String(firstName || '').trim(),
-        last_name: String(lastName || '').trim(),
-        username: normalizedUsername,
-        preferred_language: preferredLanguage,
+        first_name: cleanFirstName,
+        last_name: cleanLastName,
+        username: cleanUsername,
+        preferred_language: cleanPreferredLanguage,
       },
     },
+  };
+
+  console.log('SUPABASE SIGNUP PAYLOAD:', {
+    email: signupPayload.email,
+    options: signupPayload.options,
   });
 
-  throwIfSupabaseError(error, 'Signup failed.');
+  const { data, error } = await supabase.auth.signUp(signupPayload);
 
-  const emailIsVerified = Boolean(data?.user?.email_confirmed_at);
-  let profile = {
-    id: null,
-    usr_id: null,
-    auth_user_id: data?.user?.id,
-    first_name: String(firstName || '').trim(),
-    last_name: String(lastName || '').trim(),
-    email: normalizedEmail,
-    username: normalizedUsername,
-    preferred_language: preferredLanguage,
+  if (error) {
+    console.log('SUPABASE SIGNUP ERROR:', {
+      message: error?.message,
+      name: error?.name,
+      status: error?.status,
+      code: error?.code,
+      details: error?.details,
+    });
+
+    throwIfSupabaseError(error, 'Signup failed.');
+  }
+
+  const user = data?.user || null;
+  const session = data?.session || null;
+  const emailIsVerified = Boolean(user?.email_confirmed_at);
+
+  const fallbackProfile = {
+    id: user?.id || null,
+    usr_id: user?.id || null,
+    auth_user_id: user?.id || null,
+    first_name: cleanFirstName,
+    last_name: cleanLastName,
+    email: cleanEmail,
+    username: cleanUsername,
+    preferred_language: cleanPreferredLanguage,
     email_verified: emailIsVerified,
   };
 
-  if (data?.session && emailIsVerified && data?.user) {
-    profile = await ensureUserProfile(data.user, {
-      firstName,
-      lastName,
-      email: normalizedEmail,
-      username: normalizedUsername,
-      preferredLanguage,
+  let profile = fallbackProfile;
+
+  if (session && emailIsVerified && user) {
+    profile = await ensureUserProfile(user, {
+      firstName: cleanFirstName,
+      lastName: cleanLastName,
+      email: cleanEmail,
+      username: cleanUsername,
+      preferredLanguage: cleanPreferredLanguage,
     });
   }
 
-  if (data?.session && !emailIsVerified) {
+  if (session && !emailIsVerified) {
     await supabase.auth.signOut();
   }
 
   return {
-    session: emailIsVerified ? data?.session || null : null,
+    session: emailIsVerified ? session : null,
     user: profile,
     requiresEmailVerification: !emailIsVerified,
   };
@@ -304,6 +359,7 @@ export async function signOut() {
   assertSupabaseConfigured();
 
   const { error } = await supabase.auth.signOut();
+
   throwIfSupabaseError(error, 'Logout failed.');
 }
 
@@ -313,7 +369,7 @@ export async function sendPasswordResetEmail(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(
     normalizeEmail(email),
     {
-      redirectTo: getAuthRedirectUrl('reset-password'),
+      redirectTo: getAuthRedirectUrl(PASSWORD_RESET_PATH),
     }
   );
 
@@ -323,9 +379,15 @@ export async function sendPasswordResetEmail(email) {
 export async function resendVerificationEmail(email) {
   assertSupabaseConfigured();
 
+  const cleanEmail = normalizeEmail(email);
+
+  if (!isValidEmailAddress(cleanEmail)) {
+    throw createCodedError('Please enter a valid email address.', 'invalid_email', 400);
+  }
+
   const { error } = await supabase.auth.resend({
     type: 'signup',
-    email: normalizeEmail(email),
+    email: cleanEmail,
     options: {
       emailRedirectTo: getAuthRedirectUrl(AUTH_CALLBACK_PATH),
     },
