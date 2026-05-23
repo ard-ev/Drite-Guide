@@ -5,13 +5,14 @@ import { ensureUserProfile, getProfileByUsername } from './profileService';
 import {
   getSupabaseErrorMessage,
   isStrongSignupPassword,
+  isValidEmailAddress,
+  normalizeEmail,
   normalizeUsername,
   throwIfSupabaseError,
 } from './supabaseService';
 
 const AUTH_CALLBACK_PATH = 'auth/callback';
 const PASSWORD_RESET_PATH = 'reset-password';
-const SIGNUP_FUNCTION_NAME = 'signup-with-profile';
 const EMAIL_NOT_VERIFIED_CODE = 'email_not_verified';
 const EMAIL_RATE_LIMIT_CODE = 'email_rate_limit_exceeded';
 
@@ -48,9 +49,24 @@ export function isEmailRateLimitError(error) {
   );
 }
 
-function isSignupFunctionMissingError(error) {
+export function isInvalidRefreshTokenError(error) {
   const message = getSupabaseErrorMessage(error, '').toLowerCase();
-  return error?.status === 404 || message.includes('function not found');
+  return (
+    message.includes('invalid refresh token') ||
+    message.includes('refresh token not found')
+  );
+}
+
+export async function clearInvalidAuthSession() {
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch (_error) {
+    try {
+      await supabase.auth.signOut();
+    } catch (_signOutError) {
+      // Best-effort cleanup only.
+    }
+  }
 }
 
 function getConfiguredRedirectUrl(path) {
@@ -67,54 +83,6 @@ function getConfiguredRedirectUrl(path) {
 
 function getAuthRedirectUrl(path) {
   return getConfiguredRedirectUrl(path) || Linking.createURL(path);
-}
-
-async function getFunctionErrorPayload(error) {
-  if (!error?.context?.json) {
-    return null;
-  }
-
-  try {
-    return await error.context.json();
-  } catch (_parseError) {
-    return null;
-  }
-}
-
-async function signUpWithSupabaseFunction(payload) {
-  const { data, error } = await supabase.functions.invoke(SIGNUP_FUNCTION_NAME, {
-    body: payload,
-  });
-
-  if (error) {
-    const errorPayload = await getFunctionErrorPayload(error);
-    const message =
-      errorPayload?.message ||
-      errorPayload?.error ||
-      getSupabaseErrorMessage(error, 'Signup failed.');
-    throw createCodedError(message, errorPayload?.code || error.code, error.status);
-  }
-
-  if (data?.error) {
-    throw createCodedError(data.message || data.error, data.code, data.status);
-  }
-
-  if (!data?.session?.access_token || !data?.session?.refresh_token) {
-    throw new Error('Signup did not return a valid session.');
-  }
-
-  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-  });
-
-  throwIfSupabaseError(sessionError, 'Could not start your session.');
-
-  return {
-    session: sessionData?.session || data.session,
-    user: data.profile || data.user || null,
-    requiresEmailVerification: false,
-  };
 }
 
 function getUrlParams(url) {
@@ -183,6 +151,15 @@ export async function handleAuthRedirectUrl(url) {
     return data?.session || true;
   }
 
+  if (params.code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(
+      String(params.code)
+    );
+
+    throwIfSupabaseError(error, 'Could not verify your email.');
+    return data?.session || true;
+  }
+
   return true;
 }
 
@@ -190,6 +167,11 @@ export async function getCurrentSession() {
   assertSupabaseConfigured();
 
   const { data, error } = await supabase.auth.getSession();
+  if (isInvalidRefreshTokenError(error)) {
+    await clearInvalidAuthSession();
+    return null;
+  }
+
   throwIfSupabaseError(error, 'Could not load current session.');
   return data?.session || null;
 }
@@ -220,7 +202,9 @@ export async function signIn(identifier, password) {
 
   if (error) {
     if (isEmailNotVerifiedError(error)) {
-      throw createEmailNotVerifiedError();
+      const emailNotVerifiedError = createEmailNotVerifiedError();
+      emailNotVerifiedError.verificationEmail = email;
+      throw emailNotVerifiedError;
     }
 
     throwIfSupabaseError(error, 'Login failed.');
@@ -228,7 +212,9 @@ export async function signIn(identifier, password) {
 
   if (!data?.user?.email_confirmed_at) {
     await supabase.auth.signOut();
-    throw createEmailNotVerifiedError();
+    const emailNotVerifiedError = createEmailNotVerifiedError();
+    emailNotVerifiedError.verificationEmail = data?.user?.email || email;
+    throw emailNotVerifiedError;
   }
 
   const profile = await ensureUserProfile(data.user);
@@ -249,8 +235,12 @@ export async function signUp({
 }) {
   assertSupabaseConfigured();
 
-  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
   const normalizedUsername = normalizeUsername(username);
+
+  if (!isValidEmailAddress(normalizedEmail)) {
+    throw createCodedError('Please enter a valid email address.', 'invalid_email', 400);
+  }
 
   if (!isStrongSignupPassword(password)) {
     throw createCodedError(
@@ -260,28 +250,11 @@ export async function signUp({
     );
   }
 
-  const signupPayload = {
-    firstName: String(firstName || '').trim(),
-    lastName: String(lastName || '').trim(),
-    email: normalizedEmail,
-    username: normalizedUsername,
-    password,
-    preferredLanguage,
-  };
-
-  try {
-    return await signUpWithSupabaseFunction(signupPayload);
-  } catch (edgeFunctionError) {
-    if (!isSignupFunctionMissingError(edgeFunctionError)) {
-      throw edgeFunctionError;
-    }
-  }
-
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
     password,
     options: {
-      emailRedirectTo: getAuthRedirectUrl('auth/callback'),
+      emailRedirectTo: getAuthRedirectUrl(AUTH_CALLBACK_PATH),
       data: {
         first_name: String(firstName || '').trim(),
         last_name: String(lastName || '').trim(),
@@ -293,31 +266,28 @@ export async function signUp({
 
   throwIfSupabaseError(error, 'Signup failed.');
 
-  let profile = null;
+  const emailIsVerified = Boolean(data?.user?.email_confirmed_at);
+  let profile = {
+    id: null,
+    usr_id: null,
+    auth_user_id: data?.user?.id,
+    first_name: String(firstName || '').trim(),
+    last_name: String(lastName || '').trim(),
+    email: normalizedEmail,
+    username: normalizedUsername,
+    preferred_language: preferredLanguage,
+    email_verified: emailIsVerified,
+  };
 
-  try {
-    profile = data?.user
-      ? await ensureUserProfile(data.user, {
-          firstName,
-          lastName,
-          email: normalizedEmail,
-          username: normalizedUsername,
-          preferredLanguage,
-        })
-      : null;
-  } catch (_profileError) {
-    profile = {
-      id: null,
-      auth_user_id: data?.user?.id,
-      first_name: String(firstName || '').trim(),
-      last_name: String(lastName || '').trim(),
+  if (data?.session && emailIsVerified && data?.user) {
+    profile = await ensureUserProfile(data.user, {
+      firstName,
+      lastName,
       email: normalizedEmail,
       username: normalizedUsername,
-      email_verified: false,
-    };
+      preferredLanguage,
+    });
   }
-
-  const emailIsVerified = Boolean(data?.user?.email_confirmed_at);
 
   if (data?.session && !emailIsVerified) {
     await supabase.auth.signOut();
@@ -341,7 +311,7 @@ export async function sendPasswordResetEmail(email) {
   assertSupabaseConfigured();
 
   const { error } = await supabase.auth.resetPasswordForEmail(
-    String(email || '').trim().toLowerCase(),
+    normalizeEmail(email),
     {
       redirectTo: getAuthRedirectUrl('reset-password'),
     }
@@ -355,7 +325,7 @@ export async function resendVerificationEmail(email) {
 
   const { error } = await supabase.auth.resend({
     type: 'signup',
-    email: String(email || '').trim().toLowerCase(),
+    email: normalizeEmail(email),
     options: {
       emailRedirectTo: getAuthRedirectUrl(AUTH_CALLBACK_PATH),
     },

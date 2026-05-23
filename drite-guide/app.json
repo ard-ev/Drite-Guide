@@ -28,12 +28,11 @@
     },
 
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/logo.jpeg"
     },
 
     "plugins": [
-      "expo-router",
       [
         "expo-image-picker",
         {
@@ -58,7 +57,6 @@
     ],
 
     "experiments": {
-      "typedRoutes": true,
       "reactCompiler": true
     }
   }

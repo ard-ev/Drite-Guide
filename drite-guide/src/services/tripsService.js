@@ -3,6 +3,14 @@ import { getPlacesByIds } from './placesService';
 import { getProfileByUsername } from './profileService';
 import { getAuthenticatedProfileId, throwIfSupabaseError } from './supabaseService';
 
+function createTripPlaceId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function normalizeDatePayload(payload) {
   const nextPayload = {};
 
@@ -32,29 +40,77 @@ function normalizeDatePayload(payload) {
   return nextPayload;
 }
 
-async function getTripMembers(tripId) {
-  const { data, error } = await supabase
-    .from('trip_members')
-    .select('*')
-    .eq('trip_id', tripId)
-    .order('created_at', { ascending: true });
+function createTripMemberId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
 
-  throwIfSupabaseError(error, 'Could not load trip members.');
+  return `member-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
-  const userIds = (data || []).map((member) => member.user_id).filter(Boolean);
+function normalizeStoredTripMembers(trip) {
+  const now = new Date().toISOString();
+  const ownerMember = trip?.owner_id
+    ? {
+        id: `owner-${trip.id || trip.owner_id}`,
+        trip_id: trip.id,
+        user_id: trip.owner_id,
+        role: 'owner',
+        status: 'accepted',
+        invited_by_user_id: trip.owner_id,
+        created_at: trip.created_at || now,
+        updated_at: trip.updated_at || trip.created_at || now,
+      }
+    : null;
+
+  const storedMembers = Array.isArray(trip?.members) ? trip.members : [];
+  const memberByUserId = new Map();
+
+  if (ownerMember) {
+    memberByUserId.set(String(ownerMember.user_id), ownerMember);
+  }
+
+  storedMembers.filter(Boolean).forEach((member) => {
+    const userId = member.user_id || member.userId;
+
+    if (!userId || memberByUserId.has(String(userId))) {
+      return;
+    }
+
+    memberByUserId.set(String(userId), {
+      ...member,
+      id: member.id || createTripMemberId(),
+      trip_id: member.trip_id || trip?.id,
+      user_id: userId,
+      role: member.role === 'owner' ? 'owner' : 'member',
+      status: member.status || 'invited',
+      invited_by_user_id: member.invited_by_user_id || member.invitedByUserId || null,
+      created_at: member.created_at || now,
+      updated_at: member.updated_at || member.created_at || now,
+    });
+  });
+
+  return Array.from(memberByUserId.values());
+}
+
+async function hydrateTripMembers(trip) {
+  const data = normalizeStoredTripMembers(trip);
+  const userIds = data.map((member) => member.user_id).filter(Boolean);
 
   if (userIds.length === 0) {
     return [];
   }
 
   const { data: profiles, error: profilesError } = await supabase
-    .from('users')
+    .from('user_profile')
     .select('*')
-    .in('id', userIds);
+    .in('usr_id', userIds);
 
   throwIfSupabaseError(profilesError, 'Could not load trip members.');
 
-  const profileById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+  const profileById = new Map(
+    (profiles || []).map((profile) => [profile.usr_id || profile.id, profile])
+  );
 
   return (data || []).map((member) => ({
     ...member,
@@ -62,16 +118,33 @@ async function getTripMembers(tripId) {
   }));
 }
 
-async function getTripPlaces(tripId) {
-  const { data, error } = await supabase
-    .from('trip_places')
-    .select('*')
-    .eq('trip_id', tripId)
-    .order('order_index', { ascending: true });
+function normalizeStoredTripPlaces(trip) {
+  const places = Array.isArray(trip?.places) ? trip.places : [];
 
-  throwIfSupabaseError(error, 'Could not load trip places.');
+  return places
+    .filter(Boolean)
+    .map((tripPlace, index) => ({
+      ...tripPlace,
+      id: tripPlace.id || createTripPlaceId(),
+      trip_id: tripPlace.trip_id || trip?.id,
+      place_id: tripPlace.place_id || tripPlace.placeId,
+      visit_date: tripPlace.visit_date || tripPlace.visitDate || null,
+      visit_start_time:
+        tripPlace.visit_start_time || tripPlace.visitStartTime || null,
+      visit_end_time:
+        tripPlace.visit_end_time || tripPlace.visitEndTime || null,
+      note: tripPlace.note || null,
+      order_index: tripPlace.order_index ?? tripPlace.orderIndex ?? index,
+      created_at: tripPlace.created_at || new Date().toISOString(),
+      updated_at: tripPlace.updated_at || tripPlace.created_at || new Date().toISOString(),
+    }))
+    .filter((tripPlace) => tripPlace.place_id)
+    .sort((left, right) => (left.order_index ?? 0) - (right.order_index ?? 0));
+}
 
-  const placeIds = (data || []).map((tripPlace) => tripPlace.place_id).filter(Boolean);
+async function hydrateTripPlaces(trip) {
+  const data = normalizeStoredTripPlaces(trip);
+  const placeIds = data.map((tripPlace) => tripPlace.place_id).filter(Boolean);
   const places = await getPlacesByIds(placeIds);
   const placeById = new Map(places.map((place) => [String(place.id), place]));
 
@@ -87,8 +160,8 @@ export async function hydrateTrip(trip) {
   }
 
   const [members, places] = await Promise.all([
-    getTripMembers(trip.id),
-    getTripPlaces(trip.id),
+    hydrateTripMembers(trip),
+    hydrateTripPlaces(trip),
   ]);
 
   const ownerMembership = members.find(
@@ -131,32 +204,17 @@ export async function getTripsForUser(userId) {
 
   const [ownedTripsResult, memberTripsResult] = await Promise.all([
     supabase.from('trips').select('*').eq('owner_id', userId),
-    supabase.from('trip_members').select('trip_id').eq('user_id', userId),
+    supabase.from('trips').select('*').contains('members', [{ user_id: userId }]),
   ]);
 
   throwIfSupabaseError(ownedTripsResult.error, 'Could not load trips.');
   throwIfSupabaseError(memberTripsResult.error, 'Could not load trips.');
 
   const ownedTrips = ownedTripsResult.data || [];
-  const memberTripIds = (memberTripsResult.data || [])
-    .map((item) => item.trip_id)
-    .filter(Boolean);
   const ownedTripIds = new Set(ownedTrips.map((trip) => String(trip.id)));
-  const missingMemberTripIds = memberTripIds.filter(
-    (tripId) => !ownedTripIds.has(String(tripId))
+  const memberTrips = (memberTripsResult.data || []).filter(
+    (trip) => !ownedTripIds.has(String(trip.id))
   );
-
-  let memberTrips = [];
-
-  if (missingMemberTripIds.length > 0) {
-    const { data, error } = await supabase
-      .from('trips')
-      .select('*')
-      .in('id', missingMemberTripIds);
-
-    throwIfSupabaseError(error, 'Could not load trips.');
-    memberTrips = data || [];
-  }
 
   const allTrips = [...ownedTrips, ...memberTrips].sort((left, right) =>
     String(left.start_date || '').localeCompare(String(right.start_date || ''))
@@ -179,18 +237,6 @@ export async function createTrip(userId, payload) {
     .single();
 
   throwIfSupabaseError(error, 'Trip creation failed.');
-
-  const { error: memberError } = await supabase
-    .from('trip_members')
-    .insert({
-      trip_id: data.id,
-      user_id: profileId,
-      role: 'owner',
-      status: 'accepted',
-      invited_by_user_id: profileId,
-    });
-
-  throwIfSupabaseError(memberError, 'Trip owner could not be added.');
   return hydrateTrip(data);
 }
 
@@ -230,30 +276,52 @@ export async function addPlaceToTrip(tripId, payload) {
   assertSupabaseConfigured();
   await getAuthenticatedProfileId();
 
-  const { count } = await supabase
-    .from('trip_places')
-    .select('*', { count: 'exact', head: true })
-    .eq('trip_id', tripId);
-
-  const { data, error } = await supabase
-    .from('trip_places')
-    .insert({
-      trip_id: tripId,
-      place_id: payload.place_id,
-      visit_date: payload.visit_date || null,
-      visit_start_time: payload.visit_start_time || null,
-      visit_end_time: payload.visit_end_time || null,
-      note: payload.note || null,
-      order_index: payload.order_index ?? count ?? 0,
-    })
+  const { data: trip, error: tripError } = await supabase
+    .from('trips')
     .select('*')
+    .eq('id', tripId)
+    .single();
+
+  throwIfSupabaseError(tripError, 'Could not add this place to the trip.');
+
+  const currentPlaces = normalizeStoredTripPlaces(trip);
+  const placeExists = currentPlaces.some(
+    (tripPlace) => String(tripPlace.place_id) === String(payload.place_id)
+  );
+
+  if (placeExists) {
+    throw new Error('This place is already in the trip.');
+  }
+
+  const now = new Date().toISOString();
+  const nextTripPlace = {
+    id: createTripPlaceId(),
+    trip_id: tripId,
+    place_id: payload.place_id,
+    visit_date: payload.visit_date || null,
+    visit_start_time: payload.visit_start_time || null,
+    visit_end_time: payload.visit_end_time || null,
+    note: payload.note || null,
+    order_index: payload.order_index ?? currentPlaces.length,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const { error } = await supabase
+    .from('trips')
+    .update({
+      places: [...currentPlaces, nextTripPlace],
+      updated_at: now,
+    })
+    .eq('id', tripId)
+    .select('places')
     .single();
 
   throwIfSupabaseError(error, 'Could not add this place to the trip.');
 
-  const places = await getPlacesByIds([data.place_id]);
+  const places = await getPlacesByIds([nextTripPlace.place_id]);
   return {
-    ...data,
+    ...nextTripPlace,
     place: places[0] || null,
   };
 }
@@ -262,26 +330,53 @@ export async function updateTripPlace(tripId, tripPlaceId, payload) {
   assertSupabaseConfigured();
   await getAuthenticatedProfileId();
 
-  const { data, error } = await supabase
-    .from('trip_places')
-    .update({
+  const { data: trip, error: tripError } = await supabase
+    .from('trips')
+    .select('*')
+    .eq('id', tripId)
+    .single();
+
+  throwIfSupabaseError(tripError, 'Could not update this trip place.');
+
+  const now = new Date().toISOString();
+  let updatedTripPlace = null;
+  const nextPlaces = normalizeStoredTripPlaces(trip).map((tripPlace) => {
+    if (String(tripPlace.id) !== String(tripPlaceId)) {
+      return tripPlace;
+    }
+
+    updatedTripPlace = {
+      ...tripPlace,
       visit_date: payload.visit_date || null,
       visit_start_time: payload.visit_start_time || null,
       visit_end_time: payload.visit_end_time || null,
       note: payload.note || null,
-      order_index: payload.order_index,
-      updated_at: new Date().toISOString(),
+      order_index: payload.order_index ?? tripPlace.order_index,
+      updated_at: now,
+    };
+
+    return updatedTripPlace;
+  });
+
+  if (!updatedTripPlace) {
+    throw new Error('Trip place could not be found.');
+  }
+
+  const { error } = await supabase
+    .from('trips')
+    .update({
+      places: nextPlaces,
+      updated_at: now,
     })
-    .eq('trip_id', tripId)
-    .eq('id', tripPlaceId)
-    .select('*')
+    .eq('id', tripId)
+    .select('id')
     .single();
 
   throwIfSupabaseError(error, 'Could not update this trip place.');
 
-  const places = await getPlacesByIds([data.place_id]);
+  const places = await getPlacesByIds([updatedTripPlace.place_id]);
   return {
-    ...data,
+    ...updatedTripPlace,
     place: places[0] || null,
   };
 }
@@ -290,11 +385,30 @@ export async function removeTripPlace(tripId, tripPlaceId) {
   assertSupabaseConfigured();
   await getAuthenticatedProfileId();
 
+  const { data: trip, error: tripError } = await supabase
+    .from('trips')
+    .select('*')
+    .eq('id', tripId)
+    .single();
+
+  throwIfSupabaseError(tripError, 'Could not remove this place from the trip.');
+
+  const currentPlaces = normalizeStoredTripPlaces(trip);
+  const nextPlaces = currentPlaces.filter(
+    (tripPlace) => String(tripPlace.id) !== String(tripPlaceId)
+  );
+
+  if (nextPlaces.length === currentPlaces.length) {
+    throw new Error('Trip place could not be found.');
+  }
+
   const { error } = await supabase
-    .from('trip_places')
-    .delete()
-    .eq('trip_id', tripId)
-    .eq('id', tripPlaceId);
+    .from('trips')
+    .update({
+      places: nextPlaces,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', tripId);
 
   throwIfSupabaseError(error, 'Could not remove this place from the trip.');
 }
@@ -309,39 +423,87 @@ export async function inviteUserToTrip(tripId, username, invitedByUserId) {
     throw new Error('User account could not be found.');
   }
 
-  const { data, error } = await supabase
-    .from('trip_members')
-    .upsert(
-      {
-        trip_id: tripId,
-        user_id: targetProfile.id,
-        role: 'member',
-        status: 'invited',
-        invited_by_user_id: profileId,
-      },
-      { onConflict: 'trip_id,user_id' }
-    )
+  const { data: trip, error: tripError } = await supabase
+    .from('trips')
     .select('*')
+    .eq('id', tripId)
+    .single();
+
+  throwIfSupabaseError(tripError, 'Could not invite this user.');
+
+  if (String(trip.owner_id) === String(targetProfile.id)) {
+    throw new Error('This user already owns the trip.');
+  }
+
+  const now = new Date().toISOString();
+  const currentMembers = normalizeStoredTripMembers(trip).filter(
+    (member) => member.role !== 'owner'
+  );
+  const existingMember = currentMembers.find(
+    (member) => String(member.user_id) === String(targetProfile.id)
+  );
+  const nextMember = {
+    ...(existingMember || {}),
+    id: existingMember?.id || createTripMemberId(),
+    trip_id: tripId,
+    user_id: targetProfile.id,
+    role: 'member',
+    status: existingMember?.status || 'invited',
+    invited_by_user_id: existingMember?.invited_by_user_id || profileId,
+    created_at: existingMember?.created_at || now,
+    updated_at: now,
+  };
+  const nextMembers = existingMember
+    ? currentMembers.map((member) =>
+        String(member.user_id) === String(targetProfile.id) ? nextMember : member
+      )
+    : [...currentMembers, nextMember];
+
+  const { error } = await supabase
+    .from('trips')
+    .update({
+      members: nextMembers,
+      updated_at: now,
+    })
+    .eq('id', tripId)
+    .eq('owner_id', profileId)
+    .select('id')
     .single();
 
   throwIfSupabaseError(error, 'Could not invite this user.');
 
   return {
-    ...data,
+    ...nextMember,
     user: targetProfile,
   };
 }
 
 export async function removeTripMember(tripId, userId) {
   assertSupabaseConfigured();
-  await getAuthenticatedProfileId();
+  const profileId = await getAuthenticatedProfileId();
+
+  const { data: trip, error: tripError } = await supabase
+    .from('trips')
+    .select('*')
+    .eq('id', tripId)
+    .single();
+
+  throwIfSupabaseError(tripError, 'Could not remove this member.');
+
+  const nextMembers = normalizeStoredTripMembers(trip).filter(
+    (member) => member.role !== 'owner' && String(member.user_id) !== String(userId)
+  );
 
   const { error } = await supabase
-    .from('trip_members')
-    .delete()
-    .eq('trip_id', tripId)
-    .eq('user_id', userId)
-    .neq('role', 'owner');
+    .from('trips')
+    .update({
+      members: nextMembers,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', tripId)
+    .eq('owner_id', profileId)
+    .select('id')
+    .single();
 
   throwIfSupabaseError(error, 'Could not remove this member.');
 }

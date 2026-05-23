@@ -23,9 +23,12 @@ export function normalizeUser(user) {
   const profilePictureVersion = user.updated_at
     ? encodeURIComponent(user.updated_at)
     : '';
+  const userId = user.usr_id || user.id;
 
   return {
     ...user,
+    id: userId,
+    usrId: userId,
     profile_picture_path:
       profilePictureUrl && profilePictureVersion
         ? `${profilePictureUrl}${profilePictureUrl.includes('?') ? '&' : '?'}v=${profilePictureVersion}`

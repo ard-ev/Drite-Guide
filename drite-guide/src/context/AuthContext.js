@@ -9,10 +9,12 @@ import * as Linking from 'expo-linking';
 
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
+  clearInvalidAuthSession,
   getCurrentSession,
   handleAuthRedirectUrl,
   isEmailRateLimitError,
   isEmailNotVerifiedError,
+  isInvalidRefreshTokenError,
   onAuthStateChange,
   resendVerificationEmail,
   signIn,
@@ -21,6 +23,7 @@ import {
 } from '../services/authService';
 import {
   ensureUserProfile,
+  isEmailAvailable,
   resetProfilePicture as resetProfilePictureInSupabase,
   updatePreferredLanguage,
   uploadProfilePicture as uploadProfilePictureToSupabase,
@@ -51,6 +54,8 @@ import {
 import {
   getSupabaseErrorMessage,
   isStrongSignupPassword,
+  isValidEmailAddress,
+  normalizeEmail,
   normalizeUsername,
 } from '../services/supabaseService';
 import { safeGetItem, safeSetItem } from '../utils/storage';
@@ -202,6 +207,12 @@ export function AuthProvider({ children }) {
       const profile = await ensureUserProfile(session.user);
       await applySessionState(session, profile);
     } catch (error) {
+      if (isInvalidRefreshTokenError(error)) {
+        await clearInvalidAuthSession();
+        clearSessionState();
+        return;
+      }
+
       console.warn('Auth bootstrap failed:', error?.message);
       clearSessionState();
     } finally {
@@ -249,6 +260,14 @@ export function AuthProvider({ children }) {
           await applySessionState(session, profile);
         }
       } catch (error) {
+        if (isInvalidRefreshTokenError(error)) {
+          await clearInvalidAuthSession();
+          if (isMounted) {
+            clearSessionState();
+          }
+          return;
+        }
+
         console.warn('Auth state sync failed:', error?.message);
       }
     });
@@ -294,6 +313,7 @@ export function AuthProvider({ children }) {
       return {
         success: false,
         requiresEmailVerification: isEmailNotVerifiedError(error),
+        verificationEmail: error?.verificationEmail || null,
         message: isEmailNotVerifiedError(error)
           ? t('auth.emailNotVerified')
           : getSupabaseErrorMessage(error, t('auth.loginFailedFallback')),
@@ -311,7 +331,7 @@ export function AuthProvider({ children }) {
   }) => {
     const trimmedFirstName = String(firstName || '').trim();
     const trimmedLastName = String(lastName || '').trim();
-    const trimmedEmail = String(email || '').trim().toLowerCase();
+    const trimmedEmail = normalizeEmail(email);
     const trimmedUsername = String(username || '').trim();
     const normalizedUsername = normalizeUsername(trimmedUsername);
     const trimmedPassword = String(password || '').trim();
@@ -331,7 +351,7 @@ export function AuthProvider({ children }) {
       };
     }
 
-    if (!trimmedEmail.includes('@')) {
+    if (!isValidEmailAddress(trimmedEmail)) {
       return {
         success: false,
         message: t('auth.invalidEmail'),
@@ -360,6 +380,15 @@ export function AuthProvider({ children }) {
     }
 
     try {
+      const emailAvailable = await isEmailAvailable(trimmedEmail);
+
+      if (!emailAvailable) {
+        return {
+          success: false,
+          message: t('auth.emailTaken'),
+        };
+      }
+
       const result = await signUp({
         firstName: trimmedFirstName,
         lastName: trimmedLastName,
@@ -392,9 +421,9 @@ export function AuthProvider({ children }) {
   };
 
   const resendEmailVerification = async (email) => {
-    const trimmedEmail = String(email || '').trim().toLowerCase();
+    const trimmedEmail = normalizeEmail(email);
 
-    if (!trimmedEmail) {
+    if (!isValidEmailAddress(trimmedEmail)) {
       return {
         success: false,
         message: t('auth.emailRequiredForVerification'),

@@ -1,0 +1,9 @@
+
+> drite-guide@1.0.0 web
+> expo start --web --port 8081
+
+env: load .env.local
+env: export EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_AUTH_REDIRECT_URL EXPO_PUBLIC_PASSWORD_RESET_REDIRECT_URL
+Starting project at C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide
+React Compiler enabled
+Starting Metro Bundler

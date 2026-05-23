@@ -4,8 +4,32 @@
 
 grant select, insert, update, delete on public.saved_places to authenticated;
 grant select, insert, update, delete on public.trips to authenticated;
-grant select, insert, update, delete on public.trip_members to authenticated;
-grant select, insert, update, delete on public.trip_places to authenticated;
+
+create or replace function public.is_trip_member(trip_uuid uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.trips
+    where id = trip_uuid
+      and owner_id = public.current_app_user_id()
+  )
+  or exists (
+    select 1
+    from public.trips
+    where id = trip_uuid
+      and members @> jsonb_build_array(
+        jsonb_build_object('user_id', public.current_app_user_id())
+      )
+  );
+$$;
+
+revoke all on function public.is_trip_member(uuid) from public;
+grant execute on function public.is_trip_member(uuid) to authenticated;
 
 drop policy if exists "Users can read their saved places" on public.saved_places;
 create policy "Users can read their saved places"
@@ -56,53 +80,3 @@ create policy "Trip owners can delete trips"
 on public.trips for delete
 to authenticated
 using (public.current_app_user_id() = owner_id);
-
-drop policy if exists "Trip members can read trip members" on public.trip_members;
-create policy "Trip members can read trip members"
-on public.trip_members for select
-to authenticated
-using (public.is_trip_member(trip_id));
-
-drop policy if exists "Trip owners can add trip members" on public.trip_members;
-create policy "Trip owners can add trip members"
-on public.trip_members for insert
-to authenticated
-with check (public.is_trip_owner(trip_id) or public.current_app_user_id() = user_id);
-
-drop policy if exists "Trip owners can update trip members" on public.trip_members;
-create policy "Trip owners can update trip members"
-on public.trip_members for update
-to authenticated
-using (public.is_trip_owner(trip_id))
-with check (public.is_trip_owner(trip_id));
-
-drop policy if exists "Trip owners and members can delete memberships" on public.trip_members;
-create policy "Trip owners and members can delete memberships"
-on public.trip_members for delete
-to authenticated
-using (public.is_trip_owner(trip_id) or public.current_app_user_id() = user_id);
-
-drop policy if exists "Trip members can read trip places" on public.trip_places;
-create policy "Trip members can read trip places"
-on public.trip_places for select
-to authenticated
-using (public.is_trip_member(trip_id));
-
-drop policy if exists "Trip owners can add trip places" on public.trip_places;
-create policy "Trip owners can add trip places"
-on public.trip_places for insert
-to authenticated
-with check (public.is_trip_owner(trip_id));
-
-drop policy if exists "Trip owners can update trip places" on public.trip_places;
-create policy "Trip owners can update trip places"
-on public.trip_places for update
-to authenticated
-using (public.is_trip_owner(trip_id))
-with check (public.is_trip_owner(trip_id));
-
-drop policy if exists "Trip owners can delete trip places" on public.trip_places;
-create policy "Trip owners can delete trip places"
-on public.trip_places for delete
-to authenticated
-using (public.is_trip_owner(trip_id));

@@ -3,6 +3,10 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { STORAGE_BUCKETS, assertSupabaseConfigured, supabase } from '../lib/supabase';
 import {
+  isMissingAuthUserIdColumnError,
+  isMissingUserProfileColumnError,
+  isValidEmailAddress,
+  normalizeEmail,
   normalizeUsername,
   sanitizeSearchTerm,
   throwIfSupabaseError,
@@ -18,6 +22,10 @@ const MIME_TYPES_BY_EXTENSION = {
   heic: 'image/heic',
   heif: 'image/heif',
 };
+
+function getProfileId(profile) {
+  return profile?.usr_id || profile?.id;
+}
 
 function pickProfileMetadata(authUser, fallback = {}) {
   const metadata = authUser?.user_metadata || {};
@@ -86,6 +94,7 @@ export async function hydrateProfile(profile, currentUserId = null, authUser = n
     return null;
   }
 
+  const profileId = getProfileId(profile);
   const [
     followersCount,
     followingCount,
@@ -93,15 +102,17 @@ export async function hydrateProfile(profile, currentUserId = null, authUser = n
     tripsCount,
     isFollowing,
   ] = await Promise.all([
-    countRows('user_follows', 'following_id', profile.id),
-    countRows('user_follows', 'follower_id', profile.id),
-    countRows('saved_places', 'user_id', profile.id),
-    countRows('trips', 'owner_id', profile.id),
-    isFollowingProfile(currentUserId, profile.id),
+    countRows('user_follows', 'following_id', profileId),
+    countRows('user_follows', 'follower_id', profileId),
+    countRows('saved_places', 'user_id', profileId),
+    countRows('trips', 'owner_id', profileId),
+    isFollowingProfile(currentUserId, profileId),
   ]);
 
   return {
     ...profile,
+    id: profileId,
+    usrId: profileId,
     email_verified: Boolean(profile.email_verified || authUser?.email_confirmed_at),
     followers_count: followersCount,
     following_count: followingCount,
@@ -119,9 +130,9 @@ export async function getProfileById(userId, currentUserId = null, authUser = nu
   }
 
   const { data, error } = await supabase
-    .from('users')
+    .from('user_profile')
     .select('*')
-    .eq('id', userId)
+    .eq('usr_id', userId)
     .maybeSingle();
 
   throwIfSupabaseError(error, 'Could not load profile.');
@@ -139,11 +150,22 @@ export async function getProfileByAuthUserId(
     return null;
   }
 
-  const { data, error } = await supabase
-    .from('users')
+  let { data, error } = await supabase
+    .from('user_profile')
     .select('*')
     .eq('auth_user_id', authUserId)
     .maybeSingle();
+
+  if (isMissingAuthUserIdColumnError(error) && authUser?.email) {
+    const fallbackResult = await supabase
+      .from('user_profile')
+      .select('*')
+      .eq('email', String(authUser.email).toLowerCase())
+      .maybeSingle();
+
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
 
   throwIfSupabaseError(error, 'Could not load profile.');
   return hydrateProfile(data, currentUserId, authUser);
@@ -169,12 +191,24 @@ export async function ensureUserProfile(authUser, fallback = {}) {
       updated_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase
-      .from('users')
+    let { data, error } = await supabase
+      .from('user_profile')
       .update(updatePayload)
       .eq('auth_user_id', authUser.id)
       .select('*')
       .single();
+
+    if (isMissingAuthUserIdColumnError(error)) {
+      const fallbackResult = await supabase
+        .from('user_profile')
+        .update(updatePayload)
+        .eq('usr_id', existingProfile.id)
+        .select('*')
+        .single();
+
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       return existingProfile;
@@ -189,14 +223,33 @@ export async function ensureUserProfile(authUser, fallback = {}) {
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
-    .from('users')
+  let { data, error } = await supabase
+    .from('user_profile')
     .insert(profilePayload)
     .select('*')
     .single();
 
+  if (
+    isMissingAuthUserIdColumnError(error) ||
+    isMissingUserProfileColumnError(error, 'preferred_language')
+  ) {
+    const {
+      auth_user_id: _authUserId,
+      preferred_language: _preferredLanguage,
+      ...fallbackPayload
+    } = profilePayload;
+    const fallbackResult = await supabase
+      .from('user_profile')
+      .insert(fallbackPayload)
+      .select('*')
+      .single();
+
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
+
   throwIfSupabaseError(error, 'Could not create profile.');
-  return hydrateProfile(data, data?.id, authUser);
+  return hydrateProfile(data, getProfileId(data), authUser);
 }
 
 export async function getProfileByUsername(username, currentUserId = null) {
@@ -209,7 +262,7 @@ export async function getProfileByUsername(username, currentUserId = null) {
   }
 
   const { data, error } = await supabase
-    .from('users')
+    .from('user_profile')
     .select('*')
     .eq('username', normalizedUsername)
     .maybeSingle();
@@ -227,14 +280,49 @@ export async function isUsernameAvailable(username) {
     return false;
   }
 
-  const { data, error } = await supabase
-    .from('users')
-    .select('id')
-    .eq('username', normalizedUsername)
-    .maybeSingle();
+  const { data: functionData, error: functionError } = await supabase.functions.invoke(
+    'check-username',
+    {
+      body: { username: normalizedUsername },
+    }
+  );
 
-  throwIfSupabaseError(error, 'Could not check username.');
-  return !data;
+  if (!functionError && typeof functionData?.available === 'boolean') {
+    return functionData.available;
+  }
+
+  const { count, error } = await supabase
+    .from('user_profile')
+    .select('usr_id', { count: 'exact', head: true })
+    .eq('username', normalizedUsername);
+
+  if (!error) {
+    return (count || 0) === 0;
+  }
+
+  const { data, error: rpcError } = await supabase
+    .rpc('is_username_available', { username_value: normalizedUsername });
+
+  throwIfSupabaseError(rpcError || error, 'Could not check username.');
+  return Boolean(data);
+}
+
+export async function isEmailAvailable(email) {
+  assertSupabaseConfigured();
+
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!isValidEmailAddress(normalizedEmail)) {
+    return false;
+  }
+
+  const { count, error } = await supabase
+    .from('user_profile')
+    .select('usr_id', { count: 'exact', head: true })
+    .eq('email', normalizedEmail);
+
+  throwIfSupabaseError(error, 'Could not check email.');
+  return (count || 0) === 0;
 }
 
 export async function searchProfiles(query, currentUserId = null, limit = 8) {
@@ -248,7 +336,7 @@ export async function searchProfiles(query, currentUserId = null, limit = 8) {
 
   const normalizedTerm = normalizeUsername(term);
   const { data, error } = await supabase
-    .from('users')
+    .from('user_profile')
     .select('*')
     .or(
       `username.ilike.%${normalizedTerm}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`
@@ -272,15 +360,16 @@ export async function updateProfile(userId, updates) {
   };
 
   delete safeUpdates.id;
+  delete safeUpdates.usr_id;
 
   if (safeUpdates.username) {
     safeUpdates.username = normalizeUsername(safeUpdates.username);
   }
 
   const { data, error } = await supabase
-    .from('users')
+    .from('user_profile')
     .update(safeUpdates)
-    .eq('id', userId)
+    .eq('usr_id', userId)
     .select('*')
     .single();
 
@@ -289,7 +378,15 @@ export async function updateProfile(userId, updates) {
 }
 
 export async function updatePreferredLanguage(userId, languageCode) {
-  return updateProfile(userId, { preferred_language: languageCode });
+  try {
+    return await updateProfile(userId, { preferred_language: languageCode });
+  } catch (error) {
+    if (isMissingUserProfileColumnError(error, 'preferred_language')) {
+      return getProfileById(userId, userId);
+    }
+
+    throw error;
+  }
 }
 
 function getAssetFileName(asset) {
@@ -435,13 +532,15 @@ export async function getProfileConnections(username, listType, currentUserId = 
   }
 
   const { data: profiles, error: profilesError } = await supabase
-    .from('users')
+    .from('user_profile')
     .select('*')
-    .in('id', targetIds);
+    .in('usr_id', targetIds);
 
   throwIfSupabaseError(profilesError, 'Could not load connections.');
 
-  const profileById = new Map((profiles || []).map((item) => [item.id, item]));
+  const profileById = new Map(
+    (profiles || []).map((item) => [getProfileId(item), item])
+  );
   const orderedProfiles = targetIds.map((id) => profileById.get(id)).filter(Boolean);
 
   return Promise.all(

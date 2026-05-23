@@ -26,6 +26,33 @@ export function throwIfSupabaseError(error, fallbackMessage) {
   }
 }
 
+export function isMissingAuthUserIdColumnError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return (
+    message.includes('auth_user_id') &&
+    (
+      message.includes('does not exist') ||
+      message.includes('schema cache') ||
+      message.includes('could not find')
+    )
+  );
+}
+
+export function isMissingUserProfileColumnError(error, columnName) {
+  const message = String(error?.message || error || '').toLowerCase();
+  const normalizedColumnName = String(columnName || '').toLowerCase();
+
+  return (
+    normalizedColumnName &&
+    message.includes(normalizedColumnName) &&
+    (
+      message.includes('does not exist') ||
+      message.includes('schema cache') ||
+      message.includes('could not find')
+    )
+  );
+}
+
 export async function getAuthenticatedProfileId(expectedProfileId = null) {
   const { data, error } = await supabase.auth.getUser();
 
@@ -37,15 +64,26 @@ export async function getAuthenticatedProfileId(expectedProfileId = null) {
     throw new Error('Please sign in again.');
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from('users')
-    .select('id')
+  let { data: profile, error: profileError } = await supabase
+    .from('user_profile')
+    .select('usr_id')
     .eq('auth_user_id', authUserId)
     .maybeSingle();
 
+  if (isMissingAuthUserIdColumnError(profileError) && data?.user?.email) {
+    const fallbackResult = await supabase
+      .from('user_profile')
+      .select('usr_id')
+      .eq('email', String(data.user.email).toLowerCase())
+      .maybeSingle();
+
+    profile = fallbackResult.data;
+    profileError = fallbackResult.error;
+  }
+
   throwIfSupabaseError(profileError, 'Please sign in again.');
 
-  const profileId = profile?.id;
+  const profileId = profile?.usr_id || profile?.id;
 
   if (!profileId) {
     throw new Error('Profile could not be loaded. Please sign out and sign back in.');
@@ -67,6 +105,14 @@ export function normalizeUsername(value) {
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, '')
     .slice(0, 32);
+}
+
+export function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+export function isValidEmailAddress(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
 }
 
 export function isStrongSignupPassword(value) {

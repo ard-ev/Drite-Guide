@@ -32,6 +32,34 @@ as $$
   );
 $$;
 
+create or replace function public.is_username_available(username_value text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    length(
+      regexp_replace(
+        lower(regexp_replace(btrim(coalesce(username_value, '')), '^@+', '')),
+        '[^a-z0-9._-]+',
+        '',
+        'g'
+      )
+    ) >= 3
+    and not exists (
+      select 1
+      from public.user_profile
+      where username = regexp_replace(
+        lower(regexp_replace(btrim(coalesce(username_value, '')), '^@+', '')),
+        '[^a-z0-9._-]+',
+        '',
+        'g'
+      )
+    );
+$$;
+
 create or replace function public.generate_prefixed_id(
   id_prefix text,
   sequence_name regclass
@@ -63,8 +91,8 @@ returns trigger
 language plpgsql
 as $$
 begin
-  if new.id is null or btrim(new.id) = '' then
-    new.id := public.generate_user_public_id();
+  if new.usr_id is null or btrim(new.usr_id) = '' then
+    new.usr_id := public.generate_user_public_id();
   end if;
 
   return new;
@@ -119,9 +147,9 @@ begin
 end;
 $$;
 
-create table if not exists public.users (
-  id text primary key default public.generate_user_public_id()
-    check (id ~ '^usr_[0-9]{6}$'),
+create table if not exists public.user_profile (
+  usr_id text primary key default public.generate_user_public_id()
+    check (usr_id ~ '^usr_[0-9]{6}$'),
   auth_user_id uuid not null unique references auth.users(id) on delete cascade,
   first_name text not null default '',
   last_name text not null default '',
@@ -135,7 +163,22 @@ create table if not exists public.users (
   updated_at timestamptz not null default now()
 );
 
-comment on column public.users.profile_picture_path is
+select setval(
+  'public.user_id_seq',
+  greatest(
+    coalesce(
+      (
+        select max((substring(usr_id from '[0-9]+$'))::bigint)
+        from public.user_profile
+      ),
+      0
+    ) + 1,
+    1
+  ),
+  false
+);
+
+comment on column public.user_profile.profile_picture_path is
   'User photo stored in the public profile-pictures bucket. Store either the object path, a profile-pictures/... storage path, or a full image URL.';
 
 create table if not exists public.signup_attempts (
@@ -189,7 +232,7 @@ create table if not exists public.places (
   rating_average numeric(3, 2) not null default 0,
   ratings_count integer not null default 0,
   is_featured boolean not null default false,
-  created_by_user_id text references public.users(id) on delete set null,
+  created_by_user_id text references public.user_profile(usr_id) on delete set null,
   deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -211,7 +254,7 @@ comment on column public.place_images.image_path is
   'Place gallery photo. Use a full https URL, a supabase://place-images/... reference, or a place-images/... storage path.';
 
 create table if not exists public.saved_places (
-  user_id text not null references public.users(id) on delete cascade,
+  user_id text not null references public.user_profile(usr_id) on delete cascade,
   place_id text not null references public.places(id) on delete cascade,
   priority integer,
   is_favorite boolean not null default false,
@@ -221,8 +264,8 @@ create table if not exists public.saved_places (
 );
 
 create table if not exists public.user_follows (
-  follower_id text not null references public.users(id) on delete cascade,
-  following_id text not null references public.users(id) on delete cascade,
+  follower_id text not null references public.user_profile(usr_id) on delete cascade,
+  following_id text not null references public.user_profile(usr_id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (follower_id, following_id),
@@ -231,45 +274,29 @@ create table if not exists public.user_follows (
 
 create table if not exists public.trips (
   id uuid primary key default gen_random_uuid(),
-  owner_id text not null references public.users(id) on delete cascade,
+  owner_id text not null references public.user_profile(usr_id) on delete cascade,
   title text not null,
   description text,
   start_date date not null,
   end_date date not null,
   shared_note text,
+  members jsonb not null default '[]'::jsonb,
+  places jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  constraint trips_members_is_array check (jsonb_typeof(members) = 'array'),
+  constraint trips_places_is_array check (jsonb_typeof(places) = 'array'),
   constraint trips_valid_date_range check (end_date >= start_date)
 );
 
-create table if not exists public.trip_members (
-  id uuid primary key default gen_random_uuid(),
-  trip_id uuid not null references public.trips(id) on delete cascade,
-  user_id text not null references public.users(id) on delete cascade,
-  role text not null default 'member' check (role in ('owner', 'member')),
-  status text not null default 'invited' check (status in ('invited', 'accepted')),
-  invited_by_user_id text references public.users(id) on delete set null,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint trip_members_trip_user_unique unique (trip_id, user_id)
-);
-
-create table if not exists public.trip_places (
-  id uuid primary key default gen_random_uuid(),
-  trip_id uuid not null references public.trips(id) on delete cascade,
-  place_id text not null references public.places(id) on delete cascade,
-  visit_date date,
-  visit_start_time time,
-  visit_end_time time,
-  note text,
-  order_index integer not null default 0,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint trip_places_trip_place_unique unique (trip_id, place_id)
-);
+drop table if exists public.trip_places cascade;
+drop table if exists public.trip_members cascade;
+drop function if exists public.current_profile_id();
+drop table if exists public.profiles cascade;
+drop table if exists public.users cascade;
 
 create index if not exists categories_name_idx on public.categories (name);
-create index if not exists users_auth_user_id_idx on public.users (auth_user_id);
+create index if not exists users_auth_user_id_idx on public.user_profile (auth_user_id);
 create index if not exists signup_attempts_email_created_at_idx
   on public.signup_attempts (email_hash, created_at desc);
 create index if not exists signup_attempts_ip_created_at_idx
@@ -284,14 +311,10 @@ create index if not exists saved_places_place_id_idx on public.saved_places (pla
 create index if not exists user_follows_follower_id_idx on public.user_follows (follower_id);
 create index if not exists user_follows_following_id_idx on public.user_follows (following_id);
 create index if not exists trips_owner_id_idx on public.trips (owner_id);
-create index if not exists trip_members_trip_id_idx on public.trip_members (trip_id);
-create index if not exists trip_members_user_id_idx on public.trip_members (user_id);
-create index if not exists trip_places_trip_id_idx on public.trip_places (trip_id);
-create index if not exists trip_places_place_id_idx on public.trip_places (place_id);
 
-drop trigger if exists users_set_public_id on public.users;
+drop trigger if exists users_set_public_id on public.user_profile;
 create trigger users_set_public_id
-before insert on public.users
+before insert on public.user_profile
 for each row execute function public.set_user_public_id();
 
 drop trigger if exists categories_set_readable_id on public.categories;
@@ -312,9 +335,9 @@ create trigger places_set_public_id
 before insert on public.places
 for each row execute function public.set_place_public_id();
 
-drop trigger if exists users_set_updated_at on public.users;
+drop trigger if exists users_set_updated_at on public.user_profile;
 create trigger users_set_updated_at
-before update on public.users
+before update on public.user_profile
 for each row execute function public.set_updated_at();
 
 drop trigger if exists categories_set_updated_at on public.categories;
@@ -347,16 +370,6 @@ create trigger trips_set_updated_at
 before update on public.trips
 for each row execute function public.set_updated_at();
 
-drop trigger if exists trip_members_set_updated_at on public.trip_members;
-create trigger trip_members_set_updated_at
-before update on public.trip_members
-for each row execute function public.set_updated_at();
-
-drop trigger if exists trip_places_set_updated_at on public.trip_places;
-create trigger trip_places_set_updated_at
-before update on public.trip_places
-for each row execute function public.set_updated_at();
-
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -385,15 +398,18 @@ begin
 
   while exists (
     select 1
-    from public.users
+    from public.user_profile
     where username = candidate_username
-      and auth_user_id <> new.id
+      and (
+        auth_user_id is null
+        or auth_user_id <> new.id
+      )
   ) loop
     suffix := suffix + 1;
     candidate_username := base_username || suffix::text;
   end loop;
 
-  insert into public.users (
+  insert into public.user_profile (
     auth_user_id,
     first_name,
     last_name,
@@ -411,8 +427,12 @@ begin
     coalesce(new.raw_user_meta_data ->> 'preferred_language', 'en'),
     new.email_confirmed_at is not null
   )
-  on conflict (auth_user_id) do update set
-    email = excluded.email,
+  on conflict (email) do update set
+    auth_user_id = excluded.auth_user_id,
+    first_name = excluded.first_name,
+    last_name = excluded.last_name,
+    username = excluded.username,
+    preferred_language = excluded.preferred_language,
     email_verified = excluded.email_verified,
     updated_at = now();
 
@@ -427,12 +447,13 @@ security definer
 set search_path = public
 as $$
 begin
-  update public.users
+  update public.user_profile
   set
     email = lower(new.email),
     email_verified = new.email_confirmed_at is not null,
     updated_at = now()
-  where auth_user_id = new.id;
+  where auth_user_id = new.id
+     or email = lower(old.email);
 
   return new;
 end;
@@ -455,8 +476,8 @@ stable
 security definer
 set search_path = public
 as $$
-  select id
-  from public.users
+  select usr_id
+  from public.user_profile
   where auth_user_id = (select auth.uid())
   limit 1;
 $$;
@@ -497,16 +518,18 @@ as $$
   )
   or exists (
     select 1
-    from public.trip_members
-    where trip_id = trip_uuid
-      and user_id = public.current_app_user_id()
+    from public.trips
+    where id = trip_uuid
+      and members @> jsonb_build_array(
+        jsonb_build_object('user_id', public.current_app_user_id())
+      )
   );
 $$;
 
 revoke all on function public.is_trip_member(uuid) from public;
 grant execute on function public.is_trip_member(uuid) to authenticated;
 
-alter table public.users enable row level security;
+alter table public.user_profile enable row level security;
 alter table public.signup_attempts enable row level security;
 alter table public.categories enable row level security;
 alter table public.cities enable row level security;
@@ -515,8 +538,6 @@ alter table public.place_images enable row level security;
 alter table public.saved_places enable row level security;
 alter table public.user_follows enable row level security;
 alter table public.trips enable row level security;
-alter table public.trip_members enable row level security;
-alter table public.trip_places enable row level security;
 
 grant usage on schema public to anon, authenticated;
 grant usage, select on sequence public.user_id_seq to authenticated;
@@ -525,23 +546,23 @@ grant usage, select on sequence public.city_id_seq to authenticated;
 grant usage, select on sequence public.place_id_seq to authenticated;
 revoke all on function public.is_strong_signup_password(text) from public;
 grant execute on function public.is_strong_signup_password(text) to service_role;
-grant select on public.users to anon, authenticated;
+revoke all on function public.is_username_available(text) from public;
+grant execute on function public.is_username_available(text) to anon, authenticated;
+grant select on public.user_profile to anon, authenticated;
 revoke all on public.signup_attempts from anon, authenticated;
 grant select on public.categories to anon, authenticated;
 grant select on public.cities to anon, authenticated;
 grant select on public.places to anon, authenticated;
 grant select on public.place_images to anon, authenticated;
 
-grant select, insert, update on public.users to authenticated;
+grant select, insert, update on public.user_profile to authenticated;
 grant select, insert, update, delete on public.saved_places to authenticated;
 grant select, insert, delete on public.user_follows to authenticated;
 grant select, insert, update, delete on public.trips to authenticated;
-grant select, insert, update, delete on public.trip_members to authenticated;
-grant select, insert, update, delete on public.trip_places to authenticated;
 
-drop policy if exists "Public can read users" on public.users;
+drop policy if exists "Public can read users" on public.user_profile;
 create policy "Public can read users"
-on public.users for select
+on public.user_profile for select
 using (true);
 
 drop policy if exists "No client access to signup attempts" on public.signup_attempts;
@@ -551,16 +572,16 @@ to anon, authenticated
 using (false)
 with check (false);
 
-drop policy if exists "Users can insert their own profile" on public.users;
-drop policy if exists "Users can insert themselves" on public.users;
+drop policy if exists "Users can insert their own profile" on public.user_profile;
+drop policy if exists "Users can insert themselves" on public.user_profile;
 create policy "Users can insert themselves"
-on public.users for insert
+on public.user_profile for insert
 with check ((select auth.uid()) = auth_user_id);
 
-drop policy if exists "Users can update their own profile" on public.users;
-drop policy if exists "Users can update themselves" on public.users;
+drop policy if exists "Users can update their own profile" on public.user_profile;
+drop policy if exists "Users can update themselves" on public.user_profile;
 create policy "Users can update themselves"
-on public.users for update
+on public.user_profile for update
 using ((select auth.uid()) = auth_user_id)
 with check ((select auth.uid()) = auth_user_id);
 
@@ -640,48 +661,6 @@ drop policy if exists "Trip owners can delete trips" on public.trips;
 create policy "Trip owners can delete trips"
 on public.trips for delete
 using (public.current_app_user_id() = owner_id);
-
-drop policy if exists "Trip members can read trip members" on public.trip_members;
-create policy "Trip members can read trip members"
-on public.trip_members for select
-using (public.is_trip_member(trip_id));
-
-drop policy if exists "Trip owners can add trip members" on public.trip_members;
-create policy "Trip owners can add trip members"
-on public.trip_members for insert
-with check (public.is_trip_owner(trip_id) or public.current_app_user_id() = user_id);
-
-drop policy if exists "Trip owners can update trip members" on public.trip_members;
-create policy "Trip owners can update trip members"
-on public.trip_members for update
-using (public.is_trip_owner(trip_id))
-with check (public.is_trip_owner(trip_id));
-
-drop policy if exists "Trip owners and members can delete memberships" on public.trip_members;
-create policy "Trip owners and members can delete memberships"
-on public.trip_members for delete
-using (public.is_trip_owner(trip_id) or public.current_app_user_id() = user_id);
-
-drop policy if exists "Trip members can read trip places" on public.trip_places;
-create policy "Trip members can read trip places"
-on public.trip_places for select
-using (public.is_trip_member(trip_id));
-
-drop policy if exists "Trip owners can add trip places" on public.trip_places;
-create policy "Trip owners can add trip places"
-on public.trip_places for insert
-with check (public.is_trip_owner(trip_id));
-
-drop policy if exists "Trip owners can update trip places" on public.trip_places;
-create policy "Trip owners can update trip places"
-on public.trip_places for update
-using (public.is_trip_owner(trip_id))
-with check (public.is_trip_owner(trip_id));
-
-drop policy if exists "Trip owners can delete trip places" on public.trip_places;
-create policy "Trip owners can delete trip places"
-on public.trip_places for delete
-using (public.is_trip_owner(trip_id));
 
 insert into storage.buckets (id, name, public)
 values

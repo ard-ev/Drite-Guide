@@ -13,10 +13,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/TranslationContext';
+
+const navigateToProfile = (navigation, user) => {
+    navigation.dispatch(
+        CommonActions.reset({
+            index: 1,
+            routes: [
+                { name: 'AccountMain' },
+                {
+                    name: 'Profile',
+                    params: {
+                        username: user?.username,
+                        profile: user,
+                    },
+                },
+            ],
+        })
+    );
+};
 
 export default function LoginScreen() {
     const navigation = useNavigation();
@@ -32,19 +50,17 @@ export default function LoginScreen() {
         const result = await login(identifier, password);
 
         if (!result.success) {
-            const canResendVerification = result.requiresEmailVerification && identifier.includes('@');
-            setPendingVerificationEmail(canResendVerification ? identifier.trim().toLowerCase() : '');
+            const verificationEmail = result.verificationEmail ||
+                (identifier.includes('@') ? identifier.trim().toLowerCase() : '');
+            setPendingVerificationEmail(
+                result.requiresEmailVerification ? verificationEmail : ''
+            );
             Alert.alert(t('auth.loginFailed'), result.message);
             return;
         }
 
         setPendingVerificationEmail('');
-        Alert.alert(t('auth.loginSuccessful'), t('auth.welcomeBack', { name: result.user.first_name }), [
-            {
-                text: t('common.continue'),
-                onPress: () => navigation.navigate('AccountMain'),
-            },
-        ]);
+        navigateToProfile(navigation, result.user);
     };
 
     const handleResendVerification = async () => {
