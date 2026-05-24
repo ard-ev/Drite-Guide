@@ -303,8 +303,12 @@ export async function isUsernameAvailable(username) {
   const { data, error: rpcError } = await supabase
     .rpc('is_username_available', { username_value: normalizedUsername });
 
+  if (!rpcError && typeof data === 'boolean') {
+    return data;
+  }
+
   throwIfSupabaseError(rpcError || error, 'Could not check username.');
-  return Boolean(data);
+  return false;
 }
 
 export async function isEmailAvailable(email) {
@@ -316,13 +320,24 @@ export async function isEmailAvailable(email) {
     return false;
   }
 
-  const { count, error } = await supabase
-    .from('user_profile')
-    .select('usr_id', { count: 'exact', head: true })
-    .eq('email', normalizedEmail);
+  try {
+    const { count, error } = await supabase
+      .from('user_profile')
+      .select('usr_id', { count: 'exact', head: true })
+      .eq('email', normalizedEmail);
 
-  throwIfSupabaseError(error, 'Could not check email.');
-  return (count || 0) === 0;
+    if (error) {
+      console.warn('Email availability check query failed:', error);
+      // If query fails, assume email is available to allow signup to proceed
+      return true;
+    }
+
+    return (count || 0) === 0;
+  } catch (err) {
+    console.warn('Email availability check error:', err);
+    // If check fails for any reason, allow signup to proceed
+    return true;
+  }
 }
 
 export async function searchProfiles(query, currentUserId = null, limit = 8) {
