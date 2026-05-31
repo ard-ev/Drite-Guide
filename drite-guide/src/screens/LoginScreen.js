@@ -18,19 +18,12 @@ import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/TranslationContext';
 
-const navigateToProfile = (navigation, user) => {
+const navigateToAccount = (navigation) => {
     navigation.dispatch(
         CommonActions.reset({
-            index: 1,
+            index: 0,
             routes: [
                 { name: 'AccountMain' },
-                {
-                    name: 'Profile',
-                    params: {
-                        username: user?.username,
-                        profile: user,
-                    },
-                },
             ],
         })
     );
@@ -60,7 +53,7 @@ export default function LoginScreen() {
         }
 
         setPendingVerificationEmail('');
-        navigateToProfile(navigation, result.user);
+        navigateToAccount(navigation);
     };
 
     const handleResendVerification = async () => {

@@ -58,6 +58,47 @@ function isDuplicateUsernameError(error) {
   );
 }
 
+function isMissingResolveLoginEmailFunctionError(error) {
+  const message = getSupabaseErrorMessage(error, '').toLowerCase();
+
+  return (
+    error?.code === 'PGRST202' ||
+    (
+      message.includes('resolve_login_email') &&
+      message.includes('schema cache')
+    ) ||
+    (
+      message.includes('could not find the function') &&
+      message.includes('resolve_login_email')
+    )
+  );
+}
+
+async function resolveLoginEmail(identifier) {
+  const normalizedIdentifier = normalizeUsername(identifier);
+  const { data: resolvedEmail, error: resolveError } = await supabase.rpc(
+    'resolve_login_email',
+    { identifier_value: normalizedIdentifier }
+  );
+
+  if (!resolveError) {
+    return normalizeEmail(resolvedEmail);
+  }
+
+  if (!isMissingResolveLoginEmailFunctionError(resolveError)) {
+    throwIfSupabaseError(resolveError, 'Login failed.');
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('user_profile')
+    .select('email')
+    .eq('normalized_username', normalizedIdentifier)
+    .maybeSingle();
+
+  throwIfSupabaseError(profileError, 'Login failed.');
+  return normalizeEmail(profile?.email);
+}
+
 export function isEmailNotVerifiedError(error) {
   const message = getSupabaseErrorMessage(error, '').toLowerCase();
 
@@ -281,13 +322,7 @@ export async function signIn(identifier, password) {
   let email = trimmedIdentifier.toLowerCase();
 
   if (!email.includes('@')) {
-    const { data: resolvedEmail, error: resolveError } = await supabase.rpc(
-      'resolve_login_email',
-      { identifier_value: normalizeUsername(email) }
-    );
-
-    throwIfSupabaseError(resolveError, 'Login failed.');
-    email = normalizeEmail(resolvedEmail);
+    email = await resolveLoginEmail(email);
   }
 
   if (!email) {
