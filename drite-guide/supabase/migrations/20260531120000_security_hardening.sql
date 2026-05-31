@@ -37,6 +37,25 @@ $$;
 revoke all on function public.resolve_login_email(text) from public;
 grant execute on function public.resolve_login_email(text) to anon, authenticated;
 
+create or replace function public.is_email_available(email_value text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    btrim(coalesce(email_value, '')) ~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
+    and not exists (
+      select 1
+      from public.user_profile
+      where lower(email) = lower(btrim(coalesce(email_value, '')))
+    );
+$$;
+
+revoke all on function public.is_email_available(text) from public;
+grant execute on function public.is_email_available(text) to anon, authenticated;
+
 create or replace function public.current_app_user_id()
 returns uuid
 language sql

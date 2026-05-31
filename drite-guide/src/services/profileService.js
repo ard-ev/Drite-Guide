@@ -3,6 +3,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { STORAGE_BUCKETS, assertSupabaseConfigured, supabase } from '../lib/supabase';
 import {
+  isValidEmailAddress,
+  normalizeEmail,
   normalizeUsername,
   sanitizeSearchTerm,
   throwIfSupabaseError,
@@ -248,6 +250,56 @@ export async function isUsernameAvailable(username) {
 
   throwIfSupabaseError(rpcError || error, 'Could not check username.');
   return false;
+}
+
+function isMissingEmailAvailabilityFunctionError(error) {
+  const message = String(error?.message || '').toLowerCase();
+
+  return (
+    error?.code === 'PGRST202' ||
+    (
+      message.includes('is_email_available') &&
+      message.includes('schema cache')
+    ) ||
+    (
+      message.includes('could not find the function') &&
+      message.includes('is_email_available')
+    )
+  );
+}
+
+export async function isEmailAvailable(email) {
+  assertSupabaseConfigured();
+
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!isValidEmailAddress(normalizedEmail)) {
+    return false;
+  }
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    'is_email_available',
+    { email_value: normalizedEmail }
+  );
+
+  if (!rpcError) {
+    return Boolean(rpcData);
+  }
+
+  if (!isMissingEmailAvailabilityFunctionError(rpcError)) {
+    throwIfSupabaseError(rpcError, 'Could not check email.');
+  }
+
+  const { count, error } = await supabase
+    .from('user_profile')
+    .select('id', { count: 'exact', head: true })
+    .eq('email', normalizedEmail);
+
+  if (!error) {
+    return (count || 0) === 0;
+  }
+
+  return true;
 }
 
 export async function searchProfiles(query, currentUserId = null, limit = 8) {
