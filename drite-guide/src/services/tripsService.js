@@ -3,6 +3,19 @@ import { getPlacesByIds } from './placesService';
 import { getProfileByUsername } from './profileService';
 import { getAuthenticatedProfileId, throwIfSupabaseError } from './supabaseService';
 
+const PUBLIC_PROFILE_SELECT = [
+  'id',
+  'first_name',
+  'last_name',
+  'username',
+  'normalized_username',
+  'profile_picture_path',
+  'bio',
+  'preferred_language',
+  'created_at',
+  'updated_at',
+].join(',');
+
 function createTripPlaceId() {
   if (globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
@@ -113,7 +126,7 @@ async function hydrateTripMembers(trip) {
 
   const { data: profiles, error: profilesError } = await supabase
     .from('user_profile')
-    .select('*')
+    .select(PUBLIC_PROFILE_SELECT)
     .in('id', userIds);
 
   throwIfSupabaseError(profilesError, 'Could not load trip members.');
@@ -316,12 +329,13 @@ export async function deleteTrip(tripId, userId) {
 
 export async function addPlaceToTrip(tripId, payload) {
   assertSupabaseConfigured();
-  await getAuthenticatedProfileId();
+  const profileId = await getAuthenticatedProfileId();
 
   const { data: trip, error: tripError } = await supabase
     .from('trips')
     .select('*')
     .eq('id', tripId)
+    .eq('owner_id', profileId)
     .single();
 
   throwIfSupabaseError(tripError, 'Could not add this place to the trip.');
@@ -356,6 +370,7 @@ export async function addPlaceToTrip(tripId, payload) {
       updated_at: now,
     })
     .eq('id', tripId)
+    .eq('owner_id', profileId)
     .select('places')
     .single();
 
@@ -370,12 +385,13 @@ export async function addPlaceToTrip(tripId, payload) {
 
 export async function updateTripPlace(tripId, tripPlaceId, payload) {
   assertSupabaseConfigured();
-  await getAuthenticatedProfileId();
+  const profileId = await getAuthenticatedProfileId();
 
   const { data: trip, error: tripError } = await supabase
     .from('trips')
     .select('*')
     .eq('id', tripId)
+    .eq('owner_id', profileId)
     .single();
 
   throwIfSupabaseError(tripError, 'Could not update this trip place.');
@@ -411,6 +427,7 @@ export async function updateTripPlace(tripId, tripPlaceId, payload) {
       updated_at: now,
     })
     .eq('id', tripId)
+    .eq('owner_id', profileId)
     .select('id')
     .single();
 
@@ -425,12 +442,13 @@ export async function updateTripPlace(tripId, tripPlaceId, payload) {
 
 export async function removeTripPlace(tripId, tripPlaceId) {
   assertSupabaseConfigured();
-  await getAuthenticatedProfileId();
+  const profileId = await getAuthenticatedProfileId();
 
   const { data: trip, error: tripError } = await supabase
     .from('trips')
     .select('*')
     .eq('id', tripId)
+    .eq('owner_id', profileId)
     .single();
 
   throwIfSupabaseError(tripError, 'Could not remove this place from the trip.');
@@ -450,7 +468,8 @@ export async function removeTripPlace(tripId, tripPlaceId) {
       places: nextPlaces,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', tripId);
+    .eq('id', tripId)
+    .eq('owner_id', profileId);
 
   throwIfSupabaseError(error, 'Could not remove this place from the trip.');
 }

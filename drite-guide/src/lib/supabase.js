@@ -1,6 +1,8 @@
 import 'react-native-url-polyfill/auto';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -22,13 +24,104 @@ export const STORAGE_BUCKETS = {
 };
 
 const knownBuckets = new Set(Object.values(STORAGE_BUCKETS));
+const SECURE_STORE_CHUNK_SIZE = 1800;
+
+function getSecureStoreChunkCountKey(key) {
+  return `${key}.chunk_count`;
+}
+
+function getSecureStoreChunkKey(key, index) {
+  return `${key}.chunk_${index}`;
+}
+
+const secureSessionStorage = {
+  async getItem(key) {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.getItem(key);
+    }
+
+    const chunkCountValue = await SecureStore.getItemAsync(
+      getSecureStoreChunkCountKey(key)
+    );
+    const chunkCount = Number(chunkCountValue || 0);
+
+    if (chunkCount > 0) {
+      const chunks = await Promise.all(
+        Array.from({ length: chunkCount }, (_, index) =>
+          SecureStore.getItemAsync(getSecureStoreChunkKey(key, index))
+        )
+      );
+
+      return chunks.every((chunk) => typeof chunk === 'string')
+        ? chunks.join('')
+        : null;
+    }
+
+    const secureValue = await SecureStore.getItemAsync(key);
+
+    if (secureValue) {
+      return secureValue;
+    }
+
+    return AsyncStorage.getItem(key);
+  },
+
+  async setItem(key, value) {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.setItem(key, value);
+    }
+
+    const previousChunkCount = Number(
+      (await SecureStore.getItemAsync(getSecureStoreChunkCountKey(key))) || 0
+    );
+
+    await Promise.all([
+      SecureStore.deleteItemAsync(key),
+      ...Array.from({ length: previousChunkCount }, (_, index) =>
+        SecureStore.deleteItemAsync(getSecureStoreChunkKey(key, index))
+      ),
+    ]);
+
+    const chunks = String(value || '').match(new RegExp(`.{1,${SECURE_STORE_CHUNK_SIZE}}`, 'g')) || [''];
+
+    await Promise.all(
+      chunks.map((chunk, index) =>
+        SecureStore.setItemAsync(getSecureStoreChunkKey(key, index), chunk)
+      )
+    );
+    await SecureStore.setItemAsync(
+      getSecureStoreChunkCountKey(key),
+      String(chunks.length)
+    );
+    await AsyncStorage.removeItem(key);
+  },
+
+  async removeItem(key) {
+    if (Platform.OS === 'web') {
+      return AsyncStorage.removeItem(key);
+    }
+
+    const chunkCount = Number(
+      (await SecureStore.getItemAsync(getSecureStoreChunkCountKey(key))) || 0
+    );
+
+    await Promise.all([
+      SecureStore.deleteItemAsync(key),
+      SecureStore.deleteItemAsync(getSecureStoreChunkCountKey(key)),
+      AsyncStorage.removeItem(key),
+      ...Array.from({ length: chunkCount }, (_, index) =>
+        SecureStore.deleteItemAsync(getSecureStoreChunkKey(key, index))
+      ),
+    ]);
+  },
+};
 
 export const supabase = createClient(
   isSupabaseConfigured ? SUPABASE_URL : fallbackUrl,
   isSupabaseConfigured ? SUPABASE_ANON_KEY : fallbackAnonKey,
   {
     auth: {
-      storage: AsyncStorage,
+      storage: secureSessionStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,

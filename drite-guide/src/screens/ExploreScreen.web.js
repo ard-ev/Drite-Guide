@@ -20,6 +20,7 @@ import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
 import colors from '../theme/colors';
+import { logWarning } from '../utils/logger';
 
 const FALLBACK_LOCATION = {
   latitude: 41.3275,
@@ -105,7 +106,7 @@ export default function ExploreScreen({ route }) {
         longitude: location.coords.longitude,
       });
     } catch (error) {
-      console.log('Error getting user location:', error);
+      logWarning('Error getting user location:', error?.message);
       setUserLocation(FALLBACK_LOCATION);
     }
   };

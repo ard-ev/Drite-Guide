@@ -4,17 +4,15 @@
     "slug": "drite-guide",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.jpeg",
+    "icon": "./assets/logo.png",
     "scheme": "driteguide",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F5F5F5",
     "primaryColor": "#d51e1e",
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.driteguide.app"
     },
-
     "android": {
       "package": "com.driteguide.app",
       "backgroundColor": "#F5F5F5",
@@ -26,12 +24,10 @@
       },
       "predictiveBackGestureEnabled": false
     },
-
     "web": {
       "output": "single",
-      "favicon": "./assets/logo.jpeg"
+      "favicon": "./assets/logo.png"
     },
-
     "plugins": [
       [
         "expo-image-picker",
@@ -53,9 +49,9 @@
           }
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-secure-store"
     ],
-
     "experiments": {
       "reactCompiler": true
     }

@@ -150,9 +150,7 @@ export default function SignupScreen() {
                 if (isActive) {
                     setUsernameStatus(available ? 'available' : 'taken');
                 }
-            } catch (error) {
-                console.log('Username check failed:', error);
-
+            } catch (_error) {
                 if (isActive) {
                     setUsernameStatus('error');
                 }
@@ -269,8 +267,6 @@ export default function SignupScreen() {
                 confirmPassword,
             });
 
-            console.log('Signup result:', result);
-
             if (!result?.success) {
                 Alert.alert(
                     t('auth.signupFailed') || 'Sign up failed',
@@ -292,8 +288,6 @@ export default function SignupScreen() {
 
             navigateToProfile(navigation, result.user);
         } catch (error) {
-            console.log('Signup screen error:', error);
-
             Alert.alert(
                 t('auth.signupFailed') || 'Sign up failed',
                 error?.message || t('auth.signupFailedFallback') || 'Could not create account.'

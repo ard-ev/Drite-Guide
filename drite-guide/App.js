@@ -6,6 +6,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppDataProvider } from './src/context/AppDataContext';
 import { TranslationProvider } from './src/context/TranslationContext';
+import { logWarning } from './src/utils/logger';
 
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
@@ -16,11 +17,7 @@ export default function App() {
 
     if (ErrorUtilsRef?.setGlobalHandler && previousHandler) {
       ErrorUtilsRef.setGlobalHandler((error, isFatal) => {
-        console.error('Global app error:', {
-          message: error?.message,
-          stack: error?.stack,
-          isFatal,
-        });
+        logWarning('Global app error:', { message: error?.message, isFatal });
         previousHandler(error, isFatal);
       });
     }
@@ -29,7 +26,7 @@ export default function App() {
       try {
         await new Promise((resolve) => setTimeout(resolve, 1500));
       } catch (error) {
-        console.log('Splash prepare error:', error);
+        logWarning('Splash prepare error:', error?.message);
       } finally {
         setAppIsReady(true);
       }

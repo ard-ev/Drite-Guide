@@ -3,7 +3,6 @@ import * as Linking from 'expo-linking';
 import { assertSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   ensureUserProfile,
-  getProfileByUsername,
   isUsernameAvailable,
 } from './profileService';
 import {
@@ -118,6 +117,57 @@ function getAuthRedirectUrl(path) {
   return getConfiguredRedirectUrl(path) || Linking.createURL(path);
 }
 
+function normalizeUrlOrigin(url) {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.origin;
+  } catch (_error) {
+    return '';
+  }
+}
+
+function isAllowedHttpRedirectUrl(url) {
+  try {
+    const parsedUrl = new URL(url);
+    const allowedOrigins = [
+      getConfiguredRedirectUrl(AUTH_CALLBACK_PATH),
+      getConfiguredRedirectUrl(PASSWORD_RESET_PATH),
+      DEFAULT_AUTH_REDIRECT_URL,
+    ]
+      .map(normalizeUrlOrigin)
+      .filter(Boolean);
+    const normalizedPath = parsedUrl.pathname.replace(/^\/+/, '');
+
+    return (
+      allowedOrigins.includes(parsedUrl.origin) &&
+      (
+        normalizedPath === '' ||
+        normalizedPath === AUTH_CALLBACK_PATH ||
+        normalizedPath === PASSWORD_RESET_PATH
+      )
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isAllowedAppRedirectUrl(url) {
+  const parsed = Linking.parse(url);
+  const pathParts = [parsed?.hostname, parsed?.path]
+    .filter(Boolean)
+    .join('/')
+    .replace(/^\/+/, '');
+
+  return (
+    parsed?.scheme === 'driteguide' &&
+    (pathParts === AUTH_CALLBACK_PATH || pathParts === PASSWORD_RESET_PATH)
+  );
+}
+
+function isTrustedAuthRedirectUrl(url) {
+  return isAllowedHttpRedirectUrl(url) || isAllowedAppRedirectUrl(url);
+}
+
 function getUrlParams(url) {
   const params = {};
   const parsed = Linking.parse(url);
@@ -144,11 +194,15 @@ export function isAuthRedirectUrl(url) {
   const rawUrl = String(url);
 
   return (
-    rawUrl.includes(AUTH_CALLBACK_PATH) ||
-    rawUrl.includes('access_token=') ||
-    rawUrl.includes('token_hash=') ||
-    rawUrl.includes('error_description=') ||
-    rawUrl.includes('code=')
+    isTrustedAuthRedirectUrl(rawUrl) &&
+    (
+      rawUrl.includes(AUTH_CALLBACK_PATH) ||
+      rawUrl.includes(PASSWORD_RESET_PATH) ||
+      rawUrl.includes('access_token=') ||
+      rawUrl.includes('token_hash=') ||
+      rawUrl.includes('error_description=') ||
+      rawUrl.includes('code=')
+    )
   );
 }
 
@@ -227,8 +281,13 @@ export async function signIn(identifier, password) {
   let email = trimmedIdentifier.toLowerCase();
 
   if (!email.includes('@')) {
-    const profile = await getProfileByUsername(normalizeUsername(email));
-    email = profile?.email || '';
+    const { data: resolvedEmail, error: resolveError } = await supabase.rpc(
+      'resolve_login_email',
+      { identifier_value: normalizeUsername(email) }
+    );
+
+    throwIfSupabaseError(resolveError, 'Login failed.');
+    email = normalizeEmail(resolvedEmail);
   }
 
   if (!email) {
@@ -263,8 +322,7 @@ export async function signIn(identifier, password) {
 
   try {
     profile = await ensureUserProfile(data.user);
-  } catch (profileError) {
-    console.log('SUPABASE PROFILE LOAD ERROR:', profileError);
+  } catch (_profileError) {
     profile = {
       id: data.user.id,
       email: data.user.email || email,
@@ -347,22 +405,9 @@ export async function signUp({
     },
   };
 
-  console.log('SUPABASE SIGNUP PAYLOAD:', {
-    email: signupPayload.email,
-    options: signupPayload.options,
-  });
-
   const { data, error } = await supabase.auth.signUp(signupPayload);
 
   if (error) {
-    console.log('SUPABASE SIGNUP ERROR:', {
-      message: error?.message,
-      name: error?.name,
-      status: error?.status,
-      code: error?.code,
-      details: error?.details,
-    });
-
     if (isDuplicateUsernameError(error)) {
       throw createCodedError('Username already taken', 'username_taken', 409);
     }

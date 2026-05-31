@@ -22,6 +22,7 @@ import colors from '../theme/colors';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
+import { logWarning } from '../utils/logger';
 
 const FALLBACK_REGION = {
     latitude: 41.3275,
@@ -131,7 +132,7 @@ export default function ExploreScreen({ route }) {
                 longitudeDelta: 0.18,
             });
         } catch (error) {
-            console.log('Error getting user location:', error);
+            logWarning('Error getting user location:', error?.message);
 
             const fallbackLocation = {
                 latitude: 41.3275,
@@ -263,7 +264,7 @@ export default function ExploreScreen({ route }) {
                 mapRef.current.animateToRegion(targetRegion, 700);
             }
         } catch (error) {
-            console.log('Error centering on location:', error);
+            logWarning('Error centering on location:', error?.message);
         }
     };
 

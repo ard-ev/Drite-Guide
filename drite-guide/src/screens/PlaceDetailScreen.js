@@ -20,15 +20,39 @@ import { useTranslation } from '../context/TranslationContext';
 import AddToTripModal from '../components/AddToTripModal';
 import { getPlaceById as fetchPlaceById } from '../services/placesService';
 import { normalizePlace } from '../services/transformers';
+import { logWarning } from '../utils/logger';
 
 const normalizeUrl = (url) => {
   if (!url || typeof url !== 'string') return null;
   const trimmedUrl = url.trim();
   if (!trimmedUrl) return null;
-  if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+  if (/^https?:\/\//i.test(trimmedUrl)) {
     return trimmedUrl;
   }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmedUrl)) {
+    return null;
+  }
   return `https://${trimmedUrl}`;
+};
+
+const isAllowedMapUrl = (url) => {
+  try {
+    const parsedUrl = new URL(url);
+    const host = parsedUrl.hostname.toLowerCase();
+
+    return (
+      parsedUrl.protocol === 'https:' &&
+      (
+        host === 'maps.app.goo.gl' ||
+        host === 'www.google.com' ||
+        host === 'google.com' ||
+        host.endsWith('.google.com') ||
+        host === 'maps.apple.com'
+      )
+    );
+  } catch (_error) {
+    return false;
+  }
 };
 
 export default function PlaceDetailScreen({ route }) {
@@ -65,7 +89,7 @@ export default function PlaceDetailScreen({ route }) {
           setRemotePlace(nextPlace);
         }
       } catch (error) {
-        console.warn('Could not load place detail:', error?.message);
+        logWarning('Could not load place detail:', error?.message);
       }
     }
 
@@ -148,14 +172,16 @@ export default function PlaceDetailScreen({ route }) {
 
   const handleNavigate = async () => {
     try {
-      if (!place?.google_maps_link) {
+      const mapUrl = normalizeUrl(place?.google_maps_link);
+
+      if (!mapUrl || !isAllowedMapUrl(mapUrl)) {
         Alert.alert(t('placeDetail.noMapLinkTitle'), t('placeDetail.noMapLinkText'));
         return;
       }
 
-      await Linking.openURL(place.google_maps_link);
+      await Linking.openURL(mapUrl);
     } catch (error) {
-      console.log('Navigation error:', error);
+      logWarning('Navigation error:', error?.message);
       Alert.alert(t('placeDetail.mapErrorTitle'), t('placeDetail.mapErrorText'));
     }
   };

@@ -3,22 +3,35 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { STORAGE_BUCKETS, assertSupabaseConfigured, supabase } from '../lib/supabase';
 import {
-  isValidEmailAddress,
-  normalizeEmail,
   normalizeUsername,
   sanitizeSearchTerm,
   throwIfSupabaseError,
 } from './supabaseService';
 
 const DEFAULT_PROFILE_PICTURE_PATH = null;
+const PUBLIC_PROFILE_SELECT = [
+  'id',
+  'first_name',
+  'last_name',
+  'username',
+  'normalized_username',
+  'profile_picture_path',
+  'bio',
+  'preferred_language',
+  'created_at',
+  'updated_at',
+].join(',');
+const MAX_PROFILE_PICTURE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_PROFILE_IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
 const MIME_TYPES_BY_EXTENSION = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
   png: 'image/png',
   webp: 'image/webp',
-  gif: 'image/gif',
-  heic: 'image/heic',
-  heif: 'image/heif',
 };
 
 function getProfileId(profile) {
@@ -110,6 +123,7 @@ export async function hydrateProfile(profile, currentUserId = null, authUser = n
   return {
     ...profile,
     id: profileId,
+    email: authUser?.email || profile.email,
     email_verified: Boolean(profile.email_verified || authUser?.email_confirmed_at),
     followers_count: followersCount,
     following_count: followingCount,
@@ -128,7 +142,7 @@ export async function getProfileById(userId, currentUserId = null, authUser = nu
 
   const { data, error } = await supabase
     .from('user_profile')
-    .select('*')
+    .select(PUBLIC_PROFILE_SELECT)
     .eq('id', userId)
     .maybeSingle();
 
@@ -149,7 +163,7 @@ export async function getProfileByAuthUserId(
 
   const { data, error } = await supabase
     .from('user_profile')
-    .select('*')
+    .select(PUBLIC_PROFILE_SELECT)
     .eq('id', authUserId)
     .maybeSingle();
 
@@ -174,7 +188,6 @@ export async function ensureUserProfile(authUser, fallback = {}) {
     return existingProfile;
   }
 
-  console.warn('Profile row missing for auth user:', authUser.id);
   return hydrateProfile(pickProfileMetadata(authUser, fallback), authUser.id, authUser);
 }
 
@@ -189,7 +202,7 @@ export async function getProfileByUsername(username, currentUserId = null) {
 
   const { data, error } = await supabase
     .from('user_profile')
-    .select('*')
+    .select(PUBLIC_PROFILE_SELECT)
     .eq('normalized_username', normalizedUsername)
     .maybeSingle();
 
@@ -237,33 +250,6 @@ export async function isUsernameAvailable(username) {
   return false;
 }
 
-export async function isEmailAvailable(email) {
-  assertSupabaseConfigured();
-
-  const normalizedEmail = normalizeEmail(email);
-
-  if (!isValidEmailAddress(normalizedEmail)) {
-    return false;
-  }
-
-  try {
-    const { count, error } = await supabase
-      .from('user_profile')
-      .select('id', { count: 'exact', head: true })
-      .eq('email', normalizedEmail);
-
-    if (error) {
-      console.warn('Email availability check query failed:', error);
-      return true;
-    }
-
-    return (count || 0) === 0;
-  } catch (err) {
-    console.warn('Email availability check error:', err);
-    return true;
-  }
-}
-
 export async function searchProfiles(query, currentUserId = null, limit = 8) {
   assertSupabaseConfigured();
 
@@ -276,7 +262,7 @@ export async function searchProfiles(query, currentUserId = null, limit = 8) {
   const normalizedTerm = normalizeUsername(term);
   const { data, error } = await supabase
     .from('user_profile')
-    .select('*')
+    .select(PUBLIC_PROFILE_SELECT)
     .or(
       `username.ilike.%${normalizedTerm}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`
     )
@@ -313,7 +299,7 @@ export async function updateProfile(userId, updates) {
     .from('user_profile')
     .update(safeUpdates)
     .eq('id', userId)
-    .select('*')
+    .select(PUBLIC_PROFILE_SELECT)
     .single();
 
   throwIfSupabaseError(error, 'Could not update profile.');
@@ -345,6 +331,50 @@ function getAssetMimeType(asset) {
   return MIME_TYPES_BY_EXTENSION[extension] || 'image/jpeg';
 }
 
+function getAssetExtension(asset) {
+  return getAssetFileName(asset).split('.').pop()?.toLowerCase() || '';
+}
+
+async function getAssetFileSize(asset) {
+  if (Number.isFinite(asset?.fileSize)) {
+    return Number(asset.fileSize);
+  }
+
+  if (asset?.base64) {
+    return Math.ceil(stripBase64DataUrl(asset.base64).length * 0.75);
+  }
+
+  if (asset?.uri?.startsWith('data:')) {
+    return Math.ceil(stripBase64DataUrl(asset.uri).length * 0.75);
+  }
+
+  const fileInfo = await FileSystem.getInfoAsync(asset.uri, { size: true });
+  return Number(fileInfo?.size || 0);
+}
+
+async function validateProfilePictureAsset(asset) {
+  const mimeType = getAssetMimeType(asset);
+  const extension = getAssetExtension(asset);
+
+  if (!ALLOWED_PROFILE_IMAGE_MIME_TYPES.has(mimeType)) {
+    throw new Error('Profile picture must be a JPG, PNG, or WebP image.');
+  }
+
+  if (!['jpg', 'jpeg', 'png', 'webp'].includes(extension)) {
+    throw new Error('Profile picture file extension is not allowed.');
+  }
+
+  const fileSize = await getAssetFileSize(asset);
+
+  if (!fileSize) {
+    throw new Error('Profile image file is empty.');
+  }
+
+  if (fileSize > MAX_PROFILE_PICTURE_BYTES) {
+    throw new Error('Profile picture must be 5 MB or smaller.');
+  }
+}
+
 function stripBase64DataUrl(value) {
   return String(value || '').replace(/^data:[^;]+;base64,/, '');
 }
@@ -374,9 +404,11 @@ export async function uploadProfilePicture(userId, asset) {
     throw new Error('Missing profile image.');
   }
 
-  const fileBody = await readAssetAsArrayBuffer(asset);
+  await validateProfilePictureAsset(asset);
+
   const fileName = getAssetFileName(asset);
   const mimeType = getAssetMimeType(asset);
+  const fileBody = await readAssetAsArrayBuffer(asset);
   const filePath = `${userId}/${Date.now()}-${fileName}`;
 
   const { data, error } = await supabase.storage
@@ -468,7 +500,7 @@ export async function getProfileConnections(username, listType, currentUserId = 
 
   const { data: profiles, error: profilesError } = await supabase
     .from('user_profile')
-    .select('*')
+    .select(PUBLIC_PROFILE_SELECT)
     .in('id', targetIds);
 
   throwIfSupabaseError(profilesError, 'Could not load connections.');

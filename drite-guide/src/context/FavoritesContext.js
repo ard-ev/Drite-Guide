@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import { safeGetItem, safeSetItem } from '../utils/storage';
+import { logWarning } from '../utils/logger';
 
 export const FavoritesContext = createContext();
 
@@ -23,7 +24,7 @@ export function FavoritesProvider({ children }) {
       }
       storageAvailable.current = true;
     } catch (error) {
-      console.warn('AsyncStorage not available, using in-memory storage:', error.message);
+      logWarning('AsyncStorage not available, using in-memory storage:', error.message);
       // AsyncStorage failed, continue with in-memory storage
       storageAvailable.current = false;
     } finally {
@@ -38,7 +39,7 @@ export function FavoritesProvider({ children }) {
       }
       setFavorites(newFavorites);
     } catch (error) {
-      console.warn('Could not save favorites:', error.message);
+      logWarning('Could not save favorites:', error.message);
       // Still update state even if storage fails
       setFavorites(newFavorites);
       storageAvailable.current = false;

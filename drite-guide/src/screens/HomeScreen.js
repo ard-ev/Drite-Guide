@@ -555,7 +555,7 @@ export default function HomeScreen({ route }) {
             </View>
 
             <Image
-              source={require('../../assets/logo.jpeg')}
+              source={require('../../assets/logo.png')}
               style={styles.headerLogo}
               resizeMode="cover"
             />

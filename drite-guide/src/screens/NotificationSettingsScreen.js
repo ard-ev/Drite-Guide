@@ -16,6 +16,7 @@ import colors from '../theme/colors';
 import { useTranslation } from '../context/TranslationContext';
 import { useAuth } from '../context/AuthContext';
 import { safeGetItem, safeSetItem } from '../utils/storage';
+import { logWarning } from '../utils/logger';
 
 const NOTIFICATION_SETTINGS_STORAGE_KEY = '@drite_guide_notification_settings';
 const DEFAULT_NOTIFICATION_FROM_EMAIL = 'info@driteguide.com';
@@ -79,7 +80,7 @@ export default function NotificationSettingsScreen() {
                     );
                 }
             } catch (error) {
-                console.warn('Could not load notification settings:', error?.message);
+                logWarning('Could not load notification settings:', error?.message);
             }
         };
 
@@ -121,7 +122,7 @@ export default function NotificationSettingsScreen() {
         try {
             await safeSetItem(userStorageKey, JSON.stringify(nextSettings));
         } catch (error) {
-            console.warn('Could not save notification settings:', error?.message);
+            logWarning('Could not save notification settings:', error?.message);
         }
     };
 

@@ -23,7 +23,6 @@ import {
 } from '../services/authService';
 import {
   ensureUserProfile,
-  isEmailAvailable,
   isUsernameAvailable,
   resetProfilePicture as resetProfilePictureInSupabase,
   updatePreferredLanguage,
@@ -62,6 +61,7 @@ import {
   normalizeUsername,
 } from '../services/supabaseService';
 import { safeGetItem, safeSetItem } from '../utils/storage';
+import { logWarning } from '../utils/logger';
 import { translate } from '../i18n/translations';
 
 const AuthContext = createContext(null);
@@ -174,7 +174,7 @@ export function AuthProvider({ children }) {
           .filter(Boolean)
       );
     } catch (error) {
-      console.warn('Could not load local saved places:', error?.message);
+      logWarning('Could not load local saved places:', error?.message);
       setSavedPlaces([]);
     }
   };
@@ -205,7 +205,7 @@ export function AuthProvider({ children }) {
         .map(normalizeTrip)
         .filter(Boolean);
     } catch (error) {
-      console.warn('Could not load local trips:', error?.message);
+      logWarning('Could not load local trips:', error?.message);
       return [];
     }
   };
@@ -306,7 +306,7 @@ export function AuthProvider({ children }) {
       const nextSavedPlaces = await fetchSavedPlaces(currentUser.id);
       setSavedPlaces(nextSavedPlaces.map(normalizePlace).filter(Boolean));
     } catch (error) {
-      console.warn('Could not load saved places:', error?.message);
+      logWarning('Could not load saved places:', error?.message);
       setSavedPlaces([]);
     }
   };
@@ -335,7 +335,7 @@ export function AuthProvider({ children }) {
         )
       );
     } catch (error) {
-      console.warn('Could not load trips:', error?.message);
+      logWarning('Could not load trips:', error?.message);
       setTrips(await loadLocalTrips(currentUser.id));
       setTripInvites([]);
     }
@@ -371,7 +371,7 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      console.warn('Auth bootstrap failed:', error?.message);
+      logWarning('Auth bootstrap failed:', error?.message);
       clearSessionState();
     } finally {
       setIsBootstrapping(false);
@@ -390,7 +390,7 @@ export function AuthProvider({ children }) {
       try {
         await syncSessionFromAuthRedirect(url);
       } catch (error) {
-        console.warn('Auth redirect failed:', error?.message);
+        logWarning('Auth redirect failed:', error?.message);
       }
     });
 
@@ -427,7 +427,7 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        console.warn('Auth state sync failed:', error?.message);
+        logWarning('Auth state sync failed:', error?.message);
       }
     });
 
@@ -550,15 +550,6 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const emailAvailable = await isEmailAvailable(cleanEmail);
-
-      if (!emailAvailable) {
-        return {
-          success: false,
-          message: t('auth.emailTaken') || 'Email already exists.',
-        };
-      }
-
       const usernameAvailable = await isUsernameAvailable(cleanUsername);
 
       if (!usernameAvailable) {
@@ -577,8 +568,6 @@ export function AuthProvider({ children }) {
         preferredLanguage: currentLanguage || 'en',
       });
 
-      console.log('AUTH CONTEXT SIGNUP RESULT:', result);
-
       if (result?.session) {
         await applySessionState(result.session, result.user);
       }
@@ -595,14 +584,6 @@ export function AuthProvider({ children }) {
           'Account created. Please verify your email.',
       };
     } catch (error) {
-      console.log('AUTH CONTEXT SIGNUP ERROR:', {
-        message: error?.message,
-        name: error?.name,
-        status: error?.status,
-        code: error?.code,
-        details: error?.details,
-      });
-
       return {
         success: false,
         message:
@@ -665,7 +646,7 @@ export function AuthProvider({ children }) {
         await signOut();
       }
     } catch (error) {
-      console.warn('Logout request failed:', error?.message);
+      logWarning('Logout request failed:', error?.message);
     } finally {
       clearSessionState();
       await loadLocalSavedPlaces();
@@ -1454,7 +1435,7 @@ export function AuthProvider({ children }) {
 
         return { success: true };
       } catch (error) {
-        console.warn('Could not save place locally:', error?.message);
+        logWarning('Could not save place locally:', error?.message);
 
         return {
           success: false,
@@ -1469,7 +1450,7 @@ export function AuthProvider({ children }) {
 
       return { success: true };
     } catch (error) {
-      console.warn('Could not save place:', error?.message);
+      logWarning('Could not save place:', error?.message);
 
       return {
         success: false,
@@ -1494,7 +1475,7 @@ export function AuthProvider({ children }) {
 
         return { success: true };
       } catch (error) {
-        console.warn('Could not remove local saved place:', error?.message);
+        logWarning('Could not remove local saved place:', error?.message);
 
         return {
           success: false,
@@ -1518,7 +1499,7 @@ export function AuthProvider({ children }) {
 
       return { success: true };
     } catch (error) {
-      console.warn('Could not remove saved place:', error?.message);
+      logWarning('Could not remove saved place:', error?.message);
 
       return {
         success: false,
