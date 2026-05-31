@@ -17,7 +17,7 @@ import {
 
 const AUTH_CALLBACK_PATH = 'auth/callback';
 const PASSWORD_RESET_PATH = 'reset-password';
-const DEFAULT_AUTH_REDIRECT_URL = 'https://driteguide.com';
+const DEFAULT_AUTH_REDIRECT_URL = 'https://www.driteguide.com/verify-email.html';
 
 const EMAIL_NOT_VERIFIED_CODE = 'email_not_verified';
 const EMAIL_RATE_LIMIT_CODE = 'email_rate_limit_exceeded';
