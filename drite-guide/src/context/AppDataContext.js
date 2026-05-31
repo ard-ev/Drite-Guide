@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -56,7 +57,7 @@ export function AppDataProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage('');
 
@@ -109,11 +110,21 @@ export function AppDataProvider({ children }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentLanguage]);
 
   useEffect(() => {
     fetchAllData();
-  }, [currentLanguage]);
+  }, [fetchAllData]);
+
+  const getCityById = useCallback((cityId) => findByAnyId(cities, cityId), [cities]);
+  const getCategoryById = useCallback(
+    (categoryId) => findByAnyId(categories, categoryId),
+    [categories]
+  );
+  const getPlaceById = useCallback(
+    (placeId) => findByAnyId(places, placeId),
+    [places]
+  );
 
   const value = useMemo(
     () => ({
@@ -123,11 +134,21 @@ export function AppDataProvider({ children }) {
       isLoading,
       errorMessage,
       refreshData: fetchAllData,
-      getCityById: (cityId) => findByAnyId(cities, cityId),
-      getCategoryById: (categoryId) => findByAnyId(categories, categoryId),
-      getPlaceById: (placeId) => findByAnyId(places, placeId),
+      getCityById,
+      getCategoryById,
+      getPlaceById,
     }),
-    [categories, cities, places, isLoading, errorMessage]
+    [
+      categories,
+      cities,
+      places,
+      isLoading,
+      errorMessage,
+      fetchAllData,
+      getCityById,
+      getCategoryById,
+      getPlaceById,
+    ]
   );
 
   return (

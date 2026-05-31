@@ -36,8 +36,10 @@ import {
 } from '../services/savedService';
 import {
   addPlaceToTrip as addPlaceToTripInSupabase,
+  acceptTripInvite as acceptTripInviteInSupabase,
   createTrip as createTripInSupabase,
   deleteTrip as deleteTripInSupabase,
+  declineTripInvite as declineTripInviteInSupabase,
   getTrip as fetchTrip,
   getTripsForUser,
   inviteUserToTrip as inviteUserToTripInSupabase,
@@ -65,6 +67,8 @@ import { translate } from '../i18n/translations';
 const AuthContext = createContext(null);
 
 const LANGUAGE_KEY = '@drite_guide_language';
+const LOCAL_SAVED_PLACES_KEY = '@drite_guide_local_saved_places';
+const LOCAL_TRIPS_KEY_PREFIX = '@drite_guide_local_trips:';
 
 const FALLBACK_LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -95,12 +99,36 @@ function findByAnyPlaceId(items, placeId) {
     );
 }
 
+function createLocalId(prefix) {
+  if (globalThis.crypto?.randomUUID) {
+    return `${prefix}-${globalThis.crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function isLocalTripId(tripId) {
+  return String(tripId || '').startsWith('local-trip-');
+}
+
+function isPermissionPolicyError(error) {
+  const message = getSupabaseErrorMessage(error, '').toLowerCase();
+
+  return (
+    message.includes('row level security') ||
+    message.includes('permission denied') ||
+    message.includes('violates row-level security') ||
+    message.includes('violates row level security')
+  );
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [accessToken, setAccessTokenState] = useState(null);
   const [refreshToken, setRefreshTokenState] = useState(null);
   const [savedPlaces, setSavedPlaces] = useState([]);
   const [trips, setTrips] = useState([]);
+  const [tripInvites, setTripInvites] = useState([]);
   const [languages, setLanguages] = useState(FALLBACK_LANGUAGES);
   const [currentLanguage, setCurrentLanguageState] = useState('en');
   const [isBootstrapping, setIsBootstrapping] = useState(true);
@@ -133,6 +161,113 @@ export function AuthProvider({ children }) {
     setCurrentUser(null);
     setSavedPlaces([]);
     setTrips([]);
+    setTripInvites([]);
+  };
+
+  const loadLocalSavedPlaces = async () => {
+    try {
+      const storedPlaces = await safeGetItem(LOCAL_SAVED_PLACES_KEY);
+      const parsedPlaces = storedPlaces ? JSON.parse(storedPlaces) : [];
+      setSavedPlaces(
+        (Array.isArray(parsedPlaces) ? parsedPlaces : [])
+          .map(normalizePlace)
+          .filter(Boolean)
+      );
+    } catch (error) {
+      console.warn('Could not load local saved places:', error?.message);
+      setSavedPlaces([]);
+    }
+  };
+
+  const persistLocalSavedPlaces = async (nextSavedPlaces) => {
+    const normalizedPlaces = (nextSavedPlaces || [])
+      .map(normalizePlace)
+      .filter(Boolean);
+
+    setSavedPlaces(normalizedPlaces);
+    await safeSetItem(LOCAL_SAVED_PLACES_KEY, JSON.stringify(normalizedPlaces));
+
+    return normalizedPlaces;
+  };
+
+  const getLocalTripsKey = (userId = currentUser?.id) =>
+    `${LOCAL_TRIPS_KEY_PREFIX}${userId || 'guest'}`;
+
+  const loadLocalTrips = async (userId = currentUser?.id) => {
+    if (!userId) {
+      return [];
+    }
+
+    try {
+      const storedTrips = await safeGetItem(getLocalTripsKey(userId));
+      const parsedTrips = storedTrips ? JSON.parse(storedTrips) : [];
+      return (Array.isArray(parsedTrips) ? parsedTrips : [])
+        .map(normalizeTrip)
+        .filter(Boolean);
+    } catch (error) {
+      console.warn('Could not load local trips:', error?.message);
+      return [];
+    }
+  };
+
+  const persistLocalTrips = async (nextTrips, userId = currentUser?.id) => {
+    if (!userId) {
+      return [];
+    }
+
+    const normalizedTrips = (nextTrips || [])
+      .map(normalizeTrip)
+      .filter(Boolean);
+
+    await safeSetItem(getLocalTripsKey(userId), JSON.stringify(normalizedTrips));
+    return normalizedTrips;
+  };
+
+  const mergeTrips = (remoteTrips = [], localTrips = []) => {
+    const tripById = new Map();
+
+    [...remoteTrips, ...localTrips]
+      .map(normalizeTrip)
+      .filter(Boolean)
+      .forEach((trip) => {
+        tripById.set(String(trip.id), trip);
+      });
+
+    return Array.from(tripById.values()).sort((left, right) =>
+      String(left.start_date || '').localeCompare(String(right.start_date || ''))
+    );
+  };
+
+  const isAcceptedTripForUser = (trip, userId = currentUser?.id) => {
+    if (!trip?.id || !userId) {
+      return false;
+    }
+
+    if (String(trip.ownerId || trip.owner_id) === String(userId) || trip.role === 'owner') {
+      return true;
+    }
+
+    const member = trip.currentMember || (trip.members || []).find(
+      (item) => String(item?.userId || item?.user_id) === String(userId)
+    );
+
+    return member?.status === 'accepted' || trip.currentMemberStatus === 'accepted';
+  };
+
+  const isPendingInviteForUser = (trip, userId = currentUser?.id) => {
+    if (!trip?.id || !userId) {
+      return false;
+    }
+
+    if (String(trip.ownerId || trip.owner_id) === String(userId) || trip.role === 'owner') {
+      return false;
+    }
+
+    const member = trip.currentMember || (trip.members || []).find(
+      (item) => String(item?.userId || item?.user_id) === String(userId)
+    );
+
+    return member?.status === 'invited' || trip.currentMemberStatus === 'invited';
   };
 
   const loadLanguages = async () => {
@@ -184,10 +319,25 @@ export function AuthProvider({ children }) {
 
     try {
       const nextTrips = await getTripsForUser(currentUser.id);
-      setTrips((nextTrips || []).map(normalizeTrip).filter(Boolean));
+      const localTrips = await loadLocalTrips(currentUser.id);
+      const normalizedRemoteTrips = (nextTrips || []).map(normalizeTrip).filter(Boolean);
+      setTrips(
+        mergeTrips(
+          normalizedRemoteTrips.filter((trip) =>
+            isAcceptedTripForUser(trip, currentUser.id)
+          ),
+          localTrips
+        )
+      );
+      setTripInvites(
+        normalizedRemoteTrips.filter((trip) =>
+          isPendingInviteForUser(trip, currentUser.id)
+        )
+      );
     } catch (error) {
       console.warn('Could not load trips:', error?.message);
-      setTrips([]);
+      setTrips(await loadLocalTrips(currentUser.id));
+      setTripInvites([]);
     }
   };
 
@@ -199,6 +349,7 @@ export function AuthProvider({ children }) {
       await loadLanguages();
 
       if (!isSupabaseConfigured) {
+        await loadLocalSavedPlaces();
         return;
       }
 
@@ -207,6 +358,7 @@ export function AuthProvider({ children }) {
       const session = await getCurrentSession();
 
       if (!session?.user) {
+        await loadLocalSavedPlaces();
         return;
       }
 
@@ -226,6 +378,7 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Auth bootstrap must run once; called helpers intentionally share this mount scope.
   useEffect(() => {
     let isMounted = true;
 
@@ -253,6 +406,7 @@ export function AuthProvider({ children }) {
 
       if (!session?.user) {
         clearSessionState();
+        await loadLocalSavedPlaces();
         return;
       }
 
@@ -282,8 +436,10 @@ export function AuthProvider({ children }) {
       data?.subscription?.unsubscribe?.();
       linkingSubscription?.remove?.();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reload user-owned data only when the active user changes.
   useEffect(() => {
     if (currentUser?.id) {
       loadSavedPlaces();
@@ -292,7 +448,10 @@ export function AuthProvider({ children }) {
     }
 
     setSavedPlaces([]);
+    loadLocalSavedPlaces();
     setTrips([]);
+    setTripInvites([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
 
   const login = async (identifier, password) => {
@@ -509,12 +668,209 @@ export function AuthProvider({ children }) {
       console.warn('Logout request failed:', error?.message);
     } finally {
       clearSessionState();
+      await loadLocalSavedPlaces();
     }
   };
 
-  const getSavedPlaces = () => (currentUser ? savedPlaces : []).filter(Boolean);
+  const getSavedPlaces = () => savedPlaces.filter(Boolean);
 
   const getTrips = () => trips.filter((trip) => trip?.id);
+
+  const getTripInvites = () => tripInvites.filter((trip) => trip?.id);
+
+  const createLocalTrip = async (payload, user = currentUser) => {
+    const now = new Date().toISOString();
+    const tripId = createLocalId('local-trip');
+    const ownerMember = {
+      id: createLocalId('local-member'),
+      trip_id: tripId,
+      user_id: user.id,
+      role: 'owner',
+      status: 'accepted',
+      invited_by_user_id: user.id,
+      created_at: now,
+      updated_at: now,
+      user,
+    };
+    const trip = normalizeTrip({
+      id: tripId,
+      owner_id: user.id,
+      title: payload.title,
+      description: payload.description || null,
+      start_date: payload.start_date,
+      end_date: payload.end_date,
+      shared_note: payload.shared_note ?? payload.sharedNote ?? null,
+      members: [ownerMember],
+      places: [],
+      role: 'owner',
+      created_at: now,
+      updated_at: now,
+    });
+    const localTrips = await loadLocalTrips(user.id);
+    const nextLocalTrips = await persistLocalTrips([trip, ...localTrips], user.id);
+
+    setTrips((currentTrips) =>
+      mergeTrips(
+        currentTrips.filter((item) => !isLocalTripId(item?.id)),
+        nextLocalTrips
+      )
+    );
+
+    return trip;
+  };
+
+  const updateLocalTrip = async (tripId, updates, userId = currentUser?.id) => {
+    const localTrips = await loadLocalTrips(userId);
+    let updatedTrip = null;
+    const nextLocalTrips = localTrips.map((trip) => {
+      if (String(trip.id) !== String(tripId)) {
+        return trip;
+      }
+
+      updatedTrip = normalizeTrip({
+        ...trip,
+        ...updates,
+        updated_at: new Date().toISOString(),
+      });
+
+      return updatedTrip;
+    });
+
+    if (!updatedTrip) {
+      throw new Error('Trip could not be found.');
+    }
+
+    await persistLocalTrips(nextLocalTrips, userId);
+    setTrips((currentTrips) =>
+      currentTrips.map((trip) =>
+        String(trip.id) === String(tripId) ? updatedTrip : trip
+      )
+    );
+
+    return updatedTrip;
+  };
+
+  const deleteLocalTrip = async (tripId, userId = currentUser?.id) => {
+    const localTrips = await loadLocalTrips(userId);
+    const nextLocalTrips = localTrips.filter(
+      (trip) => String(trip.id) !== String(tripId)
+    );
+
+    await persistLocalTrips(nextLocalTrips, userId);
+    setTrips((currentTrips) =>
+      currentTrips.filter((trip) => String(trip.id) !== String(tripId))
+    );
+  };
+
+  const addLocalPlaceToTrip = async (tripId, payload, userId = currentUser?.id) => {
+    const trip = trips.find((item) => String(item.id) === String(tripId));
+    const existingPlaces = (trip?.places || []).filter(Boolean);
+    const placeId = payload.place_id || payload.placeId;
+
+    if (!trip) {
+      throw new Error('Trip could not be found.');
+    }
+
+    if (!placeId) {
+      throw new Error('Invalid place.');
+    }
+
+    if (
+      existingPlaces.some(
+        (tripPlace) => String(tripPlace.place_id || tripPlace.placeId) === String(placeId)
+      )
+    ) {
+      throw new Error('This place is already in the trip.');
+    }
+
+    const now = new Date().toISOString();
+    const tripPlace = normalizeTripPlace({
+      id: createLocalId('local-trip-place'),
+      trip_id: tripId,
+      place_id: placeId,
+      visit_date: payload.visit_date || null,
+      visit_start_time: payload.visit_start_time || null,
+      visit_end_time: payload.visit_end_time || null,
+      note: payload.note || null,
+      order_index: payload.order_index ?? existingPlaces.length,
+      created_at: now,
+      updated_at: now,
+    });
+    const updatedTrip = await updateLocalTrip(
+      tripId,
+      {
+        places: [...existingPlaces, tripPlace],
+      },
+      userId
+    );
+
+    return {
+      tripPlace,
+      trip: updatedTrip,
+    };
+  };
+
+  const updateLocalTripPlace = async (
+    tripId,
+    tripPlaceId,
+    payload,
+    userId = currentUser?.id
+  ) => {
+    const trip = trips.find((item) => String(item.id) === String(tripId));
+
+    if (!trip) {
+      throw new Error('Trip could not be found.');
+    }
+
+    let updatedTripPlace = null;
+    const nextPlaces = (trip.places || []).filter(Boolean).map((tripPlace) => {
+      if (String(tripPlace.id) !== String(tripPlaceId)) {
+        return tripPlace;
+      }
+
+      updatedTripPlace = normalizeTripPlace({
+        ...tripPlace,
+        visit_date: payload.visit_date || null,
+        visit_start_time: payload.visit_start_time || null,
+        visit_end_time: payload.visit_end_time || null,
+        note: payload.note || null,
+        order_index: payload.order_index ?? tripPlace.orderIndex ?? tripPlace.order_index ?? 0,
+        updated_at: new Date().toISOString(),
+      });
+
+      return updatedTripPlace;
+    });
+
+    if (!updatedTripPlace) {
+      throw new Error('Trip place could not be found.');
+    }
+
+    await updateLocalTrip(tripId, { places: nextPlaces }, userId);
+    return updatedTripPlace;
+  };
+
+  const removeLocalTripPlace = async (
+    tripId,
+    tripPlaceId,
+    userId = currentUser?.id
+  ) => {
+    const trip = trips.find((item) => String(item.id) === String(tripId));
+
+    if (!trip) {
+      throw new Error('Trip could not be found.');
+    }
+
+    const currentPlaces = (trip.places || []).filter(Boolean);
+    const nextPlaces = currentPlaces.filter(
+      (tripPlace) => String(tripPlace.id) !== String(tripPlaceId)
+    );
+
+    if (nextPlaces.length === currentPlaces.length) {
+      throw new Error('Trip place could not be found.');
+    }
+
+    await updateLocalTrip(tripId, { places: nextPlaces }, userId);
+  };
 
   const getTrip = async (tripId) => {
     if (!tripId || !currentUser) {
@@ -524,21 +880,54 @@ export function AuthProvider({ children }) {
       };
     }
 
+    if (isLocalTripId(tripId)) {
+      const trip =
+        trips.find((item) => String(item.id) === String(tripId)) ||
+        (await loadLocalTrips(currentUser.id)).find(
+          (item) => String(item.id) === String(tripId)
+        );
+
+      return trip
+        ? {
+            success: true,
+            trip,
+          }
+        : {
+            success: false,
+            message: 'Trip could not be found.',
+          };
+    }
+
     try {
       const trip = normalizeTrip(await fetchTrip(tripId));
 
-      setTrips((currentTrips) => {
-        const existingTrips = currentTrips.filter(Boolean);
-        const hasTrip = existingTrips.some(
-          (item) => String(item.id) === String(trip.id)
-        );
+      if (isAcceptedTripForUser(trip, currentUser.id)) {
+        setTrips((currentTrips) => {
+          const existingTrips = currentTrips.filter(Boolean);
+          const hasTrip = existingTrips.some(
+            (item) => String(item.id) === String(trip.id)
+          );
 
-        return hasTrip
-          ? existingTrips.map((item) =>
-            String(item.id) === String(trip.id) ? trip : item
-          )
-          : [trip, ...existingTrips];
-      });
+          return hasTrip
+            ? existingTrips.map((item) =>
+              String(item.id) === String(trip.id) ? trip : item
+            )
+            : [trip, ...existingTrips];
+        });
+      } else if (isPendingInviteForUser(trip, currentUser.id)) {
+        setTripInvites((currentInvites) => {
+          const existingInvites = currentInvites.filter(Boolean);
+          const hasInvite = existingInvites.some(
+            (item) => String(item.id) === String(trip.id)
+          );
+
+          return hasInvite
+            ? existingInvites.map((item) =>
+              String(item.id) === String(trip.id) ? trip : item
+            )
+            : [trip, ...existingInvites];
+        });
+      }
 
       return {
         success: true,
@@ -569,6 +958,26 @@ export function AuthProvider({ children }) {
         trip,
       };
     } catch (error) {
+      if (isPermissionPolicyError(error)) {
+        try {
+          const trip = await createLocalTrip(payload);
+
+          return {
+            success: true,
+            trip,
+            isLocalFallback: true,
+          };
+        } catch (localError) {
+          return {
+            success: false,
+            message: getSupabaseErrorMessage(
+              localError,
+              'Trip creation failed.'
+            ),
+          };
+        }
+      }
+
       return {
         success: false,
         message: getSupabaseErrorMessage(error, 'Trip creation failed.'),
@@ -582,6 +991,26 @@ export function AuthProvider({ children }) {
         success: false,
         message: 'Sign in required',
       };
+    }
+
+    if (isLocalTripId(tripId)) {
+      try {
+        const trip = await updateLocalTrip(tripId, {
+          ...payload,
+          description: payload.description || null,
+          shared_note: payload.shared_note ?? payload.sharedNote ?? null,
+        });
+
+        return {
+          success: true,
+          trip,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: getSupabaseErrorMessage(error, 'Trip update failed.'),
+        };
+      }
     }
 
     try {
@@ -611,6 +1040,18 @@ export function AuthProvider({ children }) {
       };
     }
 
+    if (isLocalTripId(tripId)) {
+      try {
+        await deleteLocalTrip(tripId);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          message: getSupabaseErrorMessage(error, 'Trip deletion failed.'),
+        };
+      }
+    }
+
     try {
       await deleteTripInSupabase(tripId, currentUser.id);
       await loadTrips();
@@ -630,6 +1071,26 @@ export function AuthProvider({ children }) {
         success: false,
         message: 'Sign in required',
       };
+    }
+
+    if (isLocalTripId(tripId)) {
+      try {
+        const { tripPlace, trip } = await addLocalPlaceToTrip(tripId, payload);
+
+        return {
+          success: true,
+          tripPlace,
+          trip,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: getSupabaseErrorMessage(
+            error,
+            'Could not add this place to the trip.'
+          ),
+        };
+      }
     }
 
     try {
@@ -665,6 +1126,29 @@ export function AuthProvider({ children }) {
       };
     }
 
+    if (isLocalTripId(tripId)) {
+      try {
+        const tripPlace = await updateLocalTripPlace(
+          tripId,
+          tripPlaceId,
+          payload
+        );
+
+        return {
+          success: true,
+          tripPlace,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: getSupabaseErrorMessage(
+            error,
+            'Could not update this trip place.'
+          ),
+        };
+      }
+    }
+
     try {
       const tripPlace = normalizeTripPlace(
         await updateTripPlaceInSupabase(tripId, tripPlaceId, payload)
@@ -695,6 +1179,21 @@ export function AuthProvider({ children }) {
       };
     }
 
+    if (isLocalTripId(tripId)) {
+      try {
+        await removeLocalTripPlace(tripId, tripPlaceId);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          message: getSupabaseErrorMessage(
+            error,
+            'Could not remove this place from the trip.'
+          ),
+        };
+      }
+    }
+
     try {
       await removeTripPlaceInSupabase(tripId, tripPlaceId);
       await loadTrips();
@@ -716,6 +1215,14 @@ export function AuthProvider({ children }) {
       return {
         success: false,
         message: 'Sign in required',
+      };
+    }
+
+    if (isLocalTripId(tripId)) {
+      return {
+        success: false,
+        message:
+          'This trip is saved locally because Supabase blocked trip writes. Run supabase/fix-trips-rls.sql to enable shared invites.',
       };
     }
 
@@ -748,6 +1255,14 @@ export function AuthProvider({ children }) {
       };
     }
 
+    if (isLocalTripId(tripId)) {
+      return {
+        success: false,
+        message:
+          'This trip is saved locally because Supabase blocked trip writes. Run supabase/fix-trips-rls.sql to enable shared members.',
+      };
+    }
+
     try {
       await removeTripMemberInSupabase(tripId, userId);
       await loadTrips();
@@ -757,6 +1272,62 @@ export function AuthProvider({ children }) {
       return {
         success: false,
         message: getSupabaseErrorMessage(error, 'Could not remove this member.'),
+      };
+    }
+  };
+
+  const acceptTripInvite = async (tripId) => {
+    if (!tripId || !currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      const trip = normalizeTrip(
+        await acceptTripInviteInSupabase(tripId, currentUser.id)
+      );
+
+      setTripInvites((currentInvites) =>
+        currentInvites.filter((item) => String(item?.id) !== String(tripId))
+      );
+      await loadTrips();
+
+      return {
+        success: true,
+        trip,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: getSupabaseErrorMessage(error, 'Could not accept this trip invite.'),
+      };
+    }
+  };
+
+  const declineTripInvite = async (tripId) => {
+    if (!tripId || !currentUser) {
+      return {
+        success: false,
+        message: 'Sign in required',
+      };
+    }
+
+    try {
+      await declineTripInviteInSupabase(tripId, currentUser.id);
+      setTripInvites((currentInvites) =>
+        currentInvites.filter((item) => String(item?.id) !== String(tripId))
+      );
+      setTrips((currentTrips) =>
+        currentTrips.filter((item) => String(item?.id) !== String(tripId))
+      );
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: getSupabaseErrorMessage(error, 'Could not decline this trip invite.'),
       };
     }
   };
@@ -864,10 +1435,32 @@ export function AuthProvider({ children }) {
     }
 
     if (!currentUser) {
-      return {
-        success: false,
-        message: 'Sign in required',
-      };
+      const normalizedPlace = normalizePlace(place);
+
+      if (!normalizedPlace?.id) {
+        return {
+          success: false,
+          message: 'Invalid place.',
+        };
+      }
+
+      try {
+        await persistLocalSavedPlaces([
+          normalizedPlace,
+          ...savedPlaces.filter(
+            (item) => String(item?.id) !== String(normalizedPlace.id)
+          ),
+        ]);
+
+        return { success: true };
+      } catch (error) {
+        console.warn('Could not save place locally:', error?.message);
+
+        return {
+          success: false,
+          message: getSupabaseErrorMessage(error, 'Could not save this place.'),
+        };
+      }
     }
 
     try {
@@ -894,10 +1487,23 @@ export function AuthProvider({ children }) {
     }
 
     if (!currentUser) {
-      return {
-        success: false,
-        message: 'Sign in required',
-      };
+      try {
+        await persistLocalSavedPlaces(
+          savedPlaces.filter((item) => String(item?.id) !== String(placeId))
+        );
+
+        return { success: true };
+      } catch (error) {
+        console.warn('Could not remove local saved place:', error?.message);
+
+        return {
+          success: false,
+          message: getSupabaseErrorMessage(
+            error,
+            'Could not remove this saved place.'
+          ),
+        };
+      }
     }
 
     try {
@@ -924,6 +1530,7 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Keep provider updates tied to state changes that affect consumers.
   const value = useMemo(
     () => ({
       currentUser,
@@ -939,6 +1546,7 @@ export function AuthProvider({ children }) {
 
       getSavedPlaces,
       getTrips,
+      getTripInvites,
       getTrip,
 
       createTrip,
@@ -951,6 +1559,8 @@ export function AuthProvider({ children }) {
 
       inviteUserToTrip,
       removeTripMember,
+      acceptTripInvite,
+      declineTripInvite,
 
       savePlace,
       removeSavedPlace,
@@ -969,6 +1579,7 @@ export function AuthProvider({ children }) {
       profilePicturePresets: PROFILE_PICTURE_PRESETS,
       defaultProfilePicture: DEFAULT_PROFILE_PICTURE,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       currentUser,
       isLoggedIn,
@@ -977,6 +1588,7 @@ export function AuthProvider({ children }) {
       refreshToken,
       savedPlaces,
       trips,
+      tripInvites,
       languages,
       currentLanguage,
     ]

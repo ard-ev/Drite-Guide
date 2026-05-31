@@ -38,10 +38,7 @@ export default function TabNavigator() {
           borderTopWidth: 0,
           paddingTop: 6,
           paddingBottom: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.06,
-          shadowRadius: 14,
+    boxShadow: '0 -4px 14px rgba(0,0,0,0.06)',
           elevation: 10,
         },
         tabBarLabelStyle: {

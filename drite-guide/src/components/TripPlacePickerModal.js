@@ -127,8 +127,7 @@ export default function TripPlacePickerModal({
     <Modal visible={isMounted} transparent animationType="none" onRequestClose={closeWithAnimation}>
       <View style={styles.modalRoot}>
         <Animated.View
-          pointerEvents="none"
-          style={[styles.backdropOverlay, { opacity: backdropOpacity }]}
+          style={[styles.backdropOverlay, styles.noPointerEvents, { opacity: backdropOpacity }]}
         />
         <Pressable style={styles.backdropPressArea} onPress={closeWithAnimation} />
         <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
@@ -220,6 +219,9 @@ const styles = StyleSheet.create({
   backdropOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  noPointerEvents: {
+    pointerEvents: 'none',
   },
   backdropPressArea: {
     ...StyleSheet.absoluteFillObject,

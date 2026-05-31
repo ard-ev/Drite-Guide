@@ -40,7 +40,7 @@ assertIncludes(
 
 assertIncludes(
   'src/context/AuthContext.js',
-  '(currentUser ? savedPlaces : []).filter(Boolean)',
+  'const getSavedPlaces = () => savedPlaces.filter(Boolean);',
   'AuthContext must not expose null saved places.'
 );
 

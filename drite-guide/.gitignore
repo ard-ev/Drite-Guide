@@ -25,6 +25,9 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+.expo-codex-debug*.log
+.expo-codex-run*.log
+.codex-browser-qa*.png
 
 # macOS
 .DS_Store

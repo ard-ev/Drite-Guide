@@ -334,8 +334,7 @@ export default function ExploreScreen({ route }) {
               />
 
               <SafeAreaView
-                pointerEvents="box-none"
-                style={styles.mapOverlaySafeArea}
+                style={[styles.mapOverlaySafeArea, styles.boxNonePointerEvents]}
               >
                 <View style={styles.mapHeaderFloating}>
                   <View style={styles.mapHeaderLeft}>
@@ -568,10 +567,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
     elevation: 2,
   },
 
@@ -639,9 +635,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.white,
     marginBottom: 6,
-    textShadowColor: 'rgba(0,0,0,0.35)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadow: '0 1px 4px rgba(0,0,0,0.35)',
   },
 
   heroText: {
@@ -649,9 +643,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.95)',
     lineHeight: 20,
     maxWidth: '82%',
-    textShadowColor: 'rgba(0,0,0,0.35)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadow: '0 1px 4px rgba(0,0,0,0.35)',
   },
 
   citiesSection: {
@@ -662,10 +654,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     overflow: 'hidden',
     backgroundColor: colors.white,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 14,
+    boxShadow: '0 6px 14px rgba(0,0,0,0.05)',
     elevation: 3,
   },
 
@@ -727,6 +716,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
 
+  boxNonePointerEvents: {
+    pointerEvents: 'box-none',
+  },
+
   mapHeaderFloating: {
     position: 'absolute',
     top: 16,
@@ -751,10 +744,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 999,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    boxShadow: '0 6px 12px rgba(0,0,0,0.08)',
     elevation: 5,
     marginBottom: 8,
   },
@@ -794,10 +784,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.96)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
+    boxShadow: '0 8px 14px rgba(0,0,0,0.12)',
     elevation: 8,
   },
 
@@ -814,10 +801,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 18,
+    boxShadow: '0 8px 18px rgba(0,0,0,0.1)',
     elevation: 6,
   },
 
@@ -866,10 +850,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
+    boxShadow: '0 10px 18px rgba(0,0,0,0.14)',
     elevation: 8,
     borderWidth: 1,
     borderColor: '#EFEFEF',
@@ -1021,10 +1002,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    boxShadow: '0 6px 12px rgba(0,0,0,0.08)',
     elevation: 5,
   },
 

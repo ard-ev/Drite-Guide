@@ -214,10 +214,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 28,
     alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
+    boxShadow: '0 8px 16px rgba(0,0,0,0.05)',
     elevation: 4,
   },
   emptyTitle: {
@@ -253,10 +250,7 @@ const styles = StyleSheet.create({
     padding: 18,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
+    boxShadow: '0 6px 12px rgba(0,0,0,0.04)',
     elevation: 2,
   },
   tripIcon: {

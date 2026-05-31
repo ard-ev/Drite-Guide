@@ -48,16 +48,26 @@ function createTripMemberId() {
   return `member-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function createOwnerTripMember(tripId, ownerId) {
+  const now = new Date().toISOString();
+
+  return {
+    id: `owner-${tripId || ownerId || createTripMemberId()}`,
+    trip_id: tripId || null,
+    user_id: ownerId,
+    role: 'owner',
+    status: 'accepted',
+    invited_by_user_id: ownerId,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
 function normalizeStoredTripMembers(trip) {
   const now = new Date().toISOString();
   const ownerMember = trip?.owner_id
     ? {
-        id: `owner-${trip.id || trip.owner_id}`,
-        trip_id: trip.id,
-        user_id: trip.owner_id,
-        role: 'owner',
-        status: 'accepted',
-        invited_by_user_id: trip.owner_id,
+        ...createOwnerTripMember(trip.id, trip.owner_id),
         created_at: trip.created_at || now,
         updated_at: trip.updated_at || trip.created_at || now,
       }
@@ -178,6 +188,40 @@ export async function hydrateTrip(trip) {
   };
 }
 
+function getCurrentUserTripMember(trip, userId) {
+  if (!trip?.id || !userId) {
+    return null;
+  }
+
+  if (String(trip.owner_id) === String(userId)) {
+    return {
+      id: `owner-${trip.id}`,
+      trip_id: trip.id,
+      user_id: userId,
+      role: 'owner',
+      status: 'accepted',
+    };
+  }
+
+  return (trip.members || []).find(
+    (member) => String(member.user_id || member.userId) === String(userId)
+  ) || null;
+}
+
+function annotateTripForUser(trip, userId) {
+  const currentMember = getCurrentUserTripMember(trip, userId);
+  const currentMemberStatus = currentMember?.status || null;
+  const isOwner = String(trip?.owner_id) === String(userId);
+
+  return {
+    ...trip,
+    role: isOwner ? 'owner' : currentMember?.role || trip.role,
+    currentMember,
+    currentMemberStatus,
+    isPendingInvite: !isOwner && currentMemberStatus === 'invited',
+  };
+}
+
 export async function getTrip(tripId) {
   assertSupabaseConfigured();
 
@@ -202,35 +246,33 @@ export async function getTripsForUser(userId) {
     return [];
   }
 
-  const [ownedTripsResult, memberTripsResult] = await Promise.all([
-    supabase.from('trips').select('*').eq('owner_id', userId),
-    supabase.from('trips').select('*').contains('members', [{ user_id: userId }]),
-  ]);
+  const { data, error } = await supabase
+    .from('trips')
+    .select('*')
+    .order('start_date', { ascending: true });
 
-  throwIfSupabaseError(ownedTripsResult.error, 'Could not load trips.');
-  throwIfSupabaseError(memberTripsResult.error, 'Could not load trips.');
+  throwIfSupabaseError(error, 'Could not load trips.');
 
-  const ownedTrips = ownedTripsResult.data || [];
-  const ownedTripIds = new Set(ownedTrips.map((trip) => String(trip.id)));
-  const memberTrips = (memberTripsResult.data || []).filter(
-    (trip) => !ownedTripIds.has(String(trip.id))
+  const allTrips = (data || []).filter((trip) =>
+    normalizeStoredTripMembers(trip).some(
+      (member) => String(member.user_id) === String(userId)
+    )
   );
 
-  const allTrips = [...ownedTrips, ...memberTrips].sort((left, right) =>
-    String(left.start_date || '').localeCompare(String(right.start_date || ''))
-  );
-
-  return Promise.all(allTrips.map(hydrateTrip));
+  const hydratedTrips = await Promise.all(allTrips.map(hydrateTrip));
+  return hydratedTrips.map((trip) => annotateTripForUser(trip, userId));
 }
 
 export async function createTrip(userId, payload) {
   assertSupabaseConfigured();
   const profileId = await getAuthenticatedProfileId(userId);
+  const ownerMember = createOwnerTripMember(null, profileId);
 
   const { data, error } = await supabase
     .from('trips')
     .insert({
       owner_id: profileId,
+      members: [ownerMember],
       ...normalizeDatePayload(payload),
     })
     .select('*')
@@ -476,6 +518,29 @@ export async function inviteUserToTrip(tripId, username, invitedByUserId) {
     ...nextMember,
     user: targetProfile,
   };
+}
+
+export async function acceptTripInvite(tripId, userId) {
+  assertSupabaseConfigured();
+  await getAuthenticatedProfileId(userId);
+
+  const { data, error } = await supabase.rpc('accept_trip_invite', {
+    trip_uuid: tripId,
+  });
+
+  throwIfSupabaseError(error, 'Could not accept this trip invite.');
+  return hydrateTrip(data);
+}
+
+export async function declineTripInvite(tripId, userId) {
+  assertSupabaseConfigured();
+  await getAuthenticatedProfileId(userId);
+
+  const { error } = await supabase.rpc('decline_trip_invite', {
+    trip_uuid: tripId,
+  });
+
+  throwIfSupabaseError(error, 'Could not decline this trip invite.');
 }
 
 export async function removeTripMember(tripId, userId) {

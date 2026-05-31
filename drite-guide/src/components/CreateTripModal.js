@@ -244,8 +244,7 @@ export default function CreateTripModal({
     <Modal visible={isMounted} transparent animationType="none" onRequestClose={() => closeWithAnimation()}>
       <View style={styles.modalRoot}>
         <Animated.View
-          pointerEvents="none"
-          style={[styles.backdropOverlay, { opacity: backdropOpacity }]}
+          style={[styles.backdropOverlay, styles.noPointerEvents, { opacity: backdropOpacity }]}
         />
         <Pressable style={styles.backdropPressArea} onPress={() => closeWithAnimation()} />
         <Animated.View
@@ -254,7 +253,7 @@ export default function CreateTripModal({
             { transform: [{ translateY: sheetTranslateY }] },
           ]}
         >
-          <Pressable onPress={() => null}>
+          <Pressable style={styles.sheetContent} onPress={() => null}>
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>{isEditing ? 'Edit Trip' : 'Create Trip'}</Text>
@@ -268,6 +267,7 @@ export default function CreateTripModal({
 
           <ScrollView
             ref={scrollRef}
+            style={styles.formScroll}
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
@@ -398,17 +398,27 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.28)',
   },
+  noPointerEvents: {
+    pointerEvents: 'none',
+  },
   backdropPressArea: {
     ...StyleSheet.absoluteFillObject,
   },
   sheet: {
-    maxHeight: '92%',
+    height: '92%',
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 28,
+  },
+  sheetContent: {
+    flex: 1,
+    minHeight: 0,
+  },
+  formScroll: {
+    flex: 1,
   },
   scrollContent: {
     paddingBottom: 4,

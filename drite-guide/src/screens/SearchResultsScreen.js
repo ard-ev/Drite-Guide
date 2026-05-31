@@ -452,10 +452,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     maxHeight: 400,
     zIndex: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
+    boxShadow: '0 8px 16px rgba(0,0,0,0.12)',
     elevation: 6,
   },
 

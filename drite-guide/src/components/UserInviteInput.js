@@ -149,10 +149,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
+    boxShadow: '0 8px 16px rgba(0,0,0,0.08)',
     elevation: 5,
   },
   suggestionRow: {

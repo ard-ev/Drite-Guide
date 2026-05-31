@@ -96,10 +96,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
     elevation: 2,
   },
 
@@ -147,10 +144,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 18,
     marginBottom: 14,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
+    boxShadow: '0 6px 12px rgba(0,0,0,0.04)',
     elevation: 2,
   },
 

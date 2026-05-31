@@ -314,10 +314,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
     marginBottom: 12,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.05,
-    shadowRadius: 14,
+    boxShadow: '0 6px 14px rgba(0,0,0,0.05)',
     elevation: 3,
   },
 
