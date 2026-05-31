@@ -22,6 +22,7 @@ import { isUsernameAvailable } from '../services/profileService';
 import { isStrongSignupPassword, normalizeUsername } from '../services/supabaseService';
 
 const USERNAME_CHECK_DELAY_MS = 400;
+const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
 
 const navigateToProfile = (navigation, user) => {
     navigation.dispatch(
@@ -58,6 +59,7 @@ export default function SignupScreen() {
     const [confirmPassword, setConfirmPassword] = useState('');
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [emailCooldownUntil, setEmailCooldownUntil] = useState(0);
     const [usernameStatus, setUsernameStatus] = useState('idle');
 
     const [showPassword, setShowPassword] = useState(false);
@@ -189,6 +191,16 @@ export default function SignupScreen() {
         const cleanLastName = lastName.trim();
         const cleanEmail = email.trim().toLowerCase();
         const cleanUsername = normalizeUsername(username);
+        const cooldownRemainingMs = emailCooldownUntil - Date.now();
+
+        if (cooldownRemainingMs > 0) {
+            Alert.alert(
+                t('auth.signupFailed') || 'Sign up failed',
+                t('auth.emailRateLimit') ||
+                    'Too many verification emails were requested. Please try again later.'
+            );
+            return;
+        }
 
         if (!cleanFirstName || !cleanLastName || !cleanEmail || !cleanUsername || !password || !confirmPassword) {
             Alert.alert(
@@ -268,6 +280,14 @@ export default function SignupScreen() {
             });
 
             if (!result?.success) {
+                if (
+                    String(result?.message || '')
+                        .toLowerCase()
+                        .includes('too many')
+                ) {
+                    setEmailCooldownUntil(Date.now() + EMAIL_RATE_LIMIT_COOLDOWN_MS);
+                }
+
                 Alert.alert(
                     t('auth.signupFailed') || 'Sign up failed',
                     result?.message || t('auth.signupFailedFallback') || 'Could not create account.'

@@ -117,7 +117,10 @@ export function isEmailRateLimitError(error) {
     error?.status === 429 ||
     message.includes('email rate limit') ||
     message.includes('over_email_send_rate_limit') ||
-    message.includes('rate limit exceeded')
+    message.includes('rate limit exceeded') ||
+    message.includes('too many verification emails') ||
+    message.includes('too many emails') ||
+    message.includes('verification emails were requested')
   );
 }
 
