@@ -36,9 +36,6 @@ export default function AccountScreen({ route }) {
         logout,
         getSavedPlaces,
         getTrips,
-        getTripInvites,
-        acceptTripInvite,
-        declineTripInvite,
         refreshTrips,
         uploadProfilePicture,
         resetProfilePicture,
@@ -48,11 +45,9 @@ export default function AccountScreen({ route }) {
     const { t } = useTranslation();
     const savedPlaces = getSavedPlaces() || [];
     const trips = getTrips() || [];
-    const tripInvites = getTripInvites?.() || [];
     const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
     const [profileStats, setProfileStats] = useState(null);
     const [connectionMetric, setConnectionMetric] = useState('followers');
-    const [respondingInviteId, setRespondingInviteId] = useState(null);
     const refreshKey = route?.params?.refreshKey;
     const connectionCount =
         connectionMetric === 'followers'
@@ -254,50 +249,6 @@ export default function AccountScreen({ route }) {
         }
 
         setShowProfilePictureModal(false);
-    };
-
-    const handleAcceptTripInvite = async (trip) => {
-        if (!trip?.id || respondingInviteId) {
-            return;
-        }
-
-        setRespondingInviteId(trip.id);
-        const result = await acceptTripInvite(trip.id);
-        setRespondingInviteId(null);
-
-        if (!result.success) {
-            Alert.alert('Invite failed', result.message);
-            return;
-        }
-
-        Alert.alert('Trip accepted', 'The trip is now visible in your Trips.');
-    };
-
-    const handleDeclineTripInvite = (trip) => {
-        if (!trip?.id || respondingInviteId) {
-            return;
-        }
-
-        Alert.alert(
-            'Decline invite',
-            'Remove this trip invite from your profile?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Decline',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setRespondingInviteId(trip.id);
-                        const result = await declineTripInvite(trip.id);
-                        setRespondingInviteId(null);
-
-                        if (!result.success) {
-                            Alert.alert('Invite failed', result.message);
-                        }
-                    },
-                },
-            ]
-        );
     };
 
     const pickFromLibrary = async () => {
@@ -535,61 +486,6 @@ export default function AccountScreen({ route }) {
 
                             <View style={styles.section}>
                                 <Text style={styles.sectionTitle}>Trips</Text>
-                                {tripInvites.length > 0 ? (
-                                    <View style={styles.inviteStack}>
-                                        {tripInvites.map((trip) => {
-                                            const owner = (trip.members || []).find(
-                                                (member) => member.role === 'owner'
-                                            )?.user;
-                                            const isResponding = respondingInviteId === trip.id;
-
-                                            return (
-                                                <View key={trip.id} style={styles.inviteCard}>
-                                                    <View style={styles.inviteIconWrap}>
-                                                        <Ionicons name="mail-unread-outline" size={20} color={colors.primary} />
-                                                    </View>
-                                                    <View style={styles.inviteContent}>
-                                                        <Text style={styles.inviteLabel}>Trip invite</Text>
-                                                        <Text style={styles.inviteTitle}>{trip.title}</Text>
-                                                        <Text style={styles.inviteSubtitle} numberOfLines={2}>
-                                                            {owner?.username
-                                                                ? `Invited by @${owner.username}`
-                                                                : 'A friend invited you to this trip.'}
-                                                        </Text>
-                                                        <View style={styles.inviteActions}>
-                                                            <TouchableOpacity
-                                                                style={[
-                                                                    styles.inviteActionButton,
-                                                                    isResponding && styles.inviteActionDisabled,
-                                                                ]}
-                                                                activeOpacity={0.86}
-                                                                disabled={isResponding}
-                                                                onPress={() => handleAcceptTripInvite(trip)}
-                                                            >
-                                                                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                                                                <Text style={styles.inviteActionText}>
-                                                                    {isResponding ? 'Saving...' : 'Accept'}
-                                                                </Text>
-                                                            </TouchableOpacity>
-                                                            <TouchableOpacity
-                                                                style={[
-                                                                    styles.inviteDeclineButton,
-                                                                    isResponding && styles.inviteActionDisabled,
-                                                                ]}
-                                                                activeOpacity={0.86}
-                                                                disabled={isResponding}
-                                                                onPress={() => handleDeclineTripInvite(trip)}
-                                                            >
-                                                                <Ionicons name="close" size={16} color={colors.primary} />
-                                                                <Text style={styles.inviteDeclineText}>Decline</Text>
-                                                            </TouchableOpacity>
-                                                        </View>
-                                                    </View>
-                                                </View>
-                                            );
-                                        })}
-                                    </View>
-                                ) : null}
                                 <TouchableOpacity
                                     style={styles.menuItem}
                                     activeOpacity={0.85}
@@ -603,7 +499,7 @@ export default function AccountScreen({ route }) {
                                         <View style={styles.menuTextWrap}>
                                             <Text style={styles.menuTitle}>Trips</Text>
                                             <Text style={styles.menuSubtitle}>
-                                                Plan date ranges, places, invited users, and shared notes.
+                                                Plan date ranges, places, and shared notes.
                                             </Text>
                                         </View>
                                     </View>
@@ -911,100 +807,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#222222',
         marginBottom: 12,
-    },
-
-    inviteStack: {
-        gap: 10,
-        marginBottom: 10,
-    },
-
-    inviteCard: {
-        backgroundColor: colors.white,
-        borderRadius: 18,
-        padding: 16,
-        flexDirection: 'row',
-        boxShadow: '0 6px 12px rgba(0,0,0,0.04)',
-        elevation: 2,
-    },
-
-    inviteIconWrap: {
-        width: 40,
-        height: 40,
-        borderRadius: 13,
-        backgroundColor: '#FDECEC',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-
-    inviteContent: {
-        flex: 1,
-    },
-
-    inviteLabel: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: colors.primary,
-        textTransform: 'uppercase',
-    },
-
-    inviteTitle: {
-        marginTop: 3,
-        fontSize: 16,
-        fontWeight: '800',
-        color: '#222222',
-    },
-
-    inviteSubtitle: {
-        marginTop: 4,
-        fontSize: 12,
-        lineHeight: 18,
-        color: '#6B7280',
-    },
-
-    inviteActions: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        marginTop: 12,
-    },
-
-    inviteActionButton: {
-        minHeight: 38,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.primary,
-        borderRadius: 13,
-        paddingHorizontal: 13,
-        gap: 5,
-    },
-
-    inviteDeclineButton: {
-        minHeight: 38,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#FDECEC',
-        borderRadius: 13,
-        paddingHorizontal: 13,
-        gap: 5,
-    },
-
-    inviteActionDisabled: {
-        opacity: 0.55,
-    },
-
-    inviteActionText: {
-        fontSize: 13,
-        fontWeight: '800',
-        color: '#FFFFFF',
-    },
-
-    inviteDeclineText: {
-        fontSize: 13,
-        fontWeight: '800',
-        color: colors.primary,
     },
 
     menuItem: {

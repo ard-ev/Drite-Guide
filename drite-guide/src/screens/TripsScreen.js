@@ -19,7 +19,7 @@ import { formatDateRangeForDisplay } from '../utils/dateFormat';
 
 export default function TripsScreen() {
   const navigation = useNavigation();
-  const { isLoggedIn, getTrips, createTrip, refreshTrips, inviteUserToTrip } = useAuth();
+  const { isLoggedIn, getTrips, createTrip, refreshTrips } = useAuth();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const refreshTripsRef = useRef(refreshTrips);
 
@@ -54,27 +54,6 @@ export default function TripsScreen() {
     }
   };
 
-  const handleInviteUsersAfterCreate = async (trip, usernames) => {
-    const failedInvites = [];
-
-    for (const username of usernames) {
-      const result = await inviteUserToTrip(trip.id, username);
-
-      if (!result.success) {
-        failedInvites.push(`${username}: ${result.message || 'Invite failed'}`);
-      }
-    }
-
-    if (failedInvites.length > 0) {
-      return {
-        success: false,
-        message: failedInvites.join('\n'),
-      };
-    }
-
-    return { success: true };
-  };
-
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -96,7 +75,7 @@ export default function TripsScreen() {
               <Ionicons name="map-outline" size={52} color="#A1A1AA" />
               <Text style={styles.emptyTitle}>Sign in to plan trips</Text>
               <Text style={styles.emptySubtitle}>
-                Trips are saved to your account and can be shared with invited users.
+                Trips are saved to your account so you can plan places and dates.
               </Text>
               <TouchableOpacity
                 style={styles.primaryButton}
@@ -111,7 +90,7 @@ export default function TripsScreen() {
               <Ionicons name="calendar-outline" size={52} color="#A1A1AA" />
               <Text style={styles.emptyTitle}>No trips yet</Text>
               <Text style={styles.emptySubtitle}>
-                Create a trip, add places, plan visit times, and invite friends.
+                Create a trip, add places, and plan visit times.
               </Text>
               <TouchableOpacity
                 style={styles.primaryButton}
@@ -148,10 +127,6 @@ export default function TripsScreen() {
                         <Ionicons name="location-outline" size={14} color={colors.primary} />
                         <Text style={styles.metaText}>{trip.placesCount || 0} places</Text>
                       </View>
-                      <View style={styles.metaPill}>
-                        <Ionicons name="people-outline" size={14} color={colors.primary} />
-                        <Text style={styles.metaText}>{trip.invitedUsersCount || 0} invited</Text>
-                      </View>
                     </View>
                   </View>
 
@@ -166,7 +141,6 @@ export default function TripsScreen() {
           visible={createModalVisible}
           onClose={handleCreateModalClose}
           onSave={createTrip}
-          onInviteUsersAfterCreate={handleInviteUsersAfterCreate}
         />
       </SafeAreaView>
     </View>

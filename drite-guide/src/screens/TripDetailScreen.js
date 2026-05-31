@@ -19,7 +19,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import CreateTripModal from '../components/CreateTripModal';
-import InviteUserToTripModal from '../components/InviteUserToTripModal';
 import TripPlacePickerModal from '../components/TripPlacePickerModal';
 import TripPlaceScheduleModal from '../components/TripPlaceScheduleModal';
 import { useAppData } from '../context/AppDataContext';
@@ -41,15 +40,12 @@ export default function TripDetailScreen({ route }) {
     addPlaceToTrip,
     updateTripPlace,
     removeTripPlace,
-    inviteUserToTrip,
-    removeTripMember,
   } = useAuth();
   const { getPlaceById } = useAppData();
 
   const [trip, setTrip] = useState(route.params?.trip || null);
   const [isLoading, setIsLoading] = useState(true);
   const [editTripVisible, setEditTripVisible] = useState(false);
-  const [inviteVisible, setInviteVisible] = useState(false);
   const [placePickerVisible, setPlacePickerVisible] = useState(false);
   const [addingPlaceId, setAddingPlaceId] = useState(null);
   const [editingTripPlace, setEditingTripPlace] = useState(null);
@@ -155,14 +151,6 @@ export default function TripDetailScreen({ route }) {
     }, 120);
   };
 
-  const handleInvite = async (username) => {
-    const result = await inviteUserToTrip(trip.id, username);
-    if (result.success) {
-      await loadTrip();
-    }
-    return result;
-  };
-
   const handleUpdateTripPlace = async (payload) => {
     const result = await updateTripPlace(trip.id, editingTripPlace.id, payload);
     if (result.success) {
@@ -256,32 +244,10 @@ export default function TripDetailScreen({ route }) {
     );
   };
 
-  const handleRemoveMember = (member) => {
-    Alert.alert(
-      'Remove user',
-      'Remove this user from the trip?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            const result = await removeTripMember(trip.id, member.userId || member.user_id);
-            if (!result.success) {
-              Alert.alert('Trip update failed', result.message);
-              return;
-            }
-            await loadTrip();
-          },
-        },
-      ]
-    );
-  };
-
   const handleDeleteTrip = () => {
     Alert.alert(
       'Delete trip',
-      'Delete this trip and all related places and members?',
+      'Delete this trip and all related places?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -414,17 +380,6 @@ export default function TripDetailScreen({ route }) {
                 <TouchableOpacity
                   style={styles.actionButton}
                   activeOpacity={0.88}
-                  onPress={() => setInviteVisible(true)}
-                >
-                  <Ionicons name="person-add-outline" size={18} color={colors.white} />
-                  <Text style={styles.actionButtonText}>Invite User</Text>
-                </TouchableOpacity>
-              ) : null}
-
-              {isOwner ? (
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  activeOpacity={0.88}
                   onPress={() => setPlacePickerVisible(true)}
                 >
                   <Ionicons name="add-circle-outline" size={18} color={colors.white} />
@@ -498,43 +453,6 @@ export default function TripDetailScreen({ route }) {
             )}
           </View>
 
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleRow}>
-                <Ionicons name="people-outline" size={20} color={colors.primary} />
-                <Text style={styles.sectionTitle}>Invited Users</Text>
-              </View>
-              <Text style={styles.countText}>{trip.members?.length || 0}</Text>
-            </View>
-
-            {(trip.members || []).map((member) => {
-              const user = member.user || {};
-              const isMemberOwner = member.role === 'owner';
-              const memberStatusLabel = isMemberOwner ? 'created' : member.status;
-
-              return (
-                <View key={member.id} style={styles.memberRow}>
-                  <View style={styles.memberAvatar}>
-                    <Text style={styles.memberAvatarText}>
-                      {(user.username || '?').slice(0, 1).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.memberContent}>
-                    <Text style={styles.memberName}>@{user.username || 'user'}</Text>
-                    <Text style={styles.memberMeta}>{member.role} · {memberStatusLabel}</Text>
-                  </View>
-                  {isOwner && !isMemberOwner ? (
-                    <TouchableOpacity
-                      style={styles.smallIconButton}
-                      onPress={() => handleRemoveMember(member)}
-                    >
-                      <Ionicons name="close" size={18} color={colors.primary} />
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              );
-            })}
-          </View>
 
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
@@ -611,12 +529,6 @@ export default function TripDetailScreen({ route }) {
           initialTrip={trip}
           onClose={handleEditTripClose}
           onSave={handleSaveTrip}
-        />
-
-        <InviteUserToTripModal
-          visible={inviteVisible}
-          onClose={() => setInviteVisible(false)}
-          onInvite={handleInvite}
         />
 
         <TripPlacePickerModal
@@ -833,49 +745,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#6B7280',
-  },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 10,
-  },
-  memberAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FDECEC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  memberAvatarText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  memberContent: {
-    flex: 1,
-  },
-  memberName: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#222222',
-  },
-  memberMeta: {
-    marginTop: 2,
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  smallIconButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   emptyInlineCard: {
     backgroundColor: '#F9FAFB',

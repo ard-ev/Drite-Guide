@@ -17,7 +17,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import CalendarPickerModal from './CalendarPickerModal';
-import UserInviteInput from './UserInviteInput';
 import colors from '../theme/colors';
 import {
   formatDateForDisplay,
@@ -31,14 +30,12 @@ export default function CreateTripModal({
   initialTrip = null,
   onClose,
   onSave,
-  onInviteUsersAfterCreate,
 }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [sharedNote, setSharedNote] = useState('');
-  const [inviteUsernames, setInviteUsernames] = useState('');
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -121,7 +118,6 @@ export default function CreateTripModal({
     setStartDate(initialTrip?.start_date || '');
     setEndDate(initialTrip?.end_date || '');
     setSharedNote(initialTrip?.shared_note || initialTrip?.sharedNote || '');
-    setInviteUsernames('');
     setDatePickerVisible(false);
   }, [initialTrip, visible]);
 
@@ -193,23 +189,6 @@ export default function CreateTripModal({
       return;
     }
 
-    if (!isEditing && inviteUsernames.trim() && onInviteUsersAfterCreate) {
-      const inviteResult = await onInviteUsersAfterCreate(
-        result.trip,
-        inviteUsernames
-          .split(/[\s,]+/)
-          .map((item) => item.trim().replace(/^@/, ''))
-          .filter(Boolean)
-      );
-
-      if (!inviteResult?.success) {
-        Alert.alert(
-          'Trip created',
-          inviteResult?.message || 'The trip was created, but some users could not be invited.'
-        );
-      }
-    }
-
     closeWithAnimation(result.trip);
   };
 
@@ -257,7 +236,7 @@ export default function CreateTripModal({
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>{isEditing ? 'Edit Trip' : 'Create Trip'}</Text>
-              <Text style={styles.subtitle}>Plan the dates, people, places, and shared note.</Text>
+              <Text style={styles.subtitle}>Plan the dates, places, and shared note.</Text>
             </View>
 
             <TouchableOpacity style={styles.closeButton} onPress={() => closeWithAnimation()}>
@@ -347,21 +326,6 @@ export default function CreateTripModal({
               placeholderTextColor="#A1A1AA"
               multiline
             />
-
-            {!isEditing && onInviteUsersAfterCreate ? (
-              <>
-                <Text style={styles.label}>Invite Users</Text>
-                <UserInviteInput
-                  multiple
-                  inputStyle={styles.input}
-                  value={inviteUsernames}
-                  onChangeText={setInviteUsernames}
-                  onFocus={() => scrollToInput('inviteUsers')}
-                  onLayout={registerInputLayout('inviteUsers')}
-                  placeholder="username, friendname"
-                />
-              </>
-            ) : null}
 
             <TouchableOpacity
               style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}

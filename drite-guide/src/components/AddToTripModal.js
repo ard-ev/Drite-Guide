@@ -19,7 +19,7 @@ import CreateTripModal from './CreateTripModal';
 import { formatDateRangeForDisplay } from '../utils/dateFormat';
 
 export default function AddToTripModal({ visible, place, onClose, onAdded }) {
-  const { getTrips, getTrip, createTrip, addPlaceToTrip, inviteUserToTrip } = useAuth();
+  const { getTrips, getTrip, createTrip, addPlaceToTrip } = useAuth();
   const supabasePlaceId = place?.id;
   const trips = (getTrips() || []).filter((trip) => trip?.id);
   const [checkingTripId, setCheckingTripId] = useState(null);
@@ -174,27 +174,6 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
     }
   };
 
-  const handleInviteUsersAfterCreate = async (trip, usernames) => {
-    const failedInvites = [];
-
-    for (const username of usernames) {
-      const result = await inviteUserToTrip(trip.id, username);
-
-      if (!result.success) {
-        failedInvites.push(`${username}: ${result.message || 'Invite failed'}`);
-      }
-    }
-
-    if (failedInvites.length > 0) {
-      return {
-        success: false,
-        message: failedInvites.join('\n'),
-      };
-    }
-
-    return { success: true };
-  };
-
   return (
     <>
       <Modal
@@ -295,7 +274,6 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
         visible={createTripVisible}
         onClose={handleCreateTripClose}
         onSave={createTrip}
-        onInviteUsersAfterCreate={handleInviteUsersAfterCreate}
       />
 
     </>
