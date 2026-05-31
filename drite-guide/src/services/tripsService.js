@@ -104,12 +104,12 @@ async function hydrateTripMembers(trip) {
   const { data: profiles, error: profilesError } = await supabase
     .from('user_profile')
     .select('*')
-    .in('usr_id', userIds);
+    .in('id', userIds);
 
   throwIfSupabaseError(profilesError, 'Could not load trip members.');
 
   const profileById = new Map(
-    (profiles || []).map((profile) => [profile.usr_id || profile.id, profile])
+    (profiles || []).map((profile) => [profile.id, profile])
   );
 
   return (data || []).map((member) => ({

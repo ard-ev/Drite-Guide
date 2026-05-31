@@ -196,17 +196,20 @@ const translations = {
       missingLogin: 'Please enter your email or username and your password.',
       missingSignupFields: 'Please fill in all signup fields.',
       invalidEmail: 'Please enter a valid email address.',
-      emailTaken: 'This email address is already registered.',
-      invalidUsername: 'Username must be at least 3 characters.',
+      emailTaken:
+        'This email is already registered. Please log in or resend the verification email.',
+      invalidUsername:
+        'Username must be 3 to 30 characters and may only contain letters, numbers, underscore and dot.',
       usernameChecking: 'Checking username...',
       usernameAvailable: 'Username is available.',
       usernameTaken: 'Username is already taken.',
       usernameCheckFailed: 'Could not check username right now.',
       passwordTooShort: 'Password must be at least 6 characters.',
       passwordRequirements:
-        'Password must be at least 8 characters and include one uppercase letter and one number.',
+        'Password must be at least 8 characters and include one uppercase letter, one lowercase letter and one number.',
       passwordRuleLength: 'At least 8 characters',
       passwordRuleUppercase: 'One uppercase letter',
+      passwordRuleLowercase: 'One lowercase letter',
       passwordRuleNumber: 'One number',
       passwordsMismatch: 'The passwords do not match.',
       loginFailedFallback: 'Login failed. Please try again.',
@@ -216,7 +219,7 @@ const translations = {
       accountCreatedVerify:
         'Account created. Please check your email to verify your account.',
       emailNotVerified:
-        'Please verify your email address before logging in.',
+        'Please verify your email before logging in.',
       emailRequiredForVerification:
         'Please enter your email address to resend the verification email.',
       resendVerificationEmail: 'Resend verification email',
@@ -549,17 +552,20 @@ const overrides = {
       missingLogin: 'Bitte gib deine E-Mail oder deinen Benutzernamen und dein Passwort ein.',
       missingSignupFields: 'Bitte fülle alle Felder für die Registrierung aus.',
       invalidEmail: 'Bitte gib eine gültige E-Mail-Adresse ein.',
-      emailTaken: 'Diese E-Mail-Adresse wird bereits verwendet.',
-      invalidUsername: 'Der Benutzername muss mindestens 3 Zeichen lang sein.',
+      emailTaken:
+        'Diese E-Mail ist bereits registriert. Bitte logge dich ein oder sende die BestÃ¤tigungs-E-Mail erneut.',
+      invalidUsername:
+        'Der Benutzername muss 3 bis 30 Zeichen lang sein und darf nur Buchstaben, Zahlen, Unterstrich und Punkt enthalten.',
       usernameChecking: 'Benutzername wird geprüft...',
       usernameAvailable: 'Benutzername ist verfügbar.',
       usernameTaken: 'Benutzername ist bereits vergeben.',
       usernameCheckFailed: 'Benutzername konnte gerade nicht geprüft werden.',
       passwordTooShort: 'Das Passwort muss mindestens 6 Zeichen lang sein.',
       passwordRequirements:
-        'Das Passwort muss mindestens 8 Zeichen lang sein und einen Grossbuchstaben sowie eine Zahl enthalten.',
+        'Das Passwort muss mindestens 8 Zeichen lang sein und einen Grossbuchstaben, einen Kleinbuchstaben sowie eine Zahl enthalten.',
       passwordRuleLength: 'Mindestens 8 Zeichen',
       passwordRuleUppercase: 'Ein Grossbuchstabe',
+      passwordRuleLowercase: 'Ein Kleinbuchstabe',
       passwordRuleNumber: 'Eine Zahl',
       passwordsMismatch: 'Die Passwörter stimmen nicht überein.',
       loginFailedFallback: 'Login fehlgeschlagen. Bitte versuche es erneut.',

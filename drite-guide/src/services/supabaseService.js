@@ -26,33 +26,6 @@ export function throwIfSupabaseError(error, fallbackMessage) {
   }
 }
 
-export function isMissingAuthUserIdColumnError(error) {
-  const message = String(error?.message || error || '').toLowerCase();
-  return (
-    message.includes('auth_user_id') &&
-    (
-      message.includes('does not exist') ||
-      message.includes('schema cache') ||
-      message.includes('could not find')
-    )
-  );
-}
-
-export function isMissingUserProfileColumnError(error, columnName) {
-  const message = String(error?.message || error || '').toLowerCase();
-  const normalizedColumnName = String(columnName || '').toLowerCase();
-
-  return (
-    normalizedColumnName &&
-    message.includes(normalizedColumnName) &&
-    (
-      message.includes('does not exist') ||
-      message.includes('schema cache') ||
-      message.includes('could not find')
-    )
-  );
-}
-
 export async function getAuthenticatedProfileId(expectedProfileId = null) {
   const { data, error } = await supabase.auth.getUser();
 
@@ -64,26 +37,15 @@ export async function getAuthenticatedProfileId(expectedProfileId = null) {
     throw new Error('Please sign in again.');
   }
 
-  let { data: profile, error: profileError } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('user_profile')
-    .select('usr_id')
-    .eq('auth_user_id', authUserId)
+    .select('id')
+    .eq('id', authUserId)
     .maybeSingle();
-
-  if (isMissingAuthUserIdColumnError(profileError) && data?.user?.email) {
-    const fallbackResult = await supabase
-      .from('user_profile')
-      .select('usr_id')
-      .eq('email', String(data.user.email).toLowerCase())
-      .maybeSingle();
-
-    profile = fallbackResult.data;
-    profileError = fallbackResult.error;
-  }
 
   throwIfSupabaseError(profileError, 'Please sign in again.');
 
-  const profileId = profile?.usr_id || profile?.id;
+  const profileId = profile?.id;
 
   if (!profileId) {
     throw new Error('Profile could not be loaded. Please sign out and sign back in.');
@@ -103,8 +65,8 @@ export function normalizeUsername(value) {
     .trim()
     .replace(/^@+/, '')
     .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '')
-    .slice(0, 32);
+    .replace(/[^a-z0-9._]+/g, '')
+    .slice(0, 30);
 }
 
 export function normalizeEmail(value) {
@@ -117,7 +79,12 @@ export function isValidEmailAddress(value) {
 
 export function isStrongSignupPassword(value) {
   const password = String(value || '');
-  return password.length >= 8 && /[A-Z]/.test(password) && /\d/.test(password);
+  return (
+    password.length >= 8 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
+    /\d/.test(password)
+  );
 }
 
 export function sanitizeSearchTerm(value) {

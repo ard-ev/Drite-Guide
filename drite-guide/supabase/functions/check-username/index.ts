@@ -77,8 +77,8 @@ Deno.serve(async (req) => {
 
   const { data, error } = await admin
     .from('user_profile')
-    .select('usr_id')
-    .eq('username', username)
+    .select('id')
+    .eq('normalized_username', username)
     .maybeSingle();
 
   if (error) {

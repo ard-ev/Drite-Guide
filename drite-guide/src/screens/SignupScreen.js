@@ -77,6 +77,11 @@ export default function SignupScreen() {
             met: /[A-Z]/.test(password),
         },
         {
+            key: 'lowercase',
+            label: t('auth.passwordRuleLowercase') || 'One lowercase letter',
+            met: /[a-z]/.test(password),
+        },
+        {
             key: 'number',
             label: t('auth.passwordRuleNumber') || 'One number',
             met: /\d/.test(password),
@@ -203,10 +208,11 @@ export default function SignupScreen() {
             return;
         }
 
-        if (cleanUsername.length < 3) {
+        if (!/^[a-z0-9_.]{3,30}$/.test(cleanUsername)) {
             Alert.alert(
                 t('auth.signupFailed') || 'Sign up failed',
-                t('auth.invalidUsername') || 'Username must be at least 3 characters.'
+                t('auth.invalidUsername') ||
+                    'Username must be 3 to 30 characters and may only contain letters, numbers, underscore and dot.'
             );
             return;
         }
@@ -228,7 +234,7 @@ export default function SignupScreen() {
             Alert.alert(
                 t('auth.signupFailed') || 'Sign up failed',
                 t('auth.passwordRequirements') ||
-                    'Password must have at least 8 characters, one uppercase letter and one number.'
+                    'Password must have at least 8 characters, one uppercase letter, one lowercase letter and one number.'
             );
             return;
         }

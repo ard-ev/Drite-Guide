@@ -3,8 +3,6 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { STORAGE_BUCKETS, assertSupabaseConfigured, supabase } from '../lib/supabase';
 import {
-  isMissingAuthUserIdColumnError,
-  isMissingUserProfileColumnError,
   isValidEmailAddress,
   normalizeEmail,
   normalizeUsername,
@@ -24,7 +22,7 @@ const MIME_TYPES_BY_EXTENSION = {
 };
 
 function getProfileId(profile) {
-  return profile?.usr_id || profile?.id;
+  return profile?.id || null;
 }
 
 function pickProfileMetadata(authUser, fallback = {}) {
@@ -35,7 +33,7 @@ function pickProfileMetadata(authUser, fallback = {}) {
     normalizeUsername(email.split('@')[0]);
 
   return {
-    auth_user_id: authUser?.id || fallback.auth_user_id || fallback.authUserId,
+    id: authUser?.id || fallback.id || fallback.authUserId,
     first_name: metadata.first_name || fallback.first_name || fallback.firstName || '',
     last_name: metadata.last_name || fallback.last_name || fallback.lastName || '',
     email: email.toLowerCase(),
@@ -76,7 +74,7 @@ async function isFollowingProfile(currentUserId, targetUserId) {
   }
 
   const { data, error } = await supabase
-    .from('user_follows')
+    .from('user_followers')
     .select('following_id')
     .eq('follower_id', currentUserId)
     .eq('following_id', targetUserId)
@@ -102,8 +100,8 @@ export async function hydrateProfile(profile, currentUserId = null, authUser = n
     tripsCount,
     isFollowing,
   ] = await Promise.all([
-    countRows('user_follows', 'following_id', profileId),
-    countRows('user_follows', 'follower_id', profileId),
+    countRows('user_followers', 'following_id', profileId),
+    countRows('user_followers', 'follower_id', profileId),
     countRows('saved_places', 'user_id', profileId),
     countRows('trips', 'owner_id', profileId),
     isFollowingProfile(currentUserId, profileId),
@@ -112,7 +110,6 @@ export async function hydrateProfile(profile, currentUserId = null, authUser = n
   return {
     ...profile,
     id: profileId,
-    usrId: profileId,
     email_verified: Boolean(profile.email_verified || authUser?.email_confirmed_at),
     followers_count: followersCount,
     following_count: followingCount,
@@ -132,7 +129,7 @@ export async function getProfileById(userId, currentUserId = null, authUser = nu
   const { data, error } = await supabase
     .from('user_profile')
     .select('*')
-    .eq('usr_id', userId)
+    .eq('id', userId)
     .maybeSingle();
 
   throwIfSupabaseError(error, 'Could not load profile.');
@@ -150,22 +147,11 @@ export async function getProfileByAuthUserId(
     return null;
   }
 
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from('user_profile')
     .select('*')
-    .eq('auth_user_id', authUserId)
+    .eq('id', authUserId)
     .maybeSingle();
-
-  if (isMissingAuthUserIdColumnError(error) && authUser?.email) {
-    const fallbackResult = await supabase
-      .from('user_profile')
-      .select('*')
-      .eq('email', String(authUser.email).toLowerCase())
-      .maybeSingle();
-
-    data = fallbackResult.data;
-    error = fallbackResult.error;
-  }
 
   throwIfSupabaseError(error, 'Could not load profile.');
   return hydrateProfile(data, currentUserId, authUser);
@@ -185,71 +171,11 @@ export async function ensureUserProfile(authUser, fallback = {}) {
   );
 
   if (existingProfile) {
-    const updatePayload = {
-      email: authUser.email || existingProfile.email,
-      email_verified: Boolean(authUser.email_confirmed_at),
-      updated_at: new Date().toISOString(),
-    };
-
-    let { data, error } = await supabase
-      .from('user_profile')
-      .update(updatePayload)
-      .eq('auth_user_id', authUser.id)
-      .select('*')
-      .single();
-
-    if (isMissingAuthUserIdColumnError(error)) {
-      const fallbackResult = await supabase
-        .from('user_profile')
-        .update(updatePayload)
-        .eq('usr_id', existingProfile.id)
-        .select('*')
-        .single();
-
-      data = fallbackResult.data;
-      error = fallbackResult.error;
-    }
-
-    if (error) {
-      return existingProfile;
-    }
-
-    return hydrateProfile(data, existingProfile.id, authUser);
+    return existingProfile;
   }
 
-  const profilePayload = {
-    ...pickProfileMetadata(authUser, fallback),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
-  let { data, error } = await supabase
-    .from('user_profile')
-    .insert(profilePayload)
-    .select('*')
-    .single();
-
-  if (
-    isMissingAuthUserIdColumnError(error) ||
-    isMissingUserProfileColumnError(error, 'preferred_language')
-  ) {
-    const {
-      auth_user_id: _authUserId,
-      preferred_language: _preferredLanguage,
-      ...fallbackPayload
-    } = profilePayload;
-    const fallbackResult = await supabase
-      .from('user_profile')
-      .insert(fallbackPayload)
-      .select('*')
-      .single();
-
-    data = fallbackResult.data;
-    error = fallbackResult.error;
-  }
-
-  throwIfSupabaseError(error, 'Could not create profile.');
-  return hydrateProfile(data, getProfileId(data), authUser);
+  console.warn('Profile row missing for auth user:', authUser.id);
+  return hydrateProfile(pickProfileMetadata(authUser, fallback), authUser.id, authUser);
 }
 
 export async function getProfileByUsername(username, currentUserId = null) {
@@ -264,7 +190,7 @@ export async function getProfileByUsername(username, currentUserId = null) {
   const { data, error } = await supabase
     .from('user_profile')
     .select('*')
-    .eq('username', normalizedUsername)
+    .eq('normalized_username', normalizedUsername)
     .maybeSingle();
 
   throwIfSupabaseError(error, 'Could not load profile.');
@@ -276,7 +202,7 @@ export async function isUsernameAvailable(username) {
 
   const normalizedUsername = normalizeUsername(username);
 
-  if (normalizedUsername.length < 3) {
+  if (!/^[a-z0-9_.]{3,30}$/.test(normalizedUsername)) {
     return false;
   }
 
@@ -291,20 +217,24 @@ export async function isUsernameAvailable(username) {
     return functionData.available;
   }
 
+  const { data, error: rpcError } = await supabase
+    .rpc('is_username_available', { username_value: normalizedUsername });
+
+  if (!rpcError) {
+    return Boolean(data);
+  }
+
   const { count, error } = await supabase
     .from('user_profile')
-    .select('usr_id', { count: 'exact', head: true })
-    .eq('username', normalizedUsername);
+    .select('id', { count: 'exact', head: true })
+    .eq('normalized_username', normalizedUsername);
 
   if (!error) {
     return (count || 0) === 0;
   }
 
-  const { data, error: rpcError } = await supabase
-    .rpc('is_username_available', { username_value: normalizedUsername });
-
   throwIfSupabaseError(rpcError || error, 'Could not check username.');
-  return Boolean(data);
+  return false;
 }
 
 export async function isEmailAvailable(email) {
@@ -318,7 +248,7 @@ export async function isEmailAvailable(email) {
 
   const { count, error } = await supabase
     .from('user_profile')
-    .select('usr_id', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .eq('email', normalizedEmail);
 
   throwIfSupabaseError(error, 'Could not check email.');
@@ -356,11 +286,15 @@ export async function updateProfile(userId, updates) {
 
   const safeUpdates = {
     ...updates,
-    updated_at: new Date().toISOString(),
   };
 
   delete safeUpdates.id;
-  delete safeUpdates.usr_id;
+  delete safeUpdates.email;
+  delete safeUpdates.email_verified;
+  delete safeUpdates.role;
+  delete safeUpdates.normalized_username;
+  delete safeUpdates.created_at;
+  delete safeUpdates.updated_at;
 
   if (safeUpdates.username) {
     safeUpdates.username = normalizeUsername(safeUpdates.username);
@@ -369,7 +303,7 @@ export async function updateProfile(userId, updates) {
   const { data, error } = await supabase
     .from('user_profile')
     .update(safeUpdates)
-    .eq('usr_id', userId)
+    .eq('id', userId)
     .select('*')
     .single();
 
@@ -378,15 +312,7 @@ export async function updateProfile(userId, updates) {
 }
 
 export async function updatePreferredLanguage(userId, languageCode) {
-  try {
-    return await updateProfile(userId, { preferred_language: languageCode });
-  } catch (error) {
-    if (isMissingUserProfileColumnError(error, 'preferred_language')) {
-      return getProfileById(userId, userId);
-    }
-
-    throw error;
-  }
+  return updateProfile(userId, { preferred_language: languageCode });
 }
 
 function getAssetFileName(asset) {
@@ -475,7 +401,7 @@ export async function followProfile(username, currentUserId) {
   }
 
   const { error } = await supabase
-    .from('user_follows')
+    .from('user_followers')
     .insert({
       follower_id: currentUserId,
       following_id: targetProfile.id,
@@ -495,7 +421,7 @@ export async function unfollowProfile(username, currentUserId) {
   }
 
   const { error } = await supabase
-    .from('user_follows')
+    .from('user_followers')
     .delete()
     .eq('follower_id', currentUserId)
     .eq('following_id', targetProfile.id);
@@ -518,7 +444,7 @@ export async function getProfileConnections(username, listType, currentUserId = 
   const targetColumn = isFollowingList ? 'following_id' : 'follower_id';
 
   const { data, error } = await supabase
-    .from('user_follows')
+    .from('user_followers')
     .select(`${targetColumn}, created_at`)
     .eq(filterColumn, profile.id)
     .order('created_at', { ascending: false });
@@ -534,7 +460,7 @@ export async function getProfileConnections(username, listType, currentUserId = 
   const { data: profiles, error: profilesError } = await supabase
     .from('user_profile')
     .select('*')
-    .in('usr_id', targetIds);
+    .in('id', targetIds);
 
   throwIfSupabaseError(profilesError, 'Could not load connections.');
 

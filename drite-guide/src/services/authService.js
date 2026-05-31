@@ -1,7 +1,11 @@
 import * as Linking from 'expo-linking';
 
 import { assertSupabaseConfigured, supabase } from '../lib/supabase';
-import { ensureUserProfile, getProfileByUsername } from './profileService';
+import {
+  ensureUserProfile,
+  getProfileByUsername,
+  isUsernameAvailable,
+} from './profileService';
 import {
   getSupabaseErrorMessage,
   isStrongSignupPassword,
@@ -13,12 +17,14 @@ import {
 
 const AUTH_CALLBACK_PATH = 'auth/callback';
 const PASSWORD_RESET_PATH = 'reset-password';
+const DEFAULT_AUTH_REDIRECT_URL = 'https://driteguide.com';
 
 const EMAIL_NOT_VERIFIED_CODE = 'email_not_verified';
 const EMAIL_RATE_LIMIT_CODE = 'email_rate_limit_exceeded';
+const SIGNUP_VERIFICATION_PENDING_CODE = 'signup_verification_pending';
 
 function createEmailNotVerifiedError() {
-  const error = new Error('Please verify your email address before logging in.');
+  const error = new Error('Please verify your email before logging in.');
   error.code = EMAIL_NOT_VERIFIED_CODE;
   return error;
 }
@@ -28,6 +34,29 @@ function createCodedError(message, code, status = null) {
   error.code = code;
   error.status = status;
   return error;
+}
+
+function isDuplicateEmailError(error) {
+  const message = getSupabaseErrorMessage(error, '').toLowerCase();
+  return (
+    error?.code === 'email_exists' ||
+    message.includes('already registered') ||
+    message.includes('already been registered') ||
+    message.includes('user already registered') ||
+    message.includes('email already')
+  );
+}
+
+function isDuplicateUsernameError(error) {
+  const message = getSupabaseErrorMessage(error, '').toLowerCase();
+  return (
+    message.includes('username already taken') ||
+    (
+      message.includes('duplicate key') &&
+      message.includes('user_profile') &&
+      message.includes('username')
+    )
+  );
 }
 
 export function isEmailNotVerifiedError(error) {
@@ -75,7 +104,7 @@ export async function clearInvalidAuthSession() {
 
 function getConfiguredRedirectUrl(path) {
   if (path === AUTH_CALLBACK_PATH) {
-    return process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL || '';
+    return process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL || DEFAULT_AUTH_REDIRECT_URL;
   }
 
   if (path === PASSWORD_RESET_PATH) {
@@ -230,7 +259,22 @@ export async function signIn(identifier, password) {
     throw emailNotVerifiedError;
   }
 
-  const profile = await ensureUserProfile(data.user);
+  let profile = null;
+
+  try {
+    profile = await ensureUserProfile(data.user);
+  } catch (profileError) {
+    console.log('SUPABASE PROFILE LOAD ERROR:', profileError);
+    profile = {
+      id: data.user.id,
+      email: data.user.email || email,
+      username: normalizeUsername(data.user.user_metadata?.username || email.split('@')[0]),
+      first_name: data.user.user_metadata?.first_name || '',
+      last_name: data.user.user_metadata?.last_name || '',
+      preferred_language: data.user.user_metadata?.preferred_language || 'en',
+      email_verified: Boolean(data.user.email_confirmed_at),
+    };
+  }
 
   return {
     session: data.session,
@@ -267,9 +311,9 @@ export async function signUp({
     throw createCodedError('Please enter a valid email address.', 'invalid_email', 400);
   }
 
-  if (!cleanUsername || cleanUsername.length < 3) {
+  if (!/^[a-z0-9_.]{3,30}$/.test(cleanUsername)) {
     throw createCodedError(
-      'Username must be at least 3 characters.',
+      'Username must be 3 to 30 characters and may only contain letters, numbers, underscore and dot.',
       'invalid_username',
       400
     );
@@ -277,10 +321,16 @@ export async function signUp({
 
   if (!isStrongSignupPassword(cleanPassword)) {
     throw createCodedError(
-      'Password must be at least 8 characters and include one uppercase letter and one number.',
+      'Password must be at least 8 characters and include one uppercase letter, one lowercase letter and one number.',
       'weak_password',
       400
     );
+  }
+
+  const usernameAvailable = await isUsernameAvailable(cleanUsername);
+
+  if (!usernameAvailable) {
+    throw createCodedError('Username already taken', 'username_taken', 409);
   }
 
   const signupPayload = {
@@ -313,17 +363,40 @@ export async function signUp({
       details: error?.details,
     });
 
+    if (isDuplicateUsernameError(error)) {
+      throw createCodedError('Username already taken', 'username_taken', 409);
+    }
+
+    if (isDuplicateEmailError(error)) {
+      throw createCodedError('Email already exists.', 'email_taken', 409);
+    }
+
     throwIfSupabaseError(error, 'Signup failed.');
   }
 
   const user = data?.user || null;
   const session = data?.session || null;
+
+  if (!user?.id) {
+    throw createCodedError(
+      'This email may already have a pending account. Please check your inbox or resend the verification email from the login screen.',
+      SIGNUP_VERIFICATION_PENDING_CODE,
+      409
+    );
+  }
+
+  if (user && Array.isArray(user.identities) && user.identities.length === 0) {
+    throw createCodedError(
+      'This email is already registered. Please log in or resend the verification email.',
+      SIGNUP_VERIFICATION_PENDING_CODE,
+      409
+    );
+  }
+
   const emailIsVerified = Boolean(user?.email_confirmed_at);
 
   const fallbackProfile = {
     id: user?.id || null,
-    usr_id: user?.id || null,
-    auth_user_id: user?.id || null,
     first_name: cleanFirstName,
     last_name: cleanLastName,
     email: cleanEmail,

@@ -365,10 +365,12 @@ export function AuthProvider({ children }) {
       };
     }
 
-    if (cleanUsername.length < 3) {
+    if (!/^[a-z0-9_.]{3,30}$/.test(cleanUsername)) {
       return {
         success: false,
-        message: t('auth.invalidUsername') || 'Username must be at least 3 characters.',
+        message:
+          t('auth.invalidUsername') ||
+          'Username must be 3 to 30 characters and may only contain letters, numbers, underscore and dot.',
       };
     }
 
@@ -377,7 +379,7 @@ export function AuthProvider({ children }) {
         success: false,
         message:
           t('auth.passwordRequirements') ||
-          'Password must have at least 8 characters, one uppercase letter and one number.',
+          'Password must have at least 8 characters, one uppercase letter, one lowercase letter and one number.',
       };
     }
 
@@ -444,14 +446,21 @@ export function AuthProvider({ children }) {
 
       return {
         success: false,
-        message: isEmailRateLimitError(error)
-          ? t('auth.emailRateLimit') || 'Too many emails sent. Please try again later.'
-          : getSupabaseErrorMessage(
-            error,
-            error?.message ||
-            t('auth.signupFailedFallback') ||
-            'Sign up failed.'
-          ),
+        message:
+          error?.code === 'username_taken'
+            ? t('auth.usernameTaken') || 'Username already taken'
+            : error?.code === 'email_taken' ||
+              error?.code === 'signup_verification_pending'
+              ? t('auth.emailTaken') ||
+                'This email is already registered. Please log in or resend the verification email.'
+              : isEmailRateLimitError(error)
+                ? t('auth.emailRateLimit') || 'Too many emails sent. Please try again later.'
+                : getSupabaseErrorMessage(
+                  error,
+                  error?.message ||
+                  t('auth.signupFailedFallback') ||
+                  'Sign up failed.'
+                ),
       };
     }
   };
