@@ -472,7 +472,7 @@ const overrides = {
       heroEyebrow: 'Cleverer reisen',
       heroTitle: 'Finde die besten Orte in Albanien',
       heroText:
-        'Entdecke Städte, Doerfer, Restaurants, Cafes, Bars, Clubs und Geheimtipps in einer App.',
+        'Entdecke Städte, Dörfer, Restaurants, Cafes, Bars, Clubs und Geheimtipps in einer App.',
       businessEyebrow: 'Für Unternehmen',
       partnerBadge: 'Partner werden',
       partnerTitle: 'Zeig deinen Ort dort, wo Albanien gesucht wird',
