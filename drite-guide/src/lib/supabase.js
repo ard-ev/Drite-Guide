@@ -5,8 +5,35 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 
-export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+function normalizeSupabaseProjectUrl(url) {
+  const value = String(url || '').trim().replace(/\/+$/, '');
+
+  if (!value) {
+    return '';
+  }
+
+  try {
+    const parsedUrl = new URL(value);
+    const normalizedPath = parsedUrl.pathname.replace(/\/+$/, '');
+
+    if (normalizedPath === '/rest/v1') {
+      parsedUrl.pathname = '';
+      parsedUrl.search = '';
+      parsedUrl.hash = '';
+      return parsedUrl.toString().replace(/\/+$/, '');
+    }
+  } catch (_error) {
+    return value;
+  }
+
+  return value;
+}
+
+export const SUPABASE_URL = normalizeSupabaseProjectUrl(
+  process.env.EXPO_PUBLIC_SUPABASE_URL
+);
 export const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured =
@@ -132,7 +159,7 @@ export const supabase = createClient(
 export function assertSupabaseConfigured() {
   if (!isSupabaseConfigured) {
     throw new Error(
-      'Supabase is not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.'
+      'Supabase is not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY.'
     );
   }
 }
