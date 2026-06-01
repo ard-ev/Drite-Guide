@@ -33,7 +33,6 @@ export const SUPABASE_URL = normalizeSupabaseProjectUrl(
   process.env.EXPO_PUBLIC_SUPABASE_URL
 );
 export const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured =
@@ -159,7 +158,7 @@ export const supabase = createClient(
 export function assertSupabaseConfigured() {
   if (!isSupabaseConfigured) {
     throw new Error(
-      'Supabase is not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY.'
+      'Supabase is not configured. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.'
     );
   }
 }
