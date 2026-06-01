@@ -33,7 +33,7 @@ const CATEGORY_PRIORITY = [
   'cafes',
   'bars',
   'beaches',
-  'historicalsites',
+  'historical',
   'hidden_gems',
   'government_help',
   'governmenthelp',
@@ -137,9 +137,13 @@ export default function HomeScreen({ route }) {
 
     const aliases = {
       historical: 'historicalsites',
-      historicalsites: 'historicalsites',
+      historicalsites: 'historical',
+      cat000006: 'historical',
       hiddengems: 'hidden_gems',
       religioussites: 'religious_sites',
+      government: 'government_help',
+      catgovernment: 'government_help',
+      cat000008: 'government_help',
       government_help: 'government_help',
       governmentservice: 'government_help',
       governmentservices: 'government_help',
@@ -149,12 +153,12 @@ export default function HomeScreen({ route }) {
     };
 
     for (const candidate of candidates) {
-      if (CATEGORY_PRIORITY.includes(candidate)) {
-        return candidate;
-      }
-
       if (aliases[candidate]) {
         return aliases[candidate];
+      }
+
+      if (CATEGORY_PRIORITY.includes(candidate)) {
+        return candidate;
       }
     }
 
