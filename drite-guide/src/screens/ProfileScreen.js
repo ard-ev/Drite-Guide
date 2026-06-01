@@ -252,10 +252,19 @@ export default function ProfileScreen() {
                 : t('profile.profile')}
             </Text>
 
-            <Text style={styles.profileUsername}>@{displayUsername}</Text>
-            <Text style={styles.profileEmail}>
-              {profile?.email || t('common.noEmail')}
+            <Text
+              style={[
+                styles.profileUsername,
+                !isOwnProfile && styles.profileUsernamePublic,
+              ]}
+            >
+              @{displayUsername}
             </Text>
+            {isOwnProfile ? (
+              <Text style={styles.profileEmail}>
+                {profile?.email || currentUser?.email || t('common.noEmail')}
+              </Text>
+            ) : null}
 
             {canShowFollowButton ? (
               <TouchableOpacity
@@ -422,6 +431,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 14,
     color: '#6B7280',
+  },
+
+  profileUsernamePublic: {
+    marginBottom: 14,
   },
 
   profileEmail: {
