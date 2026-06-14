@@ -9,11 +9,19 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F5F5F5",
     "primaryColor": "#d51e1e",
+    "splash": {
+      "image": "./assets/logosplash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F5F5F5"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.driteguide.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Dritë Guide uses the camera so you can take a profile picture.",
+        "NSPhotoLibraryUsageDescription": "Dritë Guide uses your photo library so you can choose a profile picture.",
+        "NSLocationWhenInUseUsageDescription": "Dritë Guide uses your location to show nearby places on the map."
       }
     },
     "android": {
@@ -26,7 +34,7 @@
         "backgroundColor": "#d51e1e"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": [
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -38,22 +46,23 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Dritë Guide to access your photos so you can set a profile picture.",
-          "cameraPermission": "Allow Dritë Guide to use your camera so you can take a profile picture."
+          "photosPermission": "Dritë Guide uses your photo library so you can choose a profile picture.",
+          "cameraPermission": "Dritë Guide uses the camera so you can take a profile picture."
         }
       ],
-      {
-        "expo": {
-          "splash": {
-            "image": "./assets/splash.png"
-          },
-          "ios": {
-            "splash": {
-              "image": "./assets/splash.png"
-            }
-          }
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Dritë Guide uses your location to show nearby places on the map."
         }
-      }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logosplash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#F5F5F5"
+        }
       ],
       "expo-video",
       "expo-secure-store"
