@@ -42,18 +42,18 @@
           "cameraPermission": "Allow Dritë Guide to use your camera so you can take a profile picture."
         }
       ],
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "image": "./assets/splash-icon.png",
-            "backgroundColor": "#000000"
+      {
+        "expo": {
+          "splash": {
+            "image": "./assets/splash.png"
+          },
+          "ios": {
+            "splash": {
+              "image": "./assets/splash.png"
+            }
           }
         }
+      }
       ],
       "expo-video",
       "expo-secure-store"
