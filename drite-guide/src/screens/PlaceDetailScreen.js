@@ -68,7 +68,7 @@ export default function PlaceDetailScreen({ route }) {
   const [tripModalVisible, setTripModalVisible] = useState(false);
   const [remotePlace, setRemotePlace] = useState(null);
 
-  const place = routeParams.place || getPlaceById(placeId) || remotePlace;
+  const place = getPlaceById(placeId) || remotePlace || routeParams.place;
   const savedPlaces = getSavedPlaces() || [];
   const safePlaceId = place?.id || placeId;
   const isSaved = savedPlaces
@@ -84,7 +84,9 @@ export default function PlaceDetailScreen({ route }) {
 
     async function loadPlaceDetails() {
       try {
-        const nextPlace = normalizePlace(await fetchPlaceById(placeId));
+        const nextPlace = normalizePlace(await fetchPlaceById(placeId), {
+          language,
+        });
         if (isMounted && nextPlace) {
           setRemotePlace(nextPlace);
         }
@@ -98,7 +100,7 @@ export default function PlaceDetailScreen({ route }) {
     return () => {
       isMounted = false;
     };
-  }, [place, placeId]);
+  }, [language, place, placeId]);
 
   if (!place) {
     return (

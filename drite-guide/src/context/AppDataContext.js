@@ -7,7 +7,6 @@ import React, {
   useState,
 } from 'react';
 
-import { localizeAppDataSet } from '../i18n/contentTranslations';
 import { getCategories } from '../services/categoriesService';
 import { getCities } from '../services/citiesService';
 import { getPlaces } from '../services/placesService';
@@ -70,9 +69,13 @@ export function AppDataProvider({ children }) {
         ]);
 
       const nextCategories = filterDatabaseCategories(
-        (categoriesResponse || []).map(normalizeCategory).filter(Boolean)
+        (categoriesResponse || [])
+          .map((item) => normalizeCategory(item, { language: currentLanguage }))
+          .filter(Boolean)
       );
-      const nextCities = (citiesResponse || []).map(normalizeCity).filter(Boolean);
+      const nextCities = (citiesResponse || [])
+        .map((item) => normalizeCity(item, { language: currentLanguage }))
+        .filter(Boolean);
       const categoryNameById = Object.fromEntries(
         nextCategories.map((item) => [item.id, item.name])
       );
@@ -84,22 +87,14 @@ export function AppDataProvider({ children }) {
           normalizePlace(item, {
             categoryName: categoryNameById[item?.category_id],
             cityName: cityNameById[item?.city_id],
+            language: currentLanguage,
           })
         )
         .filter(Boolean);
 
-      const localizedData = localizeAppDataSet(
-        {
-          categories: nextCategories,
-          cities: nextCities,
-          places: nextPlaces,
-        },
-        currentLanguage
-      );
-
-      setCategories(localizedData.categories);
-      setCities(localizedData.cities);
-      setPlaces(localizedData.places);
+      setCategories(nextCategories);
+      setCities(nextCities);
+      setPlaces(nextPlaces);
     } catch (error) {
       setErrorMessage(
         getSupabaseErrorMessage(error, 'Could not load data from Supabase.')

@@ -3,6 +3,13 @@ import { throwIfSupabaseError } from './supabaseService';
 
 const PLACE_WITH_IMAGES_SELECT = `
   *,
+  translations:place_translations (
+    language_code,
+    name,
+    description,
+    address,
+    opening_hours
+  ),
   images:place_images (
     id,
     image_path,
@@ -33,6 +40,7 @@ async function runPlacesQuery(query, fallbackQueryFactory) {
 
   const missingImagesRelation =
     error.message?.includes('place_images') ||
+    error.message?.includes('place_translations') ||
     error.message?.includes('relationship');
 
   if (!missingImagesRelation || !fallbackQueryFactory) {

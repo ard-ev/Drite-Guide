@@ -268,7 +268,7 @@ export default function TripDetailScreen({ route }) {
 
   const resolveTripPlace = (tripPlace) => {
     const placeId = tripPlace.placeId || tripPlace.place_id;
-    return tripPlace.place || getPlaceById(placeId) || {};
+    return getPlaceById(placeId) || tripPlace.place || {};
   };
 
   const getVisitMeta = (tripPlace) => {

@@ -192,7 +192,7 @@ export default function HomeScreen({ route }) {
     .map((category) => ({
       id: category.id,
       label: category.name,
-      subtitle: t(`categories.subtitles.${getCategoryKey(category)}`),
+      subtitle: category.subtitle || t(`categories.subtitles.${getCategoryKey(category)}`),
       image: category.image,
     }));
 

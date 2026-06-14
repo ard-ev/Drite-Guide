@@ -864,7 +864,7 @@ const overrides = {
       loginFailed: 'Hyrja deshtoi',
       loginSuccessful: 'Hyrja u krye',
       welcomeBack: 'Mire se u ktheve, {{name}}!',
-      signupPrompt: 'Nuk ke llogari? Regjistrohu me pare',
+      signupPrompt: 'Nuk ke llogari? Regjistrohu më parë',
       signupTitle: 'Regjistrohu',
       signupSubtitle: 'Krijo llogarine Drite Guide per te sinkronizuar vendet dhe aktivitetin.',
       firstName: 'Emri',
@@ -1168,7 +1168,7 @@ const overrides = {
       loginFailed: 'Connexion echouee',
       loginSuccessful: 'Connexion reussie',
       welcomeBack: 'Bon retour, {{name}}!',
-      signupPrompt: 'Pas encore de compte? Inscris-toi d abord',
+      signupPrompt: "Pas encore de compte ? Inscris-toi d'abord",
       signupTitle: 'Inscription',
       signupSubtitle: 'Cree ton compte Drite Guide pour synchroniser lieux et activite.',
       firstName: 'Prenom',
@@ -1183,7 +1183,7 @@ const overrides = {
       confirmPassword: 'Confirmer le mot de passe',
       confirmPasswordPlaceholder: 'Confirme ton mot de passe',
       createAccount: 'Creer un compte',
-      alreadyAccount: 'Deja un compte? Connexion',
+      alreadyAccount: 'Déjà un compte ? Connexion',
       signupFailed: 'Inscription echouee',
       accountCreated: 'Compte cree',
       accountCreatedMessage: 'Bienvenue, {{name}}! Ton compte a ete cree.',
@@ -1469,7 +1469,7 @@ const overrides = {
       confirmPassword: 'Conferma password',
       confirmPasswordPlaceholder: 'Conferma la password',
       createAccount: 'Crea account',
-      alreadyAccount: 'Hai gia un account? Accedi',
+      alreadyAccount: 'Hai già un account? Accedi',
       signupFailed: 'Registrazione non riuscita',
       accountCreated: 'Account creato',
       accountCreatedMessage: 'Benvenuto, {{name}}! Il tuo account e stato creato.',
@@ -1740,7 +1740,7 @@ const overrides = {
       loginFailed: 'Error al iniciar sesion',
       loginSuccessful: 'Sesion iniciada',
       welcomeBack: 'Bienvenido de nuevo, {{name}}!',
-      signupPrompt: 'No tienes cuenta? Registrate primero',
+      signupPrompt: '¿No tienes cuenta? Regístrate primero',
       signupTitle: 'Registrarse',
       signupSubtitle: 'Crea tu cuenta Drite Guide para sincronizar lugares y actividad.',
       firstName: 'Nombre',
@@ -1755,7 +1755,7 @@ const overrides = {
       confirmPassword: 'Confirmar contrasena',
       confirmPasswordPlaceholder: 'Confirma tu contrasena',
       createAccount: 'Crear cuenta',
-      alreadyAccount: 'Ya tienes cuenta? Inicia sesion',
+      alreadyAccount: '¿Ya tienes cuenta? Inicia sesión',
       signupFailed: 'Registro fallido',
       accountCreated: 'Cuenta creada',
       accountCreatedMessage: 'Bienvenido, {{name}}! Tu cuenta se creo correctamente.',
@@ -1920,8 +1920,9 @@ export function normalizeLanguageCode(languageCode) {
 
 export function translate(languageCode, key, params) {
   const language = normalizeLanguageCode(languageCode);
+  const localizedValue = resolvePath(dictionaries[language], key);
   const value =
-    resolvePath(dictionaries[language], key) ?? resolvePath(dictionaries.en, key);
+    localizedValue == null ? resolvePath(dictionaries.en, key) : localizedValue;
 
   if (value == null) {
     return key;
