@@ -11,7 +11,10 @@
     "primaryColor": "#d51e1e",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.driteguide.app"
+      "bundleIdentifier": "com.driteguide.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.driteguide.app",
@@ -22,7 +25,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#d51e1e"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "single",
@@ -54,6 +60,11 @@
     ],
     "experiments": {
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "63c4a0a0-9434-4839-98fe-9e82bccad51a"
+      }
     }
   }
 }
