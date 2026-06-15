@@ -48,12 +48,51 @@ function findByAnyId(items, id) {
   );
 }
 
-export function AppDataProvider({ children }) {
+export function normalizeAppDataSnapshot(
+  { categories = [], cities = [], places = [] } = {},
+  currentLanguage
+) {
+  const nextCategories = filterDatabaseCategories(
+    (categories || [])
+      .map((item) => normalizeCategory(item, { language: currentLanguage }))
+      .filter(Boolean)
+  );
+  const nextCities = (cities || [])
+    .map((item) => normalizeCity(item, { language: currentLanguage }))
+    .filter(Boolean);
+  const categoryNameById = Object.fromEntries(
+    nextCategories.map((item) => [item.id, item.name])
+  );
+  const cityNameById = Object.fromEntries(
+    nextCities.map((item) => [item.id, item.name])
+  );
+  const nextPlaces = (places || [])
+    .map((item) =>
+      normalizePlace(item, {
+        categoryName: categoryNameById[item?.category_id],
+        cityName: cityNameById[item?.city_id],
+        language: currentLanguage,
+      })
+    )
+    .filter(Boolean);
+
+  return {
+    categories: nextCategories,
+    cities: nextCities,
+    places: nextPlaces,
+  };
+}
+
+export function AppDataProvider({ children, initialData = null }) {
   const { currentLanguage } = useAuth();
-  const [categories, setCategories] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [places, setPlaces] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const initialSnapshot = useMemo(
+    () => normalizeAppDataSnapshot(initialData, currentLanguage),
+    [initialData, currentLanguage]
+  );
+  const [categories, setCategories] = useState(initialSnapshot.categories);
+  const [cities, setCities] = useState(initialSnapshot.cities);
+  const [places, setPlaces] = useState(initialSnapshot.places);
+  const [isLoading, setIsLoading] = useState(!initialData);
   const [errorMessage, setErrorMessage] = useState('');
 
   const fetchAllData = useCallback(async () => {
@@ -67,34 +106,18 @@ export function AppDataProvider({ children }) {
           getCities(),
           getPlaces(),
         ]);
+      const nextSnapshot = normalizeAppDataSnapshot(
+        {
+          categories: categoriesResponse,
+          cities: citiesResponse,
+          places: placesResponse,
+        },
+        currentLanguage
+      );
 
-      const nextCategories = filterDatabaseCategories(
-        (categoriesResponse || [])
-          .map((item) => normalizeCategory(item, { language: currentLanguage }))
-          .filter(Boolean)
-      );
-      const nextCities = (citiesResponse || [])
-        .map((item) => normalizeCity(item, { language: currentLanguage }))
-        .filter(Boolean);
-      const categoryNameById = Object.fromEntries(
-        nextCategories.map((item) => [item.id, item.name])
-      );
-      const cityNameById = Object.fromEntries(
-        nextCities.map((item) => [item.id, item.name])
-      );
-      const nextPlaces = (placesResponse || [])
-        .map((item) =>
-          normalizePlace(item, {
-            categoryName: categoryNameById[item?.category_id],
-            cityName: cityNameById[item?.city_id],
-            language: currentLanguage,
-          })
-        )
-        .filter(Boolean);
-
-      setCategories(nextCategories);
-      setCities(nextCities);
-      setPlaces(nextPlaces);
+      setCategories(nextSnapshot.categories);
+      setCities(nextSnapshot.cities);
+      setPlaces(nextSnapshot.places);
     } catch (error) {
       setErrorMessage(
         getSupabaseErrorMessage(error, 'Could not load data from Supabase.')
@@ -108,8 +131,21 @@ export function AppDataProvider({ children }) {
   }, [currentLanguage]);
 
   useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+    if (!initialData) {
+      fetchAllData();
+    }
+  }, [fetchAllData, initialData]);
+
+  useEffect(() => {
+    if (!initialData) {
+      return;
+    }
+
+    setCategories(initialSnapshot.categories);
+    setCities(initialSnapshot.cities);
+    setPlaces(initialSnapshot.places);
+    setIsLoading(false);
+  }, [initialData, initialSnapshot]);
 
   const getCityById = useCallback((cityId) => findByAnyId(cities, cityId), [cities]);
   const getCategoryById = useCallback(

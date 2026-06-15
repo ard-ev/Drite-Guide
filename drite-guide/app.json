@@ -12,7 +12,7 @@
     "splash": {
       "image": "./assets/logosplash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F5F5F5"
+      "backgroundColor": "#d51e1e"
     },
     "ios": {
       "supportsTablet": true,
@@ -61,7 +61,7 @@
         {
           "image": "./assets/logosplash.png",
           "resizeMode": "contain",
-          "backgroundColor": "#F5F5F5"
+          "backgroundColor": "#d51e1e"
         }
       ],
       "expo-video",
