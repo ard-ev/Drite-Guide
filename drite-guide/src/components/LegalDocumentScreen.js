@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,11 +15,13 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '../context/TranslationContext';
 import { getLegalCopy } from '../data/legalCopy';
 import colors from '../theme/colors';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 export default function LegalDocumentScreen({ documentKey }) {
   const navigation = useNavigation();
   const { language } = useTranslation();
   const { copy, icon } = getLegalCopy(documentKey, language);
+  const { isRefreshing, refreshApp } = useAppRefresh();
 
   return (
     <View style={styles.screen}>
@@ -28,6 +31,14 @@ export default function LegalDocumentScreen({ documentKey }) {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refreshApp}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
           <View style={styles.headerRow}>
             <TouchableOpacity

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -23,6 +24,7 @@ import {
 } from '../services/profileService';
 import { getSupabaseErrorMessage } from '../services/supabaseService';
 import { useTranslation } from '../context/TranslationContext';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 const DEFAULT_PROFILE_PICTURE = DEFAULT_PROFILE_PICTURE_URL;
 
@@ -77,6 +79,7 @@ export default function FollowersScreen() {
   useEffect(() => {
     loadFollowers();
   }, [loadFollowers]);
+  const { isRefreshing, refreshApp } = useAppRefresh(loadFollowers);
 
   const handleProfilePress = (user) => {
     navigation.navigate('Profile', {
@@ -223,6 +226,14 @@ export default function FollowersScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refreshApp}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
           {isLoading ? (
             <View style={styles.emptyState}>

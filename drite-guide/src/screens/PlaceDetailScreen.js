@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
   Image,
   Linking,
   Alert,
@@ -21,6 +22,7 @@ import AddToTripModal from '../components/AddToTripModal';
 import { getPlaceById as fetchPlaceById } from '../services/placesService';
 import { normalizePlace } from '../services/transformers';
 import { logWarning } from '../utils/logger';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 const normalizeUrl = (url) => {
   if (!url || typeof url !== 'string') return null;
@@ -65,6 +67,7 @@ export default function PlaceDetailScreen({ route }) {
     useAuth();
   const { getPlaceById, getCityById } = useAppData();
   const { t, language } = useTranslation();
+  const { isRefreshing, refreshApp } = useAppRefresh();
   const [tripModalVisible, setTripModalVisible] = useState(false);
   const [remotePlace, setRemotePlace] = useState(null);
 
@@ -232,6 +235,14 @@ export default function PlaceDetailScreen({ route }) {
           style={styles.content}
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refreshApp}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
           <ScrollView
             horizontal

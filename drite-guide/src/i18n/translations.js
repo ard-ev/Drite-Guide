@@ -229,6 +229,18 @@ const translations = {
       verificationEmailFailedTitle: 'Email could not be sent',
       verificationEmailFailed:
         'Verification email could not be sent. Please try again later.',
+      forgotPassword: 'Forgot password?',
+      forgotPasswordPrompt: 'Enter your account email address.',
+      enterEmailInField:
+        'Enter your email address in the email or username field first, then tap Forgot password again.',
+      emailRequiredForPasswordReset:
+        'Please enter the email address for your account.',
+      passwordResetSentTitle: 'Password reset email sent',
+      passwordResetSent:
+        'We sent a Supabase password reset link to {{email}}.',
+      passwordResetFailedTitle: 'Password reset failed',
+      passwordResetFailed:
+        'Password reset email could not be sent. Please try again later.',
     },
     language: {
       title: 'Language',

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { NavigationContainer } from '@react-navigation/native';
-import SplashScreenView from './src/screens/SplashScreen';
 import RootNavigator from './src/navigation/RootNavigator';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppDataProvider } from './src/context/AppDataContext';
@@ -11,8 +10,6 @@ import { preloadApplicationData } from './src/services/appBootstrapService';
 import { logWarning } from './src/utils/logger';
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
-
-const MINIMUM_SPLASH_DURATION_MS = 3500;
 
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
@@ -31,13 +28,7 @@ export default function App() {
 
     async function prepare() {
       try {
-        const minimumSplashDelay = new Promise((resolve) =>
-          setTimeout(resolve, MINIMUM_SPLASH_DURATION_MS)
-        );
-        const [preloadResult] = await Promise.all([
-          preloadApplicationData(),
-          minimumSplashDelay,
-        ]);
+        const preloadResult = await preloadApplicationData();
 
         if (preloadResult?.usedCache && preloadResult?.error) {
           logWarning('Using cached app data after preload error:', preloadResult.error?.message);
@@ -56,7 +47,7 @@ export default function App() {
   }, []);
 
   if (!appIsReady) {
-    return <SplashScreenView />;
+    return null;
   }
 
   return (

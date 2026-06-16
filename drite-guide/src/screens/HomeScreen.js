@@ -6,9 +6,11 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
   Image,
   Keyboard,
   Linking,
+  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -23,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { getProfileByUsername, searchProfiles } from '../services/profileService';
 import { useTranslation } from '../context/TranslationContext';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 const HERO_COUNT = 3;
 const SCREEN_HORIZONTAL_PADDING = 20;
@@ -64,6 +67,7 @@ export default function HomeScreen({ route }) {
   const [userResults, setUserResults] = useState([]);
   const [categoryResults, setCategoryResults] = useState([]);
   const [cityResults, setCityResults] = useState([]);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const refreshKey = route?.params?.refreshKey;
   const heroWidth = Math.max(windowWidth - SCREEN_HORIZONTAL_PADDING * 2, 0);
   const baseHeroHeight = heroWidth < 250 ? 230 : heroWidth < 370 ? 218 : 206;
@@ -120,6 +124,23 @@ export default function HomeScreen({ route }) {
 
     return () => clearInterval(interval);
   }, [hasSearched, heroWidth]);
+
+  useEffect(() => {
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(keyboardShowEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height || 0);
+    });
+    const hideSubscription = Keyboard.addListener(keyboardHideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const normalizeCategoryKey = (value) =>
     String(value || '')
@@ -413,6 +434,7 @@ export default function HomeScreen({ route }) {
     setHasSearched(false);
     setSearchQuery('');
   }, []);
+  const { isRefreshing, refreshApp } = useAppRefresh(clearSearchState);
 
   const handleSearchInputChange = async (text) => {
     setSearchQuery(text);
@@ -533,6 +555,15 @@ export default function HomeScreen({ route }) {
     );
   };
 
+  const handleSupportPress = () => {
+    const subject = encodeURIComponent('Drite Guide support');
+    const body = encodeURIComponent('Hi Drite Guide,\n\nI need help with:\n\n');
+
+    Linking.openURL(
+      `mailto:support@driteguide.com?subject=${subject}&body=${body}`
+    );
+  };
+
   const handleHeroScrollEnd = (event) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = heroWidth > 0 ? Math.round(offsetX / heroWidth) : 0;
@@ -547,10 +578,21 @@ export default function HomeScreen({ route }) {
         <ScrollView
           ref={screenScrollRef}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            keyboardHeight > 0 && { paddingBottom: keyboardHeight + 120 },
+          ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           onScrollBeginDrag={Keyboard.dismiss}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refreshApp}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
           <View style={styles.headerRow}>
             <View style={styles.headerTextWrap}>
@@ -558,11 +600,18 @@ export default function HomeScreen({ route }) {
               <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
             </View>
 
-            <Image
-              source={require('../../assets/logo.png')}
-              style={styles.headerLogo}
-              resizeMode="cover"
-            />
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={handleSupportPress}
+              accessibilityRole="button"
+              accessibilityLabel="Email Drite Guide support"
+            >
+              <Image
+                source={require('../../assets/logo.png')}
+                style={styles.headerLogo}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
           </View>
 
           {errorMessage ? (

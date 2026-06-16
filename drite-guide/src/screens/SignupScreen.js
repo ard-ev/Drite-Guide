@@ -9,6 +9,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/TranslationContext';
 import { isUsernameAvailable } from '../services/profileService';
 import { isStrongSignupPassword, normalizeUsername } from '../services/supabaseService';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 const USERNAME_CHECK_DELAY_MS = 400;
 const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60 * 1000;
@@ -48,6 +50,7 @@ export default function SignupScreen() {
     const insets = useSafeAreaInsets();
     const { signup } = useAuth();
     const { t } = useTranslation();
+    const { isRefreshing, refreshApp } = useAppRefresh();
 
     const bottomScrollPadding = Math.max(tabBarHeight + insets.bottom + 120, 220);
 
@@ -334,6 +337,14 @@ export default function SignupScreen() {
                         ]}
                         scrollIndicatorInsets={{ bottom: bottomScrollPadding }}
                         keyboardShouldPersistTaps="handled"
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={refreshApp}
+                                tintColor={colors.primary}
+                                colors={[colors.primary]}
+                            />
+                        }
                     >
                         <TouchableOpacity
                             style={styles.backButton}

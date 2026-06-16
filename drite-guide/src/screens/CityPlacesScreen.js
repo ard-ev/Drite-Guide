@@ -5,6 +5,7 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
+    RefreshControl,
     Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -15,12 +16,14 @@ import colors from '../theme/colors';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 export default function CityPlacesScreen() {
     const navigation = useNavigation();
     const route = useRoute();
     const { places, getCityById } = useAppData();
     const { t, tc, language } = useTranslation();
+    const { isRefreshing, refreshApp } = useAppRefresh();
 
     const cityId = route.params?.cityId;
     const city = getCityById(cityId);
@@ -86,6 +89,14 @@ export default function CityPlacesScreen() {
                 <ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.content}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={refreshApp}
+                            tintColor={colors.primary}
+                            colors={[colors.primary]}
+                        />
+                    }
                 >
                     <View style={styles.headerBlock}>
                         <Text style={styles.title}>{city?.name || t('common.city')}</Text>

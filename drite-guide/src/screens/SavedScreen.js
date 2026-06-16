@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
   Image,
 } from 'react-native';
@@ -17,6 +18,7 @@ import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
 import { formatDateRangeForDisplay } from '../utils/dateFormat';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 export default function SavedScreen({ route }) {
   const navigation = useNavigation();
@@ -30,6 +32,7 @@ export default function SavedScreen({ route }) {
   } = useAuth();
   const { getCityById, getPlaceById } = useAppData();
   const { t, tc, language } = useTranslation();
+  const { isRefreshing, refreshApp } = useAppRefresh();
 
   const savedPlaces = useMemo(() => getSavedPlaces() || [], [getSavedPlaces]);
   const trips = useMemo(() => getTrips() || [], [getTrips]);
@@ -77,8 +80,28 @@ export default function SavedScreen({ route }) {
           ref={screenScrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refreshApp}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
           <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={styles.backButton}
+              activeOpacity={0.85}
+              onPress={() => navigation.goBack()}
+              disabled={!navigation.canGoBack()}
+            >
+              <Ionicons
+                name="chevron-back"
+                size={22}
+                color={navigation.canGoBack() ? '#222222' : '#C7C7CC'}
+              />
+            </TouchableOpacity>
             <Text style={styles.title}>{t('savedScreen.title')}</Text>
             <Ionicons name="bookmark-outline" size={24} color="#222222" />
           </View>
@@ -265,6 +288,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
     marginBottom: 20,
+  },
+
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   title: {

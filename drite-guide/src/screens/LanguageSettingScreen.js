@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   ScrollView,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme/colors';
 import { translate } from '../i18n/translations';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 export default function LanguageSettingScreen() {
   const navigation = useNavigation();
@@ -27,6 +29,7 @@ export default function LanguageSettingScreen() {
   const [selectedLanguage, setSelectedLanguage] = useState(currentLanguage || 'en');
   const [isSaving, setIsSaving] = useState(false);
   const didLoadLanguages = useRef(false);
+  const { isRefreshing, refreshApp } = useAppRefresh(refreshLanguages);
 
   const copy = (key, params) => translate(selectedLanguage, key, params);
 
@@ -95,6 +98,14 @@ export default function LanguageSettingScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refreshApp}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
           <View style={styles.headerRow}>
             <TouchableOpacity

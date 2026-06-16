@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +23,7 @@ import {
 } from '../services/profileService';
 import { getSupabaseErrorMessage } from '../services/supabaseService';
 import { useTranslation } from '../context/TranslationContext';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 const DEFAULT_PROFILE_PICTURE = DEFAULT_PROFILE_PICTURE_URL;
 const CONNECTION_LONG_PRESS_DELAY = 450;
@@ -69,30 +71,31 @@ export default function ProfileScreen() {
       ? t('common.followers')
       : t('common.following');
 
+  const loadProfile = useCallback(async () => {
+    if (!username) {
+      setErrorMessage(t('profile.loadError'));
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const nextProfile = await getProfileByUsername(username, currentUser?.id);
+      setProfile(nextProfile);
+      setErrorMessage(nextProfile ? '' : t('profile.loadError'));
+    } catch (error) {
+      setErrorMessage(
+        getSupabaseErrorMessage(error, t('profile.loadError'))
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser?.id, t, username]);
+  const { isRefreshing, refreshApp } = useAppRefresh(loadProfile);
+
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!username) {
-        setErrorMessage(t('profile.loadError'));
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        const nextProfile = await getProfileByUsername(username, currentUser?.id);
-        setProfile(nextProfile);
-        setErrorMessage(nextProfile ? '' : t('profile.loadError'));
-      } catch (error) {
-        setErrorMessage(
-          getSupabaseErrorMessage(error, t('profile.loadError'))
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadProfile();
-  }, [currentUser?.id, isLoggedIn, t, username]);
+  }, [isLoggedIn, loadProfile]);
 
   const handleFollowPress = async () => {
     const targetUsername = normalizeUsername(profile?.username || username);
@@ -229,6 +232,14 @@ export default function ProfileScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refreshApp}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
           <TouchableOpacity
             style={styles.backButton}

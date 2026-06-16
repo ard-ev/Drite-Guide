@@ -6,6 +6,7 @@ import {
     Text,
     StyleSheet,
     ScrollView,
+    RefreshControl,
     TouchableOpacity,
     Modal,
     Pressable,
@@ -20,6 +21,7 @@ import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { getProfileByUsername } from '../services/profileService';
 import { useTranslation } from '../context/TranslationContext';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 const CONNECTION_LONG_PRESS_DELAY = 450;
 
@@ -57,6 +59,21 @@ export default function AccountScreen({ route }) {
         connectionMetric === 'followers'
             ? t('common.followers')
             : t('common.following');
+    const refreshProfileStats = useCallback(async () => {
+        if (!isLoggedIn || !currentUser?.username) {
+            setProfileStats(null);
+            return;
+        }
+
+        try {
+            setProfileStats(
+                await getProfileByUsername(currentUser.username, currentUser.id)
+            );
+        } catch (_error) {
+            setProfileStats(null);
+        }
+    }, [currentUser?.id, currentUser?.username, isLoggedIn]);
+    const { isRefreshing, refreshApp } = useAppRefresh(refreshProfileStats);
 
     useEffect(() => {
         refreshTripsRef.current = refreshTrips;
@@ -341,6 +358,14 @@ export default function AccountScreen({ route }) {
                     ref={screenScrollRef}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.content}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={refreshApp}
+                            tintColor={colors.primary}
+                            colors={[colors.primary]}
+                        />
+                    }
                 >
                     <View style={styles.headerRow}>
                         <Text style={styles.title}>{t('account.title')}</Text>

@@ -5,6 +5,7 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
+    RefreshControl,
     Modal,
     Pressable,
     ImageBackground,
@@ -23,6 +24,7 @@ import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
 import { logWarning } from '../utils/logger';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 const FALLBACK_REGION = {
     latitude: 41.3275,
@@ -143,6 +145,7 @@ export default function ExploreScreen({ route }) {
             setMapRegion(FALLBACK_REGION);
         }
     };
+    const { isRefreshing, refreshApp } = useAppRefresh(getUserLocation);
 
     useEffect(() => {
         if (!refreshKey) {
@@ -459,6 +462,14 @@ export default function ExploreScreen({ route }) {
                     ref={screenScrollRef}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.content}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={refreshApp}
+                            tintColor={colors.primary}
+                            colors={[colors.primary]}
+                        />
+                    }
                 >
                     <View style={styles.headerRow}>
                         <Text style={styles.title}>{t('explore.title')}</Text>

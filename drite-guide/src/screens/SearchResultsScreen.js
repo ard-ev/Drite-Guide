@@ -8,6 +8,7 @@ import {
   TextInput,
   SafeAreaView,
   ScrollView,
+  RefreshControl,
   Keyboard,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -18,11 +19,13 @@ import colors from '../theme/colors';
 import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 export default function SearchResultsScreen({ route }) {
   const navigation = useNavigation();
   const { places, cities } = useAppData();
   const { t, tc, language } = useTranslation();
+  const { isRefreshing, refreshApp } = useAppRefresh();
   const initialQuery = route.params?.query || '';
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [showDropdown, setShowDropdown] = useState(initialQuery === '');
@@ -330,6 +333,14 @@ export default function SearchResultsScreen({ route }) {
               scrollIndicatorInsets={{ right: 1 }}
               keyboardDismissMode="on-drag"
               onScrollBeginDrag={Keyboard.dismiss}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={refreshApp}
+                  tintColor={colors.primary}
+                  colors={[colors.primary]}
+                />
+              }
             />
           ) : (
             <View style={styles.emptyState}>
@@ -347,6 +358,14 @@ export default function SearchResultsScreen({ route }) {
           showsVerticalScrollIndicator={false}
           keyboardDismissMode="on-drag"
           onScrollBeginDrag={Keyboard.dismiss}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refreshApp}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
           <Text style={styles.sectionTitle}>{t('searchScreen.popularCities')}</Text>
           <View style={styles.citiesGrid}>
@@ -579,7 +598,7 @@ const styles = StyleSheet.create({
 
   resultsContent: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingBottom: 160,
   },
 
   resultItem: {

@@ -3,7 +3,9 @@ import {
   Animated,
   Easing,
   Image,
+  Keyboard,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +20,70 @@ import { useAppData } from '../context/AppDataContext';
 import colors from '../theme/colors';
 import { getImageSource } from '../utils/placeMeta';
 
+const normalizeSearchText = (text) => {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim();
+};
+
+const getLevenshteinDistance = (a, b) => {
+  const matrix = Array.from({ length: b.length + 1 }, () =>
+    Array(a.length + 1).fill(0)
+  );
+
+  for (let i = 0; i <= a.length; i += 1) {
+    matrix[0][i] = i;
+  }
+
+  for (let j = 0; j <= b.length; j += 1) {
+    matrix[j][0] = j;
+  }
+
+  for (let j = 1; j <= b.length; j += 1) {
+    for (let i = 1; i <= a.length; i += 1) {
+      const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
+
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,
+        matrix[j - 1][i] + 1,
+        matrix[j - 1][i - 1] + indicator
+      );
+    }
+  }
+
+  return matrix[b.length][a.length];
+};
+
+const getSimilarityScore = (searchValue, targetValue) => {
+  const searchText = normalizeSearchText(searchValue);
+  const targetText = normalizeSearchText(targetValue);
+
+  if (!searchText || !targetText) return 0;
+  if (targetText === searchText) return 100;
+  if (targetText.startsWith(searchText)) return 80;
+  if (targetText.includes(searchText)) return 60;
+
+  const queryWords = searchText.split(' ').filter(Boolean);
+  const targetWords = targetText.split(' ').filter(Boolean);
+  const matchedWords = queryWords.filter((queryWord) =>
+    targetWords.some(
+      (targetWord) =>
+        targetWord.includes(queryWord) ||
+        queryWord.includes(targetWord) ||
+        getLevenshteinDistance(queryWord, targetWord) <= 1
+    )
+  );
+
+  if (matchedWords.length > 0) {
+    return 30 + matchedWords.length * 10;
+  }
+
+  return getLevenshteinDistance(searchText, targetText) <= 2 ? 25 : 0;
+};
+
 export default function TripPlacePickerModal({
   visible,
   existingPlaceIds = [],
@@ -27,12 +93,31 @@ export default function TripPlacePickerModal({
 }) {
   const { places } = useAppData();
   const [query, setQuery] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isMounted, setIsMounted] = useState(visible);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(36)).current;
 
   useEffect(() => {
+    const keyboardShowEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const keyboardHideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSubscription = Keyboard.addListener(keyboardShowEvent, (event) => {
+      setKeyboardHeight(event.endCoordinates?.height || 0);
+    });
+    const hideSubscription = Keyboard.addListener(keyboardHideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     if (visible) {
+      setQuery('');
       setIsMounted(true);
       backdropOpacity.setValue(0);
       sheetTranslateY.setValue(42);
@@ -91,8 +176,15 @@ export default function TripPlacePickerModal({
         useNativeDriver: true,
       }),
     ]).start(() => {
+      setQuery('');
       onClose?.();
     });
+  };
+
+  const handleSelectPlace = (place) => {
+    setQuery('');
+    Keyboard.dismiss();
+    onSelectPlace?.(place);
   };
 
   const existingIds = useMemo(
@@ -101,24 +193,32 @@ export default function TripPlacePickerModal({
   );
 
   const filteredPlaces = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = normalizeSearchText(query);
 
     return (places || [])
       .filter(Boolean)
-      .filter((place) => {
-        if (!normalizedQuery) return true;
+      .map((place) => {
+        if (!normalizedQuery) {
+          return { ...place, searchScore: Number(place.rating || 0) };
+        }
 
-        const haystack = [
-          place.name,
-          place.cityName,
-          place.categoryName,
-          place.description,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
+        const searchScore = Math.max(
+          getSimilarityScore(normalizedQuery, place.name),
+          getSimilarityScore(normalizedQuery, place.cityName),
+          getSimilarityScore(normalizedQuery, place.categoryName),
+          getSimilarityScore(normalizedQuery, place.categoryId),
+          getSimilarityScore(normalizedQuery, place.description)
+        );
 
-        return haystack.includes(normalizedQuery);
+        return { ...place, searchScore };
+      })
+      .filter((place) => !normalizedQuery || place.searchScore > 0)
+      .sort((left, right) => {
+        if (right.searchScore !== left.searchScore) {
+          return right.searchScore - left.searchScore;
+        }
+
+        return Number(right.rating || 0) - Number(left.rating || 0);
       })
       .slice(0, 60);
   }, [places, query]);
@@ -130,8 +230,14 @@ export default function TripPlacePickerModal({
           style={[styles.backdropOverlay, styles.noPointerEvents, { opacity: backdropOpacity }]}
         />
         <Pressable style={styles.backdropPressArea} onPress={closeWithAnimation} />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
-          <Pressable onPress={() => null}>
+        <Animated.View
+          style={[
+            styles.sheet,
+            keyboardHeight > 0 && { paddingBottom: keyboardHeight + 20 },
+            { transform: [{ translateY: sheetTranslateY }] },
+          ]}
+        >
+          <Pressable style={styles.sheetContent} onPress={() => null}>
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>Add Place</Text>
@@ -152,13 +258,26 @@ export default function TripPlacePickerModal({
               placeholder="Search places"
               placeholderTextColor="#A1A1AA"
               returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
             />
+            {query.trim().length > 0 ? (
+              <TouchableOpacity
+                style={styles.clearSearchButton}
+                activeOpacity={0.82}
+                onPress={() => setQuery('')}
+              >
+                <Ionicons name="close" size={18} color="#6B7280" />
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           <ScrollView
+            style={styles.resultsScroll}
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.resultsContent}
           >
             {filteredPlaces.length === 0 ? (
               <View style={styles.emptyState}>
@@ -177,7 +296,7 @@ export default function TripPlacePickerModal({
                     style={[styles.placeOption, (isAdded || isAdding) && styles.placeOptionDisabled]}
                     activeOpacity={0.88}
                     disabled={isAdded || isAdding}
-                    onPress={() => onSelectPlace?.(place)}
+                    onPress={() => handleSelectPlace(place)}
                   >
                     <Image
                       source={getImageSource(place.image)}
@@ -235,6 +354,9 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 28,
   },
+  sheetContent: {
+    minHeight: 0,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -277,6 +399,20 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#222222',
+  },
+  clearSearchButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF0F3',
+  },
+  resultsScroll: {
+    minHeight: 0,
+  },
+  resultsContent: {
+    paddingBottom: 28,
   },
   placeOption: {
     flexDirection: 'row',

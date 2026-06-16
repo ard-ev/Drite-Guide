@@ -6,6 +6,7 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
+    RefreshControl,
     Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +18,7 @@ import { useTranslation } from '../context/TranslationContext';
 import { useAuth } from '../context/AuthContext';
 import { safeGetItem, safeSetItem } from '../utils/storage';
 import { logWarning } from '../utils/logger';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 const NOTIFICATION_SETTINGS_STORAGE_KEY = '@drite_guide_notification_settings';
 const DEFAULT_NOTIFICATION_FROM_EMAIL = 'info@driteguide.com';
@@ -55,6 +57,7 @@ export default function NotificationSettingsScreen() {
     const [notificationFromEmail, setNotificationFromEmail] = useState(
         DEFAULT_NOTIFICATION_FROM_EMAIL
     );
+    const { isRefreshing, refreshApp } = useAppRefresh();
 
     useEffect(() => {
         let isMounted = true;
@@ -195,6 +198,14 @@ export default function NotificationSettingsScreen() {
                 <ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.content}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={refreshApp}
+                            tintColor={colors.primary}
+                            colors={[colors.primary]}
+                        />
+                    }
                 >
                     <View style={styles.headerRow}>
                         <TouchableOpacity

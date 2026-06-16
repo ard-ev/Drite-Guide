@@ -6,6 +6,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,6 +28,7 @@ import colors from '../theme/colors';
 import { formatDateForDisplay, formatDateRangeForDisplay } from '../utils/dateFormat';
 import { formatTimeForDisplay } from '../utils/timeFormat';
 import { getImageSource } from '../utils/placeMeta';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 export default function TripDetailScreen({ route }) {
   const { tripId } = route.params || {};
@@ -73,6 +75,7 @@ export default function TripDetailScreen({ route }) {
 
     setTrip(result.trip);
   }, [getTrip, isLoggedIn, tripId]);
+  const { isRefreshing, refreshApp } = useAppRefresh(loadTrip);
 
   useFocusEffect(
     useCallback(() => {
@@ -348,6 +351,14 @@ export default function TripDetailScreen({ route }) {
           ]}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refreshApp}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         >
           <View style={styles.headerRow}>
             <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,12 +17,14 @@ import CreateTripModal from '../components/CreateTripModal';
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme/colors';
 import { formatDateRangeForDisplay } from '../utils/dateFormat';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 export default function TripsScreen() {
   const navigation = useNavigation();
   const { isLoggedIn, getTrips, createTrip, refreshTrips } = useAuth();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const refreshTripsRef = useRef(refreshTrips);
+  const { isRefreshing, refreshApp } = useAppRefresh();
 
   const trips = getTrips() || [];
 
@@ -59,7 +62,18 @@ export default function TripsScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <StatusBar style="dark" />
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refreshApp}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        >
           <View style={styles.headerRow}>
             <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
               <Ionicons name="chevron-back" size={22} color="#222222" />

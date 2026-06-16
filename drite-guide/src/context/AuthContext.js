@@ -17,6 +17,7 @@ import {
   isInvalidRefreshTokenError,
   onAuthStateChange,
   resendVerificationEmail,
+  sendPasswordResetEmail,
   signIn,
   signOut,
   signUp,
@@ -662,6 +663,41 @@ export function AuthProvider({ children }) {
     } finally {
       clearSessionState();
       await loadLocalSavedPlaces();
+    }
+  };
+
+  const requestPasswordReset = async (email) => {
+    const cleanEmail = normalizeEmail(email);
+
+    if (!isValidEmailAddress(cleanEmail)) {
+      return {
+        success: false,
+        message:
+          t('auth.emailRequiredForPasswordReset') ||
+          'Please enter the email address for your account.',
+      };
+    }
+
+    try {
+      await sendPasswordResetEmail(cleanEmail);
+
+      return {
+        success: true,
+        message:
+          t('auth.passwordResetSent', { email: cleanEmail }) ||
+          `Password reset email sent to ${cleanEmail}.`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: isEmailRateLimitError(error)
+          ? t('auth.emailRateLimit') || 'Too many emails sent. Please try again later.'
+          : getSupabaseErrorMessage(
+            error,
+            t('auth.passwordResetFailed') ||
+            'Password reset email could not be sent.'
+          ),
+      };
     }
   };
 
@@ -1535,6 +1571,7 @@ export function AuthProvider({ children }) {
       login,
       signup,
       resendEmailVerification,
+      requestPasswordReset,
       logout,
 
       getSavedPlaces,

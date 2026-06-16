@@ -9,6 +9,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
+    RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -17,6 +18,7 @@ import { CommonActions, useNavigation } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/TranslationContext';
+import useAppRefresh from '../hooks/useAppRefresh';
 
 const navigateToAccount = (navigation) => {
     navigation.dispatch(
@@ -31,8 +33,9 @@ const navigateToAccount = (navigation) => {
 
 export default function LoginScreen() {
     const navigation = useNavigation();
-    const { login, isBootstrapping, resendEmailVerification } = useAuth();
+    const { login, isBootstrapping, resendEmailVerification, requestPasswordReset } = useAuth();
     const { t } = useTranslation();
+    const { isRefreshing, refreshApp } = useAppRefresh();
 
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
@@ -64,6 +67,50 @@ export default function LoginScreen() {
         );
     };
 
+    const sendPasswordReset = async (email) => {
+        const result = await requestPasswordReset(email);
+
+        Alert.alert(
+            result.success
+                ? t('auth.passwordResetSentTitle') || 'Password reset email sent'
+                : t('auth.passwordResetFailedTitle') || 'Password reset failed',
+            result.message
+        );
+    };
+
+    const handleForgotPassword = () => {
+        const cleanIdentifier = identifier.trim();
+
+        if (cleanIdentifier.includes('@')) {
+            sendPasswordReset(cleanIdentifier);
+            return;
+        }
+
+        if (Platform.OS === 'ios' && Alert.prompt) {
+            Alert.prompt(
+                t('auth.forgotPassword') || 'Forgot password?',
+                t('auth.forgotPasswordPrompt') || 'Enter your account email address.',
+                [
+                    { text: t('common.back') || 'Cancel', style: 'cancel' },
+                    {
+                        text: t('common.continue') || 'Continue',
+                        onPress: sendPasswordReset,
+                    },
+                ],
+                'plain-text',
+                '',
+                'email-address'
+            );
+            return;
+        }
+
+        Alert.alert(
+            t('auth.forgotPassword') || 'Forgot password?',
+            t('auth.enterEmailInField') ||
+            'Enter your email address in the email or username field first, then tap Forgot password again.'
+        );
+    };
+
     return (
         <View style={styles.screen}>
             <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -76,6 +123,14 @@ export default function LoginScreen() {
                     <ScrollView
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={styles.content}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={refreshApp}
+                                tintColor={colors.primary}
+                                colors={[colors.primary]}
+                            />
+                        }
                     >
                         <TouchableOpacity
                             style={styles.backButton}
@@ -130,6 +185,16 @@ export default function LoginScreen() {
                                     </TouchableOpacity>
                                 </View>
                             </View>
+
+                            <TouchableOpacity
+                                style={styles.forgotPasswordButton}
+                                activeOpacity={0.8}
+                                onPress={handleForgotPassword}
+                            >
+                                <Text style={styles.forgotPasswordText}>
+                                    {t('auth.forgotPassword') || 'Forgot password?'}
+                                </Text>
+                            </TouchableOpacity>
 
                             <TouchableOpacity
                                 style={styles.primaryButton}
@@ -293,6 +358,19 @@ const styles = StyleSheet.create({
     secondaryButtonText: {
         color: colors.primary,
         fontSize: 15,
+        fontWeight: '700',
+    },
+
+    forgotPasswordButton: {
+        alignSelf: 'flex-end',
+        marginTop: -6,
+        marginBottom: 14,
+        paddingVertical: 4,
+    },
+
+    forgotPasswordText: {
+        color: colors.primary,
+        fontSize: 13,
         fontWeight: '700',
     },
 
