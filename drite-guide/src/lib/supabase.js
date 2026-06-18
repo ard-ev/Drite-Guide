@@ -51,6 +51,7 @@ export const STORAGE_BUCKETS = {
 
 const knownBuckets = new Set(Object.values(STORAGE_BUCKETS));
 const SECURE_STORE_CHUNK_SIZE = 1800;
+const storageUrlCache = new Map();
 
 function getSecureStoreChunkCountKey(key) {
   return `${key}.chunk_count`;
@@ -221,6 +222,19 @@ export function getSupabaseStorageUrl(path, fallbackBucket = STORAGE_BUCKETS.app
     return null;
   }
 
+  const cacheKey = `${bucket}:${objectPath}`;
+  const cachedUrl = storageUrlCache.get(cacheKey);
+
+  if (cachedUrl) {
+    return cachedUrl;
+  }
+
   const { data } = supabase.storage.from(bucket).getPublicUrl(objectPath);
-  return data?.publicUrl || null;
+  const publicUrl = data?.publicUrl || null;
+
+  if (publicUrl) {
+    storageUrlCache.set(cacheKey, publicUrl);
+  }
+
+  return publicUrl;
 }

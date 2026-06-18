@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
-  Image,
   Linking,
   Alert,
 } from 'react-native';
@@ -23,6 +22,7 @@ import { getPlaceById as fetchPlaceById } from '../services/placesService';
 import { normalizePlace } from '../services/transformers';
 import { logWarning } from '../utils/logger';
 import useAppRefresh from '../hooks/useAppRefresh';
+import FastImage from '../components/FastImage';
 
 const normalizeUrl = (url) => {
   if (!url || typeof url !== 'string') return null;
@@ -250,7 +250,7 @@ export default function PlaceDetailScreen({ route }) {
             contentContainerStyle={styles.galleryRow}
           >
             {imageGallery.map((img, index) => (
-              <Image
+              <FastImage
                 key={`${safePlaceId || 'place'}-image-${index}`}
                 source={getImageSource(img)}
                 style={[

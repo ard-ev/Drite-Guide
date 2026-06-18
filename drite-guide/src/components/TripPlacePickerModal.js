@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
-  Image,
   Keyboard,
   Modal,
   Platform,
@@ -19,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppData } from '../context/AppDataContext';
 import colors from '../theme/colors';
 import { getImageSource } from '../utils/placeMeta';
+import FastImage from './FastImage';
 
 const normalizeSearchText = (text) => {
   return String(text || '')
@@ -298,7 +298,7 @@ export default function TripPlacePickerModal({
                     disabled={isAdded || isAdding}
                     onPress={() => handleSelectPlace(place)}
                   >
-                    <Image
+                    <FastImage
                       source={getImageSource(place.image)}
                       style={styles.placeImage}
                       resizeMode="cover"

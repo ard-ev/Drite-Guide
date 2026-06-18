@@ -124,6 +124,56 @@ function isPermissionPolicyError(error) {
   );
 }
 
+function isInvalidLoginError(error) {
+  const message = getSupabaseErrorMessage(error, '').toLowerCase();
+
+  return (
+    message.includes('invalid login') ||
+    message.includes('invalid credentials') ||
+    message.includes('invalid email or password') ||
+    message.includes('email not found') ||
+    message.includes('user account could not be found')
+  );
+}
+
+function getFriendlySignupErrorMessage(error, t) {
+  const message = getSupabaseErrorMessage(error, '').toLowerCase();
+
+  if (error?.code === 'username_taken' || message.includes('username')) {
+    return t('auth.usernameTaken') || 'Username already taken.';
+  }
+
+  if (
+    error?.code === 'email_taken' ||
+    error?.code === 'signup_verification_pending' ||
+    message.includes('already registered') ||
+    message.includes('already exists') ||
+    message.includes('email already')
+  ) {
+    return (
+      t('auth.emailTaken') ||
+      'This email is already registered. Please log in or use another email.'
+    );
+  }
+
+  if (message.includes('valid email') || message.includes('invalid email')) {
+    return t('auth.invalidEmail') || 'Please enter a valid email address.';
+  }
+
+  if (message.includes('password')) {
+    return (
+      t('auth.passwordRequirements') ||
+      'Password must have at least 8 characters, one uppercase letter, one lowercase letter and one number.'
+    );
+  }
+
+  if (isEmailRateLimitError(error)) {
+    return t('auth.emailRateLimit') || 'Too many emails sent. Please try again later.';
+  }
+
+  return t('auth.signupFailedFallback') || 'Sign up failed. Please try again.';
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [accessToken, setAccessTokenState] = useState(null);
@@ -482,10 +532,9 @@ export function AuthProvider({ children }) {
         verificationEmail: error?.verificationEmail || null,
         message: isEmailNotVerifiedError(error)
           ? t('auth.emailNotVerified') || 'Please verify your email first.'
-          : getSupabaseErrorMessage(
-            error,
-            t('auth.loginFailedFallback') || 'Login failed.'
-          ),
+          : isInvalidLoginError(error)
+            ? t('auth.incorrectEmailOrPassword') || 'Incorrect email or password.'
+            : t('auth.loginFailedFallback') || 'Login failed. Please try again.',
       };
     }
   };
@@ -547,7 +596,7 @@ export function AuthProvider({ children }) {
     if (cleanPassword !== cleanConfirmPassword) {
       return {
         success: false,
-        message: t('auth.passwordsMismatch') || 'Passwords do not match.',
+        message: t('auth.passwordsDoNotMatch') || 'Passwords do not match.',
       };
     }
 
@@ -599,21 +648,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        message:
-          error?.code === 'username_taken'
-            ? t('auth.usernameTaken') || 'Username already taken'
-            : error?.code === 'email_taken' ||
-              error?.code === 'signup_verification_pending'
-              ? t('auth.emailTaken') ||
-                'This email is already registered. Please log in or resend the verification email.'
-              : isEmailRateLimitError(error)
-                ? t('auth.emailRateLimit') || 'Too many emails sent. Please try again later.'
-                : getSupabaseErrorMessage(
-                  error,
-                  error?.message ||
-                  t('auth.signupFailedFallback') ||
-                  'Sign up failed.'
-                ),
+        message: getFriendlySignupErrorMessage(error, t),
       };
     }
   };

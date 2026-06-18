@@ -20,7 +20,11 @@ import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/TranslationContext';
 import { isUsernameAvailable } from '../services/profileService';
-import { isStrongSignupPassword, normalizeUsername } from '../services/supabaseService';
+import {
+    isStrongSignupPassword,
+    isValidEmailAddress,
+    normalizeUsername,
+} from '../services/supabaseService';
 import useAppRefresh from '../hooks/useAppRefresh';
 
 const USERNAME_CHECK_DELAY_MS = 400;
@@ -213,7 +217,7 @@ export default function SignupScreen() {
             return;
         }
 
-        if (!cleanEmail.includes('@')) {
+        if (!isValidEmailAddress(cleanEmail)) {
             Alert.alert(
                 t('auth.signupFailed') || 'Sign up failed',
                 t('auth.invalidEmail') || 'Please enter a valid email address.'
@@ -311,9 +315,15 @@ export default function SignupScreen() {
 
             navigateToProfile(navigation, result.user);
         } catch (error) {
+            const fallbackMessage =
+                String(error?.message || '').toLowerCase().includes('password')
+                    ? t('auth.passwordRequirements') ||
+                        'Password must have at least 8 characters, one uppercase letter, one lowercase letter and one number.'
+                    : t('auth.signupFailedFallback') || 'Could not create account.';
+
             Alert.alert(
                 t('auth.signupFailed') || 'Sign up failed',
-                error?.message || t('auth.signupFailedFallback') || 'Could not create account.'
+                fallbackMessage
             );
         } finally {
             setIsSubmitting(false);

@@ -6,7 +6,6 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -19,6 +18,7 @@ import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
 import { formatDateRangeForDisplay } from '../utils/dateFormat';
 import useAppRefresh from '../hooks/useAppRefresh';
+import FastImage from '../components/FastImage';
 
 export default function SavedScreen({ route }) {
   const navigation = useNavigation();
@@ -226,7 +226,7 @@ export default function SavedScreen({ route }) {
                     })
                   }
                 >
-                  <Image
+                  <FastImage
                     source={getImageSource(place.image)}
                     style={styles.placeImage}
                     resizeMode="cover"

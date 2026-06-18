@@ -1,17 +1,15 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import colors from '../theme/colors';
 
 export default function SplashScreen() {
   return (
     <View style={styles.container}>
       <Image
-        source={require('../../assets/logosplash.png')}
-        style={styles.logo}
-        resizeMode="contain"
+        source={require('../../assets/splash-icon.png')}
+        style={styles.image}
+        resizeMode="cover"
       />
-      <Text style={styles.title}>Dritë Guide</Text>
-      <Text style={styles.subtitle}>Follow your light</Text>
     </View>
   );
 }
@@ -20,30 +18,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.primary,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 28,
-    paddingBottom: 56,
+    justifyContent: 'center',
   },
 
-  logo: {
-    width: 260,
-    height: 260,
-    marginBottom: 8,
-  },
-
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-
-  subtitle: {
-    marginTop: 8,
-    fontSize: 17,
-    fontWeight: '500',
-    color: '#FAD4D4',
-    textAlign: 'center',
+  image: {
+    width: '100%',
+    height: '100%',
   },
 });

@@ -10,8 +10,8 @@
     "backgroundColor": "#F5F5F5",
     "primaryColor": "#d51e1e",
     "splash": {
-      "image": "./assets/logosplash.png",
-      "resizeMode": "contain",
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "cover",
       "backgroundColor": "#d51e1e"
     },
     "ios": {
@@ -68,8 +68,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/logosplash.png",
-          "resizeMode": "contain",
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "cover",
           "backgroundColor": "#d51e1e"
         }
       ],

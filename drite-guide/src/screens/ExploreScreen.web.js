@@ -26,6 +26,7 @@ const FALLBACK_LOCATION = {
   latitude: 41.3275,
   longitude: 19.8187,
 };
+const NEARBY_RADIUS_KM = 30;
 
 const CITY_PRIORITY = ['tirana', 'durres', 'vlore', 'gjirokaster'];
 
@@ -185,7 +186,7 @@ export default function ExploreScreen({ route }) {
         place.longitude
       );
 
-      return distance <= 100;
+      return distance <= NEARBY_RADIUS_KM;
     });
   }, [userLocation, placesWithCoordinates]);
 

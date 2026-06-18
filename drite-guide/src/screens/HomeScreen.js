@@ -26,6 +26,7 @@ import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { getProfileByUsername, searchProfiles } from '../services/profileService';
 import { useTranslation } from '../context/TranslationContext';
 import useAppRefresh from '../hooks/useAppRefresh';
+import FastImage from '../components/FastImage';
 
 const HERO_COUNT = 3;
 const SCREEN_HORIZONTAL_PADDING = 20;
@@ -669,7 +670,7 @@ export default function HomeScreen({ route }) {
                   activeOpacity={0.85}
                   onPress={() => navigateToCity(city)}
                 >
-                  <Image
+                  <FastImage
                     source={getImageSource(city.heroImage || city.image)}
                     style={styles.suggestionThumb}
                     resizeMode="cover"
@@ -688,7 +689,7 @@ export default function HomeScreen({ route }) {
                   activeOpacity={0.85}
                   onPress={() => navigateToCategory(category)}
                 >
-                  <Image
+                  <FastImage
                     source={getImageSource(category.image)}
                     style={styles.suggestionThumb}
                     resizeMode="cover"
@@ -788,7 +789,7 @@ export default function HomeScreen({ route }) {
                           activeOpacity={0.85}
                           onPress={() => navigateToCity(city)}
                         >
-                          <Image
+                          <FastImage
                             source={getImageSource(city.heroImage || city.image)}
                             style={styles.resultImage}
                             resizeMode="cover"
@@ -813,7 +814,7 @@ export default function HomeScreen({ route }) {
                           activeOpacity={0.85}
                           onPress={() => navigateToCategory(category)}
                         >
-                          <Image
+                          <FastImage
                             source={getImageSource(category.image)}
                             style={styles.resultImage}
                             resizeMode="cover"
@@ -867,7 +868,7 @@ export default function HomeScreen({ route }) {
                       activeOpacity={0.85}
                       onPress={() => navigateToPlace(place)}
                     >
-                      <Image
+                      <FastImage
                         source={getImageSource(place.image)}
                         style={styles.resultImage}
                         resizeMode="cover"
@@ -1000,7 +1001,7 @@ export default function HomeScreen({ route }) {
                       activeOpacity={0.85}
                       onPress={() => handleCategoryPress(category)}
                     >
-                      <Image
+                      <FastImage
                         source={getImageSource(category.image)}
                         style={styles.categoryImage}
                         resizeMode="cover"

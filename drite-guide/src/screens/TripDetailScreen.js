@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -29,6 +28,7 @@ import { formatDateForDisplay, formatDateRangeForDisplay } from '../utils/dateFo
 import { formatTimeForDisplay } from '../utils/timeFormat';
 import { getImageSource } from '../utils/placeMeta';
 import useAppRefresh from '../hooks/useAppRefresh';
+import FastImage from '../components/FastImage';
 
 export default function TripDetailScreen({ route }) {
   const { tripId } = route.params || {};
@@ -493,7 +493,7 @@ export default function TripDetailScreen({ route }) {
                         })
                       }
                     >
-                      <Image
+                      <FastImage
                         source={getImageSource(place.image)}
                         style={styles.placeImage}
                         resizeMode="cover"

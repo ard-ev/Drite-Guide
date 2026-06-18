@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Image } from 'react-native';
 
 import {
   DEFAULT_PROFILE_PICTURE_URL,
   getProfilePictureUrl,
 } from '../config/assets';
+import FastImage from './FastImage';
 
 export default function ProfileAvatar({
   profilePicturePath,
@@ -19,7 +19,7 @@ export default function ProfileAvatar({
   }, [resolvedUri]);
 
   return (
-    <Image
+    <FastImage
       source={{ uri: hasLoadError ? fallbackUri : resolvedUri }}
       style={style}
       resizeMode="cover"

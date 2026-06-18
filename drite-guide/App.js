@@ -6,14 +6,19 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppDataProvider } from './src/context/AppDataContext';
 import { TranslationProvider } from './src/context/TranslationContext';
-import { preloadApplicationData } from './src/services/appBootstrapService';
+import {
+  preloadApplicationData,
+  readCachedApplicationData,
+} from './src/services/appBootstrapService';
 import { logWarning } from './src/utils/logger';
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
+const SPLASH_DURATION_MS = 1000;
+
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
-  const [bootstrapData, setBootstrapData] = useState(null);
+  const [bootstrapData, setBootstrapData] = useState(undefined);
 
   useEffect(() => {
     const ErrorUtilsRef = global.ErrorUtils;
@@ -26,8 +31,19 @@ export default function App() {
       });
     }
 
-    async function prepare() {
+    const readyTimer = setTimeout(() => {
+      setAppIsReady(true);
+      ExpoSplashScreen.hideAsync().catch(() => {});
+    }, SPLASH_DURATION_MS);
+
+    async function prepareData() {
       try {
+        const cachedData = await readCachedApplicationData();
+
+        if (cachedData) {
+          setBootstrapData(cachedData);
+        }
+
         const preloadResult = await preloadApplicationData();
 
         if (preloadResult?.usedCache && preloadResult?.error) {
@@ -37,13 +53,13 @@ export default function App() {
         setBootstrapData(preloadResult?.data || null);
       } catch (error) {
         logWarning('Splash prepare error:', error?.message);
-      } finally {
-        setAppIsReady(true);
-        ExpoSplashScreen.hideAsync().catch(() => {});
+        setBootstrapData(null);
       }
     }
 
-    prepare();
+    prepareData();
+
+    return () => clearTimeout(readyTimer);
   }, []);
 
   if (!appIsReady) {

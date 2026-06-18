@@ -180,17 +180,24 @@ export async function ensureUserProfile(authUser, fallback = {}) {
     return null;
   }
 
-  const existingProfile = await getProfileByAuthUserId(
-    authUser.id,
-    null,
-    authUser
-  );
+  const { data: existingProfile, error } = await supabase
+    .from('user_profile')
+    .select(PUBLIC_PROFILE_SELECT)
+    .eq('id', authUser.id)
+    .maybeSingle();
+
+  throwIfSupabaseError(error, 'Could not load profile.');
 
   if (existingProfile) {
-    return existingProfile;
+    return {
+      ...existingProfile,
+      id: getProfileId(existingProfile),
+      email: authUser?.email || existingProfile.email,
+      email_verified: Boolean(existingProfile.email_verified || authUser?.email_confirmed_at),
+    };
   }
 
-  return hydrateProfile(pickProfileMetadata(authUser, fallback), authUser.id, authUser);
+  return pickProfileMetadata(authUser, fallback);
 }
 
 export async function getProfileByUsername(username, currentUserId = null) {

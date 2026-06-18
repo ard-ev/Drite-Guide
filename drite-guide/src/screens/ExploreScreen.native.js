@@ -9,7 +9,6 @@ import {
     Modal,
     Pressable,
     ImageBackground,
-    Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
@@ -25,6 +24,7 @@ import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
 import { logWarning } from '../utils/logger';
 import useAppRefresh from '../hooks/useAppRefresh';
+import FastImage from '../components/FastImage';
 
 const FALLBACK_REGION = {
     latitude: 41.3275,
@@ -37,6 +37,7 @@ const ZOOM_LEVELS = {
     DOTS_ONLY: 1.2,
     PINS_ONLY: 0.32,
 };
+const NEARBY_RADIUS_KM = 30;
 
 const CITY_PRIORITY = ['tirana', 'durres', 'vlore', 'gjirokaster'];
 
@@ -234,7 +235,7 @@ export default function ExploreScreen({ route }) {
                 place.longitude
             );
 
-            return distance <= 1200;
+            return distance <= NEARBY_RADIUS_KM;
         });
     }, [userLocation, placesWithCoordinates]);
 
@@ -633,7 +634,7 @@ export default function ExploreScreen({ route }) {
                                         <View style={styles.placePreviewHandle} />
 
                                         {selectedPlace.image && (
-                                            <Image
+                                            <FastImage
                                                 source={getImageSource(selectedPlace.image)}
                                                 style={styles.placePreviewImage}
                                                 resizeMode="cover"

@@ -212,6 +212,8 @@ const translations = {
       passwordRuleLowercase: 'One lowercase letter',
       passwordRuleNumber: 'One number',
       passwordsMismatch: 'The passwords do not match.',
+      passwordsDoNotMatch: 'Passwords do not match.',
+      incorrectEmailOrPassword: 'Incorrect email or password.',
       loginFailedFallback: 'Login failed. Please try again.',
       signupFailedFallback: 'Sign up failed. Please try again.',
       emailRateLimit:

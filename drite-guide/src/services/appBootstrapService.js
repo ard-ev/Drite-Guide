@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Image } from 'react-native';
+import { Image } from 'expo-image';
 
 import { toAbsoluteAssetUrl } from '../config/assets';
 import { STORAGE_BUCKETS } from '../lib/supabase';
@@ -42,7 +42,13 @@ function collectImageUrls({ categories = [], cities = [], places = [] }) {
   );
 }
 
-async function readCachedData() {
+function prefetchImages(urls) {
+  prefetchImagesInBatches(urls).catch(() => {
+    // Image warmup is best-effort and should never delay the app.
+  });
+}
+
+export async function readCachedApplicationData() {
   try {
     const cachedValue = await AsyncStorage.getItem(APP_DATA_CACHE_KEY);
     return cachedValue ? JSON.parse(cachedValue) : null;
@@ -73,7 +79,7 @@ async function prefetchImagesInBatches(urls) {
       const url = pendingUrls.shift();
 
       try {
-        await Image.prefetch(url);
+        await Image.prefetch(url, 'disk');
       } catch (_error) {
         // One broken image should not block the app from opening.
       }
@@ -101,19 +107,19 @@ async function fetchRemoteData() {
 export async function preloadApplicationData() {
   if (!bootstrapPromise) {
     bootstrapPromise = (async () => {
-      const cachedData = await readCachedData();
+      const cachedData = await readCachedApplicationData();
 
       try {
         const remoteData = await fetchRemoteData();
         await writeCachedData(remoteData);
-        await prefetchImagesInBatches(collectImageUrls(remoteData));
+        prefetchImages(collectImageUrls(remoteData));
         return {
           data: remoteData,
           usedCache: false,
         };
       } catch (error) {
         if (cachedData) {
-          await prefetchImagesInBatches(collectImageUrls(cachedData));
+          prefetchImages(collectImageUrls(cachedData));
           return {
             data: cachedData,
             usedCache: true,
@@ -128,4 +134,3 @@ export async function preloadApplicationData() {
 
   return bootstrapPromise;
 }
-

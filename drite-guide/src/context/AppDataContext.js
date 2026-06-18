@@ -83,16 +83,17 @@ export function normalizeAppDataSnapshot(
   };
 }
 
-export function AppDataProvider({ children, initialData = null }) {
+export function AppDataProvider({ children, initialData = undefined }) {
   const { currentLanguage } = useAuth();
+  const hasInitialData = initialData != null;
   const initialSnapshot = useMemo(
-    () => normalizeAppDataSnapshot(initialData, currentLanguage),
+    () => normalizeAppDataSnapshot(initialData || {}, currentLanguage),
     [initialData, currentLanguage]
   );
   const [categories, setCategories] = useState(initialSnapshot.categories);
   const [cities, setCities] = useState(initialSnapshot.cities);
   const [places, setPlaces] = useState(initialSnapshot.places);
-  const [isLoading, setIsLoading] = useState(!initialData);
+  const [isLoading, setIsLoading] = useState(!hasInitialData);
   const [errorMessage, setErrorMessage] = useState('');
 
   const fetchAllData = useCallback(async () => {
@@ -131,13 +132,13 @@ export function AppDataProvider({ children, initialData = null }) {
   }, [currentLanguage]);
 
   useEffect(() => {
-    if (!initialData) {
+    if (initialData === null) {
       fetchAllData();
     }
   }, [fetchAllData, initialData]);
 
   useEffect(() => {
-    if (!initialData) {
+    if (!hasInitialData) {
       return;
     }
 
@@ -145,7 +146,7 @@ export function AppDataProvider({ children, initialData = null }) {
     setCities(initialSnapshot.cities);
     setPlaces(initialSnapshot.places);
     setIsLoading(false);
-  }, [initialData, initialSnapshot]);
+  }, [hasInitialData, initialSnapshot]);
 
   const getCityById = useCallback((cityId) => findByAnyId(cities, cityId), [cities]);
   const getCategoryById = useCallback(

@@ -6,7 +6,6 @@ import {
     TouchableOpacity,
     ScrollView,
     RefreshControl,
-    Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -17,6 +16,7 @@ import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
 import useAppRefresh from '../hooks/useAppRefresh';
+import FastImage from '../components/FastImage';
 
 export default function CategoryPlacesScreen() {
     const navigation = useNavigation();
@@ -88,7 +88,7 @@ export default function CategoryPlacesScreen() {
                                     activeOpacity={0.9}
                                     onPress={() => handlePlacePress(place)}
                                 >
-                                    <Image
+                                    <FastImage
                                         source={getImageSource(place.image)}
                                         style={styles.placeImage}
                                         resizeMode="cover"
