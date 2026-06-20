@@ -16,14 +16,7 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
-function collectImageUrls({ categories = [], cities = [], places = [] }) {
-  const categoryUrls = categories.map((category) =>
-    toAbsoluteAssetUrl(category?.image_path, STORAGE_BUCKETS.categoryImages)
-  );
-  const cityUrls = cities.flatMap((city) => [
-    toAbsoluteAssetUrl(city?.image_path, STORAGE_BUCKETS.cityImages),
-    toAbsoluteAssetUrl(city?.hero_image_path, STORAGE_BUCKETS.cityImages),
-  ]);
+function collectImageUrls({ places = [] }) {
   const placeUrls = places.flatMap((place) => {
     const galleryUrls = Array.isArray(place?.images)
       ? place.images.map((image) =>
@@ -37,7 +30,7 @@ function collectImageUrls({ categories = [], cities = [], places = [] }) {
     ];
   });
 
-  return unique([...categoryUrls, ...cityUrls, ...placeUrls]).filter((url) =>
+  return unique(placeUrls).filter((url) =>
     /^https?:\/\//i.test(url)
   );
 }

@@ -1,6 +1,10 @@
 import { getProfilePictureUrl, toAbsoluteAssetUrl } from '../config/assets';
 import { normalizeLanguageCode } from '../i18n/translations';
 import { STORAGE_BUCKETS } from '../lib/supabase';
+import {
+  getLocalCategoryImage,
+  getLocalCityImage,
+} from '../data/localCollectionImages';
 
 function getContentTranslation(item, languageCode) {
   const language = normalizeLanguageCode(languageCode);
@@ -32,7 +36,9 @@ export function normalizeCategory(category, options = {}) {
     legacyId: category.id,
     name: translatedValue(translation, 'name', category.name),
     subtitle: translatedValue(translation, 'subtitle', category.subtitle),
-    image: toAbsoluteAssetUrl(category.image_path, STORAGE_BUCKETS.categoryImages),
+    image:
+      getLocalCategoryImage(category.id) ||
+      toAbsoluteAssetUrl(category.image_path, STORAGE_BUCKETS.categoryImages),
   };
 }
 
@@ -72,8 +78,12 @@ export function normalizeCity(city, options = {}) {
     city_name: cityName,
     name: cityName,
     description: translatedValue(translation, 'description', city.description),
-    image: toAbsoluteAssetUrl(city.image_path, STORAGE_BUCKETS.cityImages),
-    heroImage: toAbsoluteAssetUrl(city.hero_image_path, STORAGE_BUCKETS.cityImages),
+    image:
+      getLocalCityImage(city.id) ||
+      toAbsoluteAssetUrl(city.image_path, STORAGE_BUCKETS.cityImages),
+    heroImage:
+      getLocalCityImage(city.id) ||
+      toAbsoluteAssetUrl(city.hero_image_path, STORAGE_BUCKETS.cityImages),
   };
 }
 
