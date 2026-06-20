@@ -11,6 +11,7 @@ import {
   readCachedApplicationData,
 } from './src/services/appBootstrapService';
 import { logWarning } from './src/utils/logger';
+import AppSplashScreen from './src/screens/SplashScreen';
 
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -21,6 +22,8 @@ export default function App() {
   const [bootstrapData, setBootstrapData] = useState(undefined);
 
   useEffect(() => {
+    ExpoSplashScreen.hideAsync().catch(() => {});
+
     const ErrorUtilsRef = global.ErrorUtils;
     const previousHandler = ErrorUtilsRef?.getGlobalHandler?.();
 
@@ -33,7 +36,6 @@ export default function App() {
 
     const readyTimer = setTimeout(() => {
       setAppIsReady(true);
-      ExpoSplashScreen.hideAsync().catch(() => {});
     }, SPLASH_DURATION_MS);
 
     async function prepareData() {
@@ -63,7 +65,7 @@ export default function App() {
   }, []);
 
   if (!appIsReady) {
-    return null;
+    return <AppSplashScreen />;
   }
 
   return (

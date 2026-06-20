@@ -9,11 +9,6 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F5F5F5",
     "primaryColor": "#d51e1e",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#d51e1e"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.driteguide.app",
@@ -69,7 +64,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
+          "imageWidth": 430,
           "resizeMode": "cover",
+          "enableFullScreenImage_legacy": true,
           "backgroundColor": "#d51e1e"
         }
       ],
