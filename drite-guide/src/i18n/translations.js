@@ -239,10 +239,12 @@ const translations = {
         'Please enter the email address for your account.',
       passwordResetSentTitle: 'Password reset email sent',
       passwordResetSent:
-        'We sent a Supabase password reset link to {{email}}.',
+        'If an account exists with this email, you will receive a password reset link.',
       passwordResetFailedTitle: 'Password reset failed',
       passwordResetFailed:
-        'Password reset email could not be sent. Please try again later.',
+        'The password reset email could not be sent. Please try again later.',
+      passwordResetRateLimit:
+        'Too many password reset emails were requested. Please try again later.',
     },
     language: {
       title: 'Language',

@@ -174,6 +174,24 @@ function getFriendlySignupErrorMessage(error, t) {
   return t('auth.signupFailedFallback') || 'Sign up failed. Please try again.';
 }
 
+function getFriendlyPasswordResetErrorMessage(error, t) {
+  if (error?.code === 'invalid_email') {
+    return t('auth.invalidEmail') || 'Please enter a valid email address.';
+  }
+
+  if (isEmailRateLimitError(error)) {
+    return (
+      t('auth.passwordResetRateLimit') ||
+      'Too many password reset emails were requested. Please try again later.'
+    );
+  }
+
+  return (
+    t('auth.passwordResetFailed') ||
+    'The password reset email could not be sent. Please try again later.'
+  );
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [accessToken, setAccessTokenState] = useState(null);
@@ -708,8 +726,8 @@ export function AuthProvider({ children }) {
       return {
         success: false,
         message:
-          t('auth.emailRequiredForPasswordReset') ||
-          'Please enter the email address for your account.',
+          t('auth.invalidEmail') ||
+          'Please enter a valid email address.',
       };
     }
 
@@ -719,19 +737,13 @@ export function AuthProvider({ children }) {
       return {
         success: true,
         message:
-          t('auth.passwordResetSent', { email: cleanEmail }) ||
-          `Password reset email sent to ${cleanEmail}.`,
+          t('auth.passwordResetSent') ||
+          'If an account exists with this email, you will receive a password reset link.',
       };
     } catch (error) {
       return {
         success: false,
-        message: isEmailRateLimitError(error)
-          ? t('auth.emailRateLimit') || 'Too many emails sent. Please try again later.'
-          : getSupabaseErrorMessage(
-            error,
-            t('auth.passwordResetFailed') ||
-            'Password reset email could not be sent.'
-          ),
+        message: getFriendlyPasswordResetErrorMessage(error, t),
       };
     }
   };

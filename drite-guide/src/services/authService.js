@@ -17,6 +17,7 @@ import {
 const AUTH_CALLBACK_PATH = 'auth/callback';
 const PASSWORD_RESET_PATH = 'reset-password';
 const DEFAULT_AUTH_REDIRECT_URL = 'https://www.driteguide.com/verify-email.html';
+export const PASSWORD_RESET_REDIRECT_URL = 'https://driteguide.com/reset-password';
 
 const EMAIL_NOT_VERIFIED_CODE = 'email_not_verified';
 const EMAIL_RATE_LIMIT_CODE = 'email_rate_limit_exceeded';
@@ -151,7 +152,7 @@ function getConfiguredRedirectUrl(path) {
   }
 
   if (path === PASSWORD_RESET_PATH) {
-    return process.env.EXPO_PUBLIC_PASSWORD_RESET_REDIRECT_URL || '';
+    return PASSWORD_RESET_REDIRECT_URL;
   }
 
   return '';
@@ -522,14 +523,23 @@ export async function signOut() {
 export async function sendPasswordResetEmail(email) {
   assertSupabaseConfigured();
 
-  const { error } = await supabase.auth.resetPasswordForEmail(
-    normalizeEmail(email),
-    {
-      redirectTo: getAuthRedirectUrl(PASSWORD_RESET_PATH),
-    }
-  );
+  const cleanEmail = normalizeEmail(email);
 
-  throwIfSupabaseError(error, 'Could not send password reset email.');
+  if (!isValidEmailAddress(cleanEmail)) {
+    throw createCodedError('Please enter a valid email address.', 'invalid_email', 400);
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+    redirectTo: PASSWORD_RESET_REDIRECT_URL,
+  });
+
+  if (error) {
+    throw createCodedError(
+      'Could not send password reset email.',
+      error.code || 'password_reset_failed',
+      error.status || null
+    );
+  }
 }
 
 export async function resendVerificationEmail(email) {
