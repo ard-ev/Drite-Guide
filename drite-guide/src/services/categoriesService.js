@@ -11,7 +11,8 @@ export async function getCategories() {
       translations:category_translations (
         language_code,
         name,
-        subtitle
+        subtitle,
+        updated_at
       )
     `)
     .is('deleted_at', null)

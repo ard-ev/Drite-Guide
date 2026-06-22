@@ -8,7 +8,8 @@ const PLACE_WITH_IMAGES_SELECT = `
     name,
     description,
     address,
-    opening_hours
+    opening_hours,
+    updated_at
   ),
   images:place_images (
     id,

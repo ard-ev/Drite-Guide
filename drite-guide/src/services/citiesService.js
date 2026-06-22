@@ -11,7 +11,8 @@ export async function getCities() {
       translations:city_translations (
         language_code,
         city_name,
-        description
+        description,
+        updated_at
       )
     `)
     .is('deleted_at', null)

@@ -6,7 +6,9 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { AppState } from 'react-native';
 
+import { supabase } from '../lib/supabase';
 import { getCategories } from '../services/categoriesService';
 import { getCities } from '../services/citiesService';
 import { getPlaces } from '../services/placesService';
@@ -19,6 +21,16 @@ import {
 import { useAuth } from './AuthContext';
 
 const AppDataContext = createContext(null);
+const REALTIME_REFRESH_DELAY_MS = 250;
+const REALTIME_TABLES = [
+  'categories',
+  'category_translations',
+  'cities',
+  'city_translations',
+  'places',
+  'place_translations',
+  'place_images',
+];
 
 function normalizeLookupKey(value) {
   return String(value || '')
@@ -132,7 +144,7 @@ export function AppDataProvider({ children, initialData = undefined }) {
   }, [currentLanguage]);
 
   useEffect(() => {
-    if (initialData === null) {
+    if (initialData == null) {
       fetchAllData();
     }
   }, [fetchAllData, initialData]);
@@ -147,6 +159,42 @@ export function AppDataProvider({ children, initialData = undefined }) {
     setPlaces(initialSnapshot.places);
     setIsLoading(false);
   }, [hasInitialData, initialSnapshot]);
+
+  useEffect(() => {
+    let refreshTimer;
+
+    const scheduleRefresh = () => {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(fetchAllData, REALTIME_REFRESH_DELAY_MS);
+    };
+
+    const channel = supabase.channel('app-data-updates');
+
+    REALTIME_TABLES.forEach((table) => {
+      channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table },
+        scheduleRefresh
+      );
+    });
+
+    channel.subscribe();
+
+    const appStateSubscription = AppState.addEventListener(
+      'change',
+      (nextState) => {
+        if (nextState === 'active') {
+          scheduleRefresh();
+        }
+      }
+    );
+
+    return () => {
+      clearTimeout(refreshTimer);
+      appStateSubscription.remove();
+      supabase.removeChannel(channel);
+    };
+  }, [fetchAllData]);
 
   const getCityById = useCallback((cityId) => findByAnyId(cities, cityId), [cities]);
   const getCategoryById = useCallback(

@@ -18,8 +18,20 @@ function getContentTranslation(item, languageCode) {
   ) || null;
 }
 
-function translatedValue(translation, key, fallback) {
+function translatedValue(item, translation, key, fallback) {
   const value = translation?.[key];
+
+  const itemUpdatedAt = Date.parse(item?.updated_at || '');
+  const translationUpdatedAt = Date.parse(translation?.updated_at || '');
+  const translationIsStale =
+    Number.isFinite(itemUpdatedAt) &&
+    Number.isFinite(translationUpdatedAt) &&
+    itemUpdatedAt > translationUpdatedAt;
+
+  if (translationIsStale) {
+    return fallback;
+  }
+
   return typeof value === 'string' && value.trim() ? value : fallback;
 }
 
@@ -34,8 +46,13 @@ export function normalizeCategory(category, options = {}) {
     ...category,
     id: category.id,
     legacyId: category.id,
-    name: translatedValue(translation, 'name', category.name),
-    subtitle: translatedValue(translation, 'subtitle', category.subtitle),
+    name: translatedValue(category, translation, 'name', category.name),
+    subtitle: translatedValue(
+      category,
+      translation,
+      'subtitle',
+      category.subtitle
+    ),
     image:
       getLocalCategoryImage(category.id) ||
       toAbsoluteAssetUrl(category.image_path, STORAGE_BUCKETS.categoryImages),
@@ -69,7 +86,12 @@ export function normalizeCity(city, options = {}) {
   }
 
   const translation = getContentTranslation(city, options.language);
-  const cityName = translatedValue(translation, 'city_name', city.city_name);
+  const cityName = translatedValue(
+    city,
+    translation,
+    'city_name',
+    city.city_name
+  );
 
   return {
     ...city,
@@ -77,7 +99,12 @@ export function normalizeCity(city, options = {}) {
     legacyId: city.id,
     city_name: cityName,
     name: cityName,
-    description: translatedValue(translation, 'description', city.description),
+    description: translatedValue(
+      city,
+      translation,
+      'description',
+      city.description
+    ),
     image:
       getLocalCityImage(city.id) ||
       toAbsoluteAssetUrl(city.image_path, STORAGE_BUCKETS.cityImages),
@@ -107,10 +134,16 @@ export function normalizePlace(place, options = {}) {
     imageSourcePaths: imagePaths,
     id: place.id,
     legacyId: place.id,
-    name: translatedValue(translation, 'name', place.name),
-    description: translatedValue(translation, 'description', place.description),
-    address: translatedValue(translation, 'address', place.address),
+    name: translatedValue(place, translation, 'name', place.name),
+    description: translatedValue(
+      place,
+      translation,
+      'description',
+      place.description
+    ),
+    address: translatedValue(place, translation, 'address', place.address),
     opening_hours: translatedValue(
+      place,
       translation,
       'opening_hours',
       place.opening_hours
