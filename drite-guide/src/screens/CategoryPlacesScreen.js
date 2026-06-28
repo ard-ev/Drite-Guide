@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -21,16 +21,17 @@ import FastImage from '../components/FastImage';
 export default function CategoryPlacesScreen() {
     const navigation = useNavigation();
     const route = useRoute();
-    const { places, getCategoryById, getCityById } = useAppData();
+    const { places, cities, getCategoryById, getCityById } = useAppData();
     const { t, tc, language } = useTranslation();
     const { isRefreshing, refreshApp } = useAppRefresh();
+    const [selectedCityId, setSelectedCityId] = useState(null);
 
     const categoryId = route.params?.categoryId;
     const categoryLabel =
         getCategoryById(categoryId)?.name ||
         route.params?.categoryLabel ||
         t('common.category');
-    const matchesCategory = (place) => {
+    const matchesCategory = useCallback((place) => {
         if (categoryId === 'religious_sites') {
             return ['religious_sites', 'mosques', 'churches'].includes(place.categoryId);
         }
@@ -40,16 +41,38 @@ export default function CategoryPlacesScreen() {
             String(place.categoryId) === String(categoryId) ||
             place.legacyId === categoryId
         );
-    };
+    }, [categoryId]);
+
+    const idsMatch = (left, right) =>
+        left === right || String(left) === String(right);
 
     const getCityName = (cityId) => {
         return getCityById(cityId)?.name || t('common.unknownCityTitle');
     };
 
-    const filteredPlaces = places
-        .filter(Boolean)
-        .filter(matchesCategory)
-        .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+    const categoryPlaces = useMemo(() => {
+        return places
+            .filter(Boolean)
+            .filter(matchesCategory);
+    }, [matchesCategory, places]);
+
+    const citiesWithCategoryPlaces = useMemo(() => {
+        return cities
+            .filter((city) =>
+                categoryPlaces.some((place) => idsMatch(place.cityId, city?.id))
+            )
+            .sort((left, right) =>
+                String(left?.name || '').localeCompare(String(right?.name || ''))
+            );
+    }, [categoryPlaces, cities]);
+
+    const filteredPlaces = useMemo(() => {
+        const nextPlaces = selectedCityId
+            ? categoryPlaces.filter((place) => idsMatch(place.cityId, selectedCityId))
+            : categoryPlaces;
+
+        return [...nextPlaces].sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+    }, [categoryPlaces, selectedCityId]);
 
     const handlePlacePress = (place) => {
         navigation.navigate('PlaceDetails', {
@@ -57,6 +80,71 @@ export default function CategoryPlacesScreen() {
             place,
         });
     };
+
+    const renderCityFilter = () => (
+        <View style={styles.filterSection}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterChipsContent}
+            >
+                <TouchableOpacity
+                    style={[
+                        styles.filterChip,
+                        !selectedCityId && styles.filterChipActive,
+                    ]}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedCityId(null)}
+                >
+                    <Text
+                        style={[
+                            styles.filterChipText,
+                            !selectedCityId && styles.filterChipTextActive,
+                        ]}
+                    >
+                        {t('home.allCities')}
+                    </Text>
+                </TouchableOpacity>
+
+                {citiesWithCategoryPlaces.map((city) => {
+                    const isActive = idsMatch(selectedCityId, city?.id);
+
+                    return (
+                        <TouchableOpacity
+                            key={city?.id || city?.legacyId || city?.name}
+                            style={[
+                                styles.filterChip,
+                                isActive && styles.filterChipActive,
+                            ]}
+                            activeOpacity={0.85}
+                            onPress={() => setSelectedCityId(city?.id)}
+                        >
+                            <Text
+                                style={[
+                                    styles.filterChipText,
+                                    isActive && styles.filterChipTextActive,
+                                ]}
+                                numberOfLines={1}
+                            >
+                                {city.name}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </ScrollView>
+
+            {selectedCityId ? (
+                <TouchableOpacity
+                    style={styles.clearFilterButton}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedCityId(null)}
+                >
+                    <Ionicons name="close" size={16} color={colors.primary} />
+                    <Text style={styles.clearFilterText}>{t('common.clear')}</Text>
+                </TouchableOpacity>
+            ) : null}
+        </View>
+    );
 
     return (
         <View style={styles.screen}>
@@ -81,6 +169,8 @@ export default function CategoryPlacesScreen() {
                             {tc('common.countPlacesFound', filteredPlaces.length)}
                         </Text>
                     </View>
+
+                    {renderCityFilter()}
 
                     {filteredPlaces.length > 0 ? (
                         <View style={styles.placesSection}>
@@ -127,7 +217,9 @@ export default function CategoryPlacesScreen() {
                             <Ionicons name="grid-outline" size={40} color={colors.primary} />
                             <Text style={styles.emptyStateTitle}>{t('listing.noPlacesYet')}</Text>
                             <Text style={styles.emptyStateText}>
-                                {t('listing.noCategoryPlaces')}
+                                {selectedCityId
+                                    ? t('listing.noFilteredPlaces')
+                                    : t('listing.noCategoryPlaces')}
                             </Text>
                         </View>
                     )}
@@ -172,6 +264,60 @@ const styles = StyleSheet.create({
 
     placesSection: {
         gap: 14,
+    },
+
+    filterSection: {
+        marginBottom: 18,
+    },
+
+    filterChipsContent: {
+        gap: 10,
+        paddingRight: 4,
+    },
+
+    filterChip: {
+        minHeight: 40,
+        maxWidth: 180,
+        paddingHorizontal: 14,
+        borderRadius: 999,
+        backgroundColor: colors.white,
+        borderWidth: 1,
+        borderColor: '#ECECEC',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    filterChipActive: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+
+    filterChipText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#555',
+    },
+
+    filterChipTextActive: {
+        color: colors.white,
+    },
+
+    clearFilterButton: {
+        marginTop: 10,
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        minHeight: 36,
+        paddingHorizontal: 12,
+        borderRadius: 999,
+        backgroundColor: '#FFF1F1',
+    },
+
+    clearFilterText: {
+        marginLeft: 4,
+        fontSize: 13,
+        fontWeight: '700',
+        color: colors.primary,
     },
 
     placeCard: {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -21,18 +21,53 @@ import FastImage from '../components/FastImage';
 export default function CityPlacesScreen() {
     const navigation = useNavigation();
     const route = useRoute();
-    const { places, getCityById } = useAppData();
+    const { places, categories, getCityById } = useAppData();
     const { t, tc, language } = useTranslation();
     const { isRefreshing, refreshApp } = useAppRefresh();
+    const [selectedCategoryId, setSelectedCategoryId] = useState(null);
 
     const cityId = route.params?.cityId;
     const city = getCityById(cityId);
-    const matchesCity = (place) =>
-        place.cityId === cityId ||
-        String(place.cityId) === String(cityId) ||
-        place.legacyId === cityId;
+    const idsMatch = useCallback((left, right) =>
+        left === right || String(left) === String(right), []);
 
-    const filteredPlaces = places.filter(Boolean).filter(matchesCity);
+    const matchesCity = useCallback((place) =>
+        idsMatch(place.cityId, cityId) ||
+        place.legacyId === cityId, [cityId, idsMatch]);
+
+    const matchesCategory = useCallback((place, categoryId) => {
+        if (!categoryId) {
+            return true;
+        }
+
+        if (categoryId === 'religious_sites') {
+            return ['religious_sites', 'mosques', 'churches'].includes(place.categoryId);
+        }
+
+        return idsMatch(place.categoryId, categoryId);
+    }, [idsMatch]);
+
+    const cityPlaces = useMemo(() => {
+        return places
+            .filter(Boolean)
+            .filter(matchesCity);
+    }, [matchesCity, places]);
+
+    const categoriesWithCityPlaces = useMemo(() => {
+        return categories
+            .filter((category) =>
+                cityPlaces.some((place) => matchesCategory(place, category?.id))
+            )
+            .sort((left, right) =>
+                String(left?.name || '').localeCompare(String(right?.name || ''))
+            );
+    }, [categories, cityPlaces, matchesCategory]);
+
+    const filteredPlaces = useMemo(() => {
+        return cityPlaces.filter((place) =>
+            matchesCategory(place, selectedCategoryId)
+        );
+    }, [cityPlaces, matchesCategory, selectedCategoryId]);
 
     const handlePlacePress = (place) => {
         navigation.navigate('PlaceDetails', {
@@ -40,6 +75,71 @@ export default function CityPlacesScreen() {
             place,
         });
     };
+
+    const renderCategoryFilter = () => (
+        <View style={styles.filterSection}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterChipsContent}
+            >
+                <TouchableOpacity
+                    style={[
+                        styles.filterChip,
+                        !selectedCategoryId && styles.filterChipActive,
+                    ]}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedCategoryId(null)}
+                >
+                    <Text
+                        style={[
+                            styles.filterChipText,
+                            !selectedCategoryId && styles.filterChipTextActive,
+                        ]}
+                    >
+                        {t('explore.allCategories')}
+                    </Text>
+                </TouchableOpacity>
+
+                {categoriesWithCityPlaces.map((category) => {
+                    const isActive = idsMatch(selectedCategoryId, category?.id);
+
+                    return (
+                        <TouchableOpacity
+                            key={category?.id || category?.legacyId || category?.name}
+                            style={[
+                                styles.filterChip,
+                                isActive && styles.filterChipActive,
+                            ]}
+                            activeOpacity={0.85}
+                            onPress={() => setSelectedCategoryId(category?.id)}
+                        >
+                            <Text
+                                style={[
+                                    styles.filterChipText,
+                                    isActive && styles.filterChipTextActive,
+                                ]}
+                                numberOfLines={1}
+                            >
+                                {category.name}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </ScrollView>
+
+            {selectedCategoryId ? (
+                <TouchableOpacity
+                    style={styles.clearFilterButton}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedCategoryId(null)}
+                >
+                    <Ionicons name="close" size={16} color={colors.primary} />
+                    <Text style={styles.clearFilterText}>{t('common.clear')}</Text>
+                </TouchableOpacity>
+            ) : null}
+        </View>
+    );
 
     const renderPlaceCard = (place) => {
         return (
@@ -105,6 +205,8 @@ export default function CityPlacesScreen() {
                         </Text>
                     </View>
 
+                    {renderCategoryFilter()}
+
                     {filteredPlaces.length > 0 ? (
                         <View style={styles.placesSection}>
                             {filteredPlaces.map(renderPlaceCard)}
@@ -118,7 +220,9 @@ export default function CityPlacesScreen() {
                             />
                             <Text style={styles.emptyStateTitle}>{t('listing.noPlacesYet')}</Text>
                             <Text style={styles.emptyStateText}>
-                                {t('listing.noCityPlaces')}
+                                {selectedCategoryId
+                                    ? t('listing.noFilteredPlaces')
+                                    : t('listing.noCityPlaces')}
                             </Text>
                         </View>
                     )}
@@ -163,6 +267,60 @@ const styles = StyleSheet.create({
 
     placesSection: {
         gap: 14,
+    },
+
+    filterSection: {
+        marginBottom: 18,
+    },
+
+    filterChipsContent: {
+        gap: 10,
+        paddingRight: 4,
+    },
+
+    filterChip: {
+        minHeight: 40,
+        maxWidth: 180,
+        paddingHorizontal: 14,
+        borderRadius: 999,
+        backgroundColor: colors.white,
+        borderWidth: 1,
+        borderColor: '#ECECEC',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    filterChipActive: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+
+    filterChipText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#555',
+    },
+
+    filterChipTextActive: {
+        color: colors.white,
+    },
+
+    clearFilterButton: {
+        marginTop: 10,
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        minHeight: 36,
+        paddingHorizontal: 12,
+        borderRadius: 999,
+        backgroundColor: '#FFF1F1',
+    },
+
+    clearFilterText: {
+        marginLeft: 4,
+        fontSize: 13,
+        fontWeight: '700',
+        color: colors.primary,
     },
 
     placeCard: {

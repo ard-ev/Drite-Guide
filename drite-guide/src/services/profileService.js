@@ -284,6 +284,17 @@ export async function isEmailAvailable(email) {
     return false;
   }
 
+  const { data: functionData, error: functionError } = await supabase.functions.invoke(
+    'check-email-available',
+    {
+      body: { email: normalizedEmail },
+    }
+  );
+
+  if (!functionError && typeof functionData?.available === 'boolean') {
+    return functionData.available;
+  }
+
   const { data: rpcData, error: rpcError } = await supabase.rpc(
     'is_email_available',
     { email_value: normalizedEmail }

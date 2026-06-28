@@ -77,6 +77,18 @@ function isMissingResolveLoginEmailFunctionError(error) {
 
 async function resolveLoginEmail(identifier) {
   const normalizedIdentifier = normalizeUsername(identifier);
+
+  const { data: functionData, error: functionError } = await supabase.functions.invoke(
+    'resolve-login-email',
+    {
+      body: { identifier: normalizedIdentifier },
+    }
+  );
+
+  if (!functionError && typeof functionData?.email === 'string') {
+    return normalizeEmail(functionData.email);
+  }
+
   const { data: resolvedEmail, error: resolveError } = await supabase.rpc(
     'resolve_login_email',
     { identifier_value: normalizedIdentifier }
