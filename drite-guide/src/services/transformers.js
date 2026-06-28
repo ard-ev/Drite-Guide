@@ -1,10 +1,14 @@
 import { getProfilePictureUrl, toAbsoluteAssetUrl } from '../config/assets';
 import { normalizeLanguageCode } from '../i18n/translations';
 import { STORAGE_BUCKETS } from '../lib/supabase';
-import {
-  getLocalCategoryImage,
-  getLocalCityImage,
-} from '../data/localCollectionImages';
+
+function withContentVersion(url, updatedAt) {
+  if (!url || !updatedAt || !/^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  return `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(updatedAt)}`;
+}
 
 function getContentTranslation(item, languageCode) {
   const language = normalizeLanguageCode(languageCode);
@@ -53,9 +57,10 @@ export function normalizeCategory(category, options = {}) {
       'subtitle',
       category.subtitle
     ),
-    image:
-      getLocalCategoryImage(category.id) ||
+    image: withContentVersion(
       toAbsoluteAssetUrl(category.image_path, STORAGE_BUCKETS.categoryImages),
+      category.updated_at
+    ),
   };
 }
 
@@ -105,12 +110,14 @@ export function normalizeCity(city, options = {}) {
       'description',
       city.description
     ),
-    image:
-      getLocalCityImage(city.id) ||
+    image: withContentVersion(
       toAbsoluteAssetUrl(city.image_path, STORAGE_BUCKETS.cityImages),
-    heroImage:
-      getLocalCityImage(city.id) ||
+      city.updated_at
+    ),
+    heroImage: withContentVersion(
       toAbsoluteAssetUrl(city.hero_image_path, STORAGE_BUCKETS.cityImages),
+      city.updated_at
+    ),
   };
 }
 
@@ -152,13 +159,16 @@ export function normalizePlace(place, options = {}) {
     categoryId: place.category_id,
     cityName: options.cityName || '',
     categoryName: options.categoryName || '',
-    image: mainImage,
+    image: withContentVersion(mainImage, place.updated_at),
     images: Array.isArray(place.images)
       ? imagePaths.map((imagePath) =>
-          toAbsoluteAssetUrl(imagePath, STORAGE_BUCKETS.placeImages)
+          withContentVersion(
+            toAbsoluteAssetUrl(imagePath, STORAGE_BUCKETS.placeImages),
+            place.updated_at
+          )
         )
       : mainImage
-      ? [mainImage]
+      ? [withContentVersion(mainImage, place.updated_at)]
       : [],
     rating: Number(place.rating_average || 0),
   };

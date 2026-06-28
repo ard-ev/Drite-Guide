@@ -21,12 +21,15 @@ import FastImage from '../components/FastImage';
 export default function CategoryPlacesScreen() {
     const navigation = useNavigation();
     const route = useRoute();
-    const { places, getCityById } = useAppData();
+    const { places, getCategoryById, getCityById } = useAppData();
     const { t, tc, language } = useTranslation();
     const { isRefreshing, refreshApp } = useAppRefresh();
 
     const categoryId = route.params?.categoryId;
-    const categoryLabel = route.params?.categoryLabel || t('common.category');
+    const categoryLabel =
+        getCategoryById(categoryId)?.name ||
+        route.params?.categoryLabel ||
+        t('common.category');
     const matchesCategory = (place) => {
         if (categoryId === 'religious_sites') {
             return ['religious_sites', 'mosques', 'churches'].includes(place.categoryId);
