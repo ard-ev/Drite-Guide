@@ -44,6 +44,7 @@ const CATEGORY_PRIORITY = [
   'governmentservices',
 ];
 const HIDDEN_HOME_CATEGORY_KEYS = ['mosque', 'mosques', 'church', 'churches'];
+const CONTACT_PAGE_URL = 'https://driteguide.com/contact.html';
 
 export default function HomeScreen({ route }) {
   const navigation = useNavigation();
@@ -557,12 +558,7 @@ export default function HomeScreen({ route }) {
   };
 
   const handleSupportPress = () => {
-    const subject = encodeURIComponent('Drite Guide support');
-    const body = encodeURIComponent('Hi Drite Guide,\n\nI need help with:\n\n');
-
-    Linking.openURL(
-      `mailto:support@driteguide.com?subject=${subject}&body=${body}`
-    );
+    Linking.openURL(CONTACT_PAGE_URL);
   };
 
   const handleHeroScrollEnd = (event) => {
@@ -605,7 +601,7 @@ export default function HomeScreen({ route }) {
               activeOpacity={0.82}
               onPress={handleSupportPress}
               accessibilityRole="button"
-              accessibilityLabel="Email Drite Guide support"
+              accessibilityLabel="Open Drite Guide contact page"
             >
               <Image
                 source={require('../../assets/logo.png')}

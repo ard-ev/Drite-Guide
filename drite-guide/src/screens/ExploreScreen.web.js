@@ -11,7 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -22,10 +22,6 @@ import { useTranslation } from '../context/TranslationContext';
 import colors from '../theme/colors';
 import { logWarning } from '../utils/logger';
 
-const FALLBACK_LOCATION = {
-  latitude: 41.3275,
-  longitude: 19.8187,
-};
 const NEARBY_RADIUS_KM = 30;
 
 const CITY_PRIORITY = ['tirana', 'durres', 'vlore', 'gjirokaster'];
@@ -60,22 +56,67 @@ const getStableRandomScore = (city) => {
   return hash;
 };
 
+const idsMatch = (left, right) =>
+  left === right || String(left) === String(right);
+
+const idListIncludes = (ids, id) =>
+  (ids || []).some((selectedId) => idsMatch(selectedId, id));
+
+const toggleIdInList = (ids, id) =>
+  idListIncludes(ids, id)
+    ? ids.filter((selectedId) => !idsMatch(selectedId, id))
+    : [...ids, id];
+
+const removeIdFromList = (ids, id) =>
+  ids.filter((selectedId) => !idsMatch(selectedId, id));
+
+const calculateDistanceKm = (userLat, userLng, placeLat, placeLng) => {
+  const toRad = (value) => (value * Math.PI) / 180;
+  const R = 6371;
+
+  const dLat = toRad(placeLat - userLat);
+  const dLon = toRad(placeLng - userLng);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(userLat)) *
+      Math.cos(toRad(placeLat)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 export default function ExploreScreen({ route }) {
   const navigation = useNavigation();
   const screenScrollRef = useRef(null);
-  const { places, cities } = useAppData();
+  const mapFrameRef = useRef(null);
+  const { places, cities, categories, refreshData } = useAppData();
   const { language } = useTranslation();
 
   const [showMapExpanded, setShowMapExpanded] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
   const [showPlacePreview, setShowPlacePreview] = useState(false);
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
+  const [selectedCityIds, setSelectedCityIds] = useState([]);
+  const [nearbyOnly, setNearbyOnly] = useState(false);
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  const [locationErrorMessage, setLocationErrorMessage] = useState('');
+  const [showLocationWarning, setShowLocationWarning] = useState(false);
   const refreshKey = route?.params?.refreshKey;
 
   useEffect(() => {
-    getUserLocation();
+    getUserLocation({ requestPermission: false });
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshData?.();
+    }, [refreshData])
+  );
 
   const cityMap = useMemo(() => {
     return cities.filter(Boolean).reduce((acc, city) => {
@@ -86,29 +127,54 @@ export default function ExploreScreen({ route }) {
     }, {});
   }, [cities]);
 
-  const getUserLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+  const categoryMap = useMemo(() => {
+    return categories.filter(Boolean).reduce((acc, category) => {
+      if (category?.id) {
+        acc[category.id] = category;
+      }
+      return acc;
+    }, {});
+  }, [categories]);
 
-      if (status !== 'granted') {
+  const getUserLocation = async ({ requestPermission = true } = {}) => {
+    try {
+      const permission = requestPermission
+        ? await Location.requestForegroundPermissionsAsync()
+        : await Location.getForegroundPermissionsAsync();
+
+      if (permission.status !== 'granted') {
         setLocationPermissionDenied(true);
-        setUserLocation(FALLBACK_LOCATION);
-        return;
+        setUserLocation(null);
+        setLocationErrorMessage(
+          requestPermission
+            ? 'Location permission is needed to show nearby places.'
+            : ''
+        );
+        setShowLocationWarning(requestPermission);
+        return null;
       }
 
       setLocationPermissionDenied(false);
+      setLocationErrorMessage('');
+      setShowLocationWarning(false);
 
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
 
-      setUserLocation({
+      const nextLocation = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-      });
+      };
+
+      setUserLocation(nextLocation);
+      return nextLocation;
     } catch (error) {
       logWarning('Error getting user location:', error?.message);
-      setUserLocation(FALLBACK_LOCATION);
+      setUserLocation(null);
+      setLocationErrorMessage('Your location is currently unavailable. Please try again.');
+      setShowLocationWarning(requestPermission);
+      return null;
     }
   };
 
@@ -121,7 +187,7 @@ export default function ExploreScreen({ route }) {
     setSelectedPlace(null);
     setShowPlacePreview(false);
     screenScrollRef.current?.scrollTo({ y: 0, animated: false });
-    getUserLocation();
+    getUserLocation({ requestPermission: false });
   }, [refreshKey]);
 
   const visibleCities = useMemo(() => {
@@ -147,24 +213,6 @@ export default function ExploreScreen({ route }) {
     navigation.navigate('CityPlaces', { cityId });
   };
 
-  const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
-    const toRad = (value) => (value * Math.PI) / 180;
-    const R = 6371;
-
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
   const placesWithCoordinates = useMemo(() => {
     return places.filter(
       (place) =>
@@ -173,13 +221,35 @@ export default function ExploreScreen({ route }) {
     );
   }, [places]);
 
-  const nearbyPlaces = useMemo(() => {
-    if (!userLocation) {
-      return placesWithCoordinates;
+  const filteredPlaces = useMemo(() => {
+    const basePlaces = placesWithCoordinates.filter((place) => {
+      if (
+        selectedCategoryIds.length > 0 &&
+        !idListIncludes(selectedCategoryIds, place.categoryId)
+      ) {
+        return false;
+      }
+
+      if (
+        selectedCityIds.length > 0 &&
+        !idListIncludes(selectedCityIds, place.cityId)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+    if (!nearbyOnly) {
+      return basePlaces;
     }
 
-    return placesWithCoordinates.filter((place) => {
-      const distance = getDistanceInKm(
+    if (!userLocation) {
+      return [];
+    }
+
+    return basePlaces.filter((place) => {
+      const distance = calculateDistanceKm(
         userLocation.latitude,
         userLocation.longitude,
         place.latitude,
@@ -188,11 +258,65 @@ export default function ExploreScreen({ route }) {
 
       return distance <= NEARBY_RADIUS_KM;
     });
-  }, [userLocation, placesWithCoordinates]);
+  }, [
+    nearbyOnly,
+    placesWithCoordinates,
+    selectedCategoryIds,
+    selectedCityIds,
+    userLocation,
+  ]);
+
+  const selectedFilterCategories = selectedCategoryIds
+    .map((categoryId) => categoryMap[categoryId])
+    .filter(Boolean);
+  const selectedFilterCities = selectedCityIds
+    .map((cityId) => cityMap[cityId])
+    .filter(Boolean);
+  const hasActiveFilters = Boolean(
+    selectedCategoryIds.length > 0 ||
+      selectedCityIds.length > 0 ||
+      nearbyOnly
+  );
+
+  const activeFilterChips = useMemo(() => {
+    const chips = [];
+
+    selectedFilterCategories.forEach((category) => {
+      chips.push({
+        key: `category-${category.id}`,
+        label: `Category: ${category.name}`,
+        onRemove: () =>
+          setSelectedCategoryIds((currentIds) =>
+            removeIdFromList(currentIds, category.id)
+          ),
+      });
+    });
+
+    selectedFilterCities.forEach((city) => {
+      chips.push({
+        key: `city-${city.id}`,
+        label: `City: ${city.name}`,
+        onRemove: () =>
+          setSelectedCityIds((currentIds) =>
+            removeIdFromList(currentIds, city.id)
+          ),
+      });
+    });
+
+    if (nearbyOnly) {
+      chips.push({
+        key: 'nearby',
+        label: `Nearby: ${NEARBY_RADIUS_KM} km`,
+        onRemove: () => setNearbyOnly(false),
+      });
+    }
+
+    return chips;
+  }, [nearbyOnly, selectedFilterCategories, selectedFilterCities]);
 
   const handleOpenMap = async () => {
     if (!userLocation) {
-      await getUserLocation();
+      await getUserLocation({ requestPermission: false });
     }
 
     setSelectedPlace(null);
@@ -200,10 +324,79 @@ export default function ExploreScreen({ route }) {
     setShowMapExpanded(true);
   };
 
-  const handleMarkerPress = (place) => {
-    setSelectedPlace(place);
-    setShowPlacePreview(true);
+  const clearFilters = () => {
+    setSelectedCategoryIds([]);
+    setSelectedCityIds([]);
+    setNearbyOnly(false);
+    setLocationErrorMessage('');
+    setShowLocationWarning(false);
+    setSelectedPlace(null);
+    setShowPlacePreview(false);
   };
+
+  const handleShowAllPlaces = () => {
+    clearFilters();
+    setShowFilterSheet(false);
+  };
+
+  const handleToggleNearby = async () => {
+    if (nearbyOnly) {
+      setNearbyOnly(false);
+      setLocationErrorMessage('');
+      setShowLocationWarning(false);
+      return;
+    }
+
+    const nextLocation = userLocation || await getUserLocation({ requestPermission: true });
+
+    if (!nextLocation) {
+      setNearbyOnly(false);
+      return;
+    }
+
+    setNearbyOnly(true);
+    setLocationErrorMessage('');
+    setShowLocationWarning(false);
+  };
+
+  const centerOnUserLocation = async () => {
+    const nextLocation = userLocation || await getUserLocation({ requestPermission: true });
+
+    if (!nextLocation) {
+      return;
+    }
+
+    mapFrameRef.current?.contentWindow?.postMessage({
+      type: 'DRITE_CENTER_USER_LOCATION',
+      location: nextLocation,
+    }, '*');
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleMapMessage = (event) => {
+      if (event?.data?.type !== 'DRITE_PLACE_PIN_CLICK') {
+        return;
+      }
+
+      const place = filteredPlaces.find((item) =>
+        idsMatch(item?.id, event.data.placeId)
+      );
+
+      if (!place) {
+        return;
+      }
+
+      setSelectedPlace(place);
+      setShowPlacePreview(true);
+    };
+
+    window.addEventListener('message', handleMapMessage);
+    return () => window.removeEventListener('message', handleMapMessage);
+  }, [filteredPlaces]);
 
   const closePlacePreview = () => {
     setSelectedPlace(null);
@@ -221,7 +414,7 @@ export default function ExploreScreen({ route }) {
     setSelectedPlace(null);
 
     setTimeout(() => {
-      navigation.navigate('PlaceDetails', { placeId, place: selectedPlace });
+      navigation.navigate('PlaceDetails', { placeId });
     }, 150);
   };
 
@@ -263,13 +456,177 @@ export default function ExploreScreen({ route }) {
   const previewMapUrl =
     'https://www.google.com/maps?q=41.3275,19.8187&z=7&output=embed';
 
-  const expandedMapUrl = userLocation
-    ? `https://www.google.com/maps?q=${userLocation.latitude},${userLocation.longitude}&z=11&output=embed`
-    : 'https://www.google.com/maps?q=41.3275,19.8187&z=8&output=embed';
+  const expandedMapHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body, #map { width: 100%; height: 100%; overflow: hidden; }
+          body { background: #f5f5f5; }
+          .leaflet-control-attribution,
+          .leaflet-control-container { display: none !important; }
+          .place-pin {
+            width: 28px;
+            height: 28px;
+            border-radius: 50% 50% 50% 0;
+            background: #d51e1e;
+            border: 3px solid #ffffff;
+            transform: rotate(-45deg);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.24);
+          }
+          .place-pin::after {
+            content: "";
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ffffff;
+            left: 7px;
+            top: 7px;
+          }
+          .place-marker {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: translateY(-22px);
+          }
+          .place-marker.labels-hidden {
+            transform: translateY(0);
+          }
+          .place-marker.labels-hidden .place-label {
+            display: none;
+          }
+          .place-label {
+            max-width: 132px;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.16);
+            color: #222222;
+            font: 800 11px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            padding: 5px 8px;
+          }
+          .user-pin {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #2563EB;
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 0 8px rgba(37,99,235,0.18);
+          }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <script>
+          const markers = ${JSON.stringify(
+            filteredPlaces.filter(Boolean).map((place) => ({
+              latitude: place.latitude,
+              longitude: place.longitude,
+              name: place.name,
+              id: place.id,
+            }))
+          )};
+          const userLocation = ${JSON.stringify(userLocation)};
+          const LABEL_MIN_ZOOM = 10;
+          const map = L.map('map', {
+            zoomControl: false,
+            scrollWheelZoom: true,
+            attributionControl: false
+          }).setView([41.3275, 19.8187], 7);
 
-  const externalMapUrl = userLocation
-    ? `https://www.google.com/maps?q=${userLocation.latitude},${userLocation.longitude}`
-    : 'https://www.google.com/maps?q=41.3275,19.8187';
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19
+          }).addTo(map);
+
+          const escapeHtml = (value) => String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+          const shouldShowLabels = () => map.getZoom() >= LABEL_MIN_ZOOM;
+
+          const createPlaceIcon = (name, showLabel) => L.divIcon({
+            className: '',
+            html: '<div class="place-marker ' + (showLabel ? '' : 'labels-hidden') + '"><div class="place-label">' + escapeHtml(name) + '</div><div class="place-pin"></div></div>',
+            iconSize: [150, 58],
+            iconAnchor: showLabel ? [75, 58] : [75, 28]
+          });
+          const userIcon = L.divIcon({
+            className: '',
+            html: '<div class="user-pin"></div>',
+            iconSize: [18, 18],
+            iconAnchor: [9, 9]
+          });
+
+          const placeLayers = markers.map((marker) => {
+            const layer = L.marker([marker.latitude, marker.longitude], {
+              icon: createPlaceIcon(marker.name, shouldShowLabels()),
+              riseOnHover: true
+            })
+              .on('click', () => {
+                window.parent.postMessage({
+                  type: 'DRITE_PLACE_PIN_CLICK',
+                  placeId: marker.id
+                }, '*');
+              })
+              .addTo(map);
+
+            layer.__placeName = marker.name;
+            return layer;
+          });
+
+          const updateMarkerLabels = () => {
+            const showLabel = shouldShowLabels();
+            placeLayers.forEach((layer) => {
+              layer.setIcon(createPlaceIcon(layer.__placeName, showLabel));
+            });
+          };
+
+          map.on('zoomend', updateMarkerLabels);
+          updateMarkerLabels();
+
+          window.addEventListener('message', (event) => {
+            if (event?.data?.type !== 'DRITE_CENTER_USER_LOCATION') {
+              return;
+            }
+
+            const location = event.data.location;
+            if (!location || typeof location.latitude !== 'number' || typeof location.longitude !== 'number') {
+              return;
+            }
+
+            map.setView([location.latitude, location.longitude], Math.max(map.getZoom(), 13), {
+              animate: true
+            });
+          });
+
+          if (userLocation) {
+            L.marker([userLocation.latitude, userLocation.longitude], { icon: userIcon })
+              .addTo(map);
+          }
+
+          const boundsPoints = markers.map((marker) => [marker.latitude, marker.longitude]);
+          if (userLocation) {
+            boundsPoints.push([userLocation.latitude, userLocation.longitude]);
+          }
+
+          if (boundsPoints.length > 0) {
+            map.fitBounds(L.latLngBounds(boundsPoints), { padding: [48, 48], maxZoom: 13 });
+          }
+        </script>
+      </body>
+    </html>
+  `;
 
   const selectedCity = selectedPlace ? cityMap[selectedPlace.cityId] : null;
   const selectedCategory = selectedPlace
@@ -328,8 +685,9 @@ export default function ExploreScreen({ route }) {
           >
             <View style={styles.expandedMapContainer}>
               <iframe
+                ref={mapFrameRef}
                 title="Explore Albania Map"
-                src={expandedMapUrl}
+                srcDoc={expandedMapHtml}
                 style={styles.webIframeFull}
                 loading="lazy"
                 allowFullScreen
@@ -347,11 +705,33 @@ export default function ExploreScreen({ route }) {
                         color={colors.black}
                       />
                       <Text style={styles.mapFloatingPillText}>
-                        {nearbyPlaces.length} nearby
+                        {filteredPlaces.length} places
                       </Text>
                     </View>
 
-                    {locationPermissionDenied && (
+                    {activeFilterChips.length > 0 && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.activeFiltersContent}
+                        style={styles.activeFiltersRow}
+                      >
+                        {activeFilterChips.map((chip) => (
+                          <Pressable
+                            key={chip.key}
+                            style={styles.activeFilterChip}
+                            onPress={chip.onRemove}
+                          >
+                            <Text style={styles.activeFilterChipText} numberOfLines={1}>
+                              {chip.label}
+                            </Text>
+                            <Ionicons name="close" size={14} color={colors.primary} />
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                    )}
+
+                    {showLocationWarning && (locationPermissionDenied || locationErrorMessage) && (
                       <View style={styles.mapWarningPill}>
                         <Ionicons
                           name="location-off-outline"
@@ -359,7 +739,7 @@ export default function ExploreScreen({ route }) {
                           color="#A15C00"
                         />
                         <Text style={styles.mapWarningPillText}>
-                          Using fallback location
+                          {locationErrorMessage || 'Location permission unavailable.'}
                         </Text>
                       </View>
                     )}
@@ -375,7 +755,18 @@ export default function ExploreScreen({ route }) {
 
                     <Pressable
                       style={styles.floatingActionButton}
-                      onPress={() => window.open(externalMapUrl, '_blank')}
+                      onPress={() => setShowFilterSheet(true)}
+                    >
+                      <Ionicons
+                        name="options-outline"
+                        size={20}
+                        color={hasActiveFilters ? colors.primary : colors.black}
+                      />
+                    </Pressable>
+
+                    <Pressable
+                      style={styles.floatingActionButton}
+                      onPress={centerOnUserLocation}
                     >
                       <Ionicons name="locate" size={20} color={colors.black} />
                     </Pressable>
@@ -387,15 +778,19 @@ export default function ExploreScreen({ route }) {
                     <View style={styles.mapInfoCard}>
                       <View style={styles.mapInfoTopRow}>
                         <View>
-                          <Text style={styles.mapInfoTitle}>Nearby places</Text>
+                          <Text style={styles.mapInfoTitle}>
+                            {nearbyOnly ? 'Nearby places' : hasActiveFilters ? 'Filtered places' : 'All places'}
+                          </Text>
                           <Text style={styles.mapInfoSubtext}>
-                            Click a place below to preview its details.
+                            {filteredPlaces.length > 0
+                              ? 'Places are shown as pins on the map.'
+                              : 'No places match these filters.'}
                           </Text>
                         </View>
 
                         <View style={styles.mapInfoCountBadge}>
                           <Text style={styles.mapInfoCountText}>
-                            {nearbyPlaces.length}
+                            {filteredPlaces.length}
                           </Text>
                         </View>
                       </View>
@@ -484,42 +879,172 @@ export default function ExploreScreen({ route }) {
                   </View>
                 )}
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.webPlacesStripContent}
-                  style={styles.webPlacesStrip}
-                >
-                  {nearbyPlaces.filter(Boolean).map((place) => {
-                    const city = cityMap[place.cityId];
+              </SafeAreaView>
 
-                    return (
+              <Modal
+                visible={showFilterSheet}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowFilterSheet(false)}
+              >
+                <Pressable
+                  style={styles.filterBackdrop}
+                  onPress={() => setShowFilterSheet(false)}
+                />
+
+                <SafeAreaView edges={['bottom']} style={styles.filterSheetSafeArea}>
+                  <View style={styles.filterSheet}>
+                    <View style={styles.filterSheetHandle} />
+
+                    <View style={styles.filterHeader}>
+                      <View>
+                        <Text style={styles.filterTitle}>Map filters</Text>
+                        <Text style={styles.filterSubtitle}>
+                          {filteredPlaces.length} places visible
+                        </Text>
+                      </View>
+
+                      <Pressable
+                        style={styles.filterCloseButton}
+                        onPress={() => setShowFilterSheet(false)}
+                      >
+                        <Ionicons name="close" size={20} color={colors.black} />
+                      </Pressable>
+                    </View>
+
+                    <View style={styles.placeModeToggle}>
                       <TouchableOpacity
-                        key={place?.id || place?.legacyId || place?.name}
                         style={[
-                          styles.webPlaceChip,
-                          selectedPlace?.id === place?.id && styles.webPlaceChipActive,
+                          styles.placeModeOption,
+                          !nearbyOnly && styles.placeModeOptionActive,
                         ]}
                         activeOpacity={0.88}
-                        onPress={() => handleMarkerPress(place)}
+                        onPress={handleShowAllPlaces}
                       >
+                        <Ionicons
+                          name="map-outline"
+                          size={18}
+                          color={!nearbyOnly ? colors.white : colors.primary}
+                        />
                         <Text
-                          style={styles.webPlaceChipTitle}
-                          numberOfLines={1}
+                          style={[
+                            styles.placeModeOptionText,
+                            !nearbyOnly && styles.placeModeOptionTextActive,
+                          ]}
                         >
-                          {place.name}
-                        </Text>
-                        <Text
-                          style={styles.webPlaceChipSubtitle}
-                          numberOfLines={1}
-                        >
-                          {city?.name || 'Unknown city'}
+                          All Places
                         </Text>
                       </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </SafeAreaView>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.placeModeOption,
+                          nearbyOnly && styles.placeModeOptionActive,
+                        ]}
+                        activeOpacity={0.88}
+                        onPress={handleToggleNearby}
+                      >
+                        <Ionicons
+                          name="navigate-outline"
+                          size={18}
+                          color={nearbyOnly ? colors.white : colors.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.placeModeOptionText,
+                            nearbyOnly && styles.placeModeOptionTextActive,
+                          ]}
+                        >
+                          Nearby 30 km
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.clearFiltersButton}
+                      activeOpacity={0.88}
+                      onPress={clearFilters}
+                    >
+                      <Text style={styles.clearFiltersButtonText}>Clear Filters</Text>
+                    </TouchableOpacity>
+
+                    {showLocationWarning && locationErrorMessage ? (
+                      <View style={styles.filterErrorBox}>
+                        <Ionicons name="alert-circle-outline" size={16} color="#8A5A00" />
+                        <Text style={styles.filterErrorText}>{locationErrorMessage}</Text>
+                      </View>
+                    ) : null}
+
+                    <Text style={styles.filterSectionTitle}>Category Filter</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.filterOptionsRow}
+                    >
+                      {categories.filter(Boolean).map((category) => (
+                        <TouchableOpacity
+                          key={category?.id || category?.legacyId || category?.name}
+                          style={[
+                            styles.filterOptionChip,
+                            idListIncludes(selectedCategoryIds, category.id) &&
+                              styles.filterOptionChipActive,
+                          ]}
+                          activeOpacity={0.88}
+                          onPress={() =>
+                            setSelectedCategoryIds((currentIds) =>
+                              toggleIdInList(currentIds, category.id)
+                            )
+                          }
+                        >
+                          <Text
+                            style={[
+                              styles.filterOptionChipText,
+                              idListIncludes(selectedCategoryIds, category.id) &&
+                                styles.filterOptionChipTextActive,
+                            ]}
+                          >
+                            {category.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+
+                    <Text style={styles.filterSectionTitle}>City Filter</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.filterOptionsRow}
+                    >
+                      {visibleCities.filter(Boolean).map((city) => (
+                        <TouchableOpacity
+                          key={city?.id || city?.legacyId || city?.name}
+                          style={[
+                            styles.filterOptionChip,
+                            idListIncludes(selectedCityIds, city.id) &&
+                              styles.filterOptionChipActive,
+                          ]}
+                          activeOpacity={0.88}
+                          onPress={() =>
+                            setSelectedCityIds((currentIds) =>
+                              toggleIdInList(currentIds, city.id)
+                            )
+                          }
+                        >
+                          <Text
+                            style={[
+                              styles.filterOptionChipText,
+                              idListIncludes(selectedCityIds, city.id) &&
+                                styles.filterOptionChipTextActive,
+                            ]}
+                          >
+                            {city.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </SafeAreaView>
+              </Modal>
             </View>
           </Modal>
 
@@ -775,6 +1300,35 @@ const styles = StyleSheet.create({
     color: '#8A5A00',
   },
 
+  activeFiltersRow: {
+    maxWidth: '100%',
+    marginBottom: 8,
+  },
+
+  activeFiltersContent: {
+    gap: 8,
+    paddingRight: 8,
+  },
+
+  activeFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    maxWidth: 210,
+    backgroundColor: '#FDECEC',
+    borderWidth: 1,
+    borderColor: 'rgba(213,30,30,0.18)',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+
+  activeFilterChipText: {
+    marginRight: 6,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+
   mapActionsColumn: {
     gap: 10,
   },
@@ -840,6 +1394,176 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.black,
+  },
+
+  filterBackdrop: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+
+  filterSheetSafeArea: {
+    backgroundColor: colors.white,
+  },
+
+  filterSheet: {
+    backgroundColor: colors.white,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 14,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+
+  filterSheetHandle: {
+    width: 42,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#D9D9D9',
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+
+  filterTitle: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: colors.black,
+  },
+
+  filterSubtitle: {
+    marginTop: 3,
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '600',
+  },
+
+  filterCloseButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F2F2F2',
+  },
+
+  placeModeToggle: {
+    flexDirection: 'row',
+    gap: 8,
+    padding: 5,
+    borderRadius: 18,
+    backgroundColor: '#F8F8F8',
+    borderWidth: 1,
+    borderColor: '#ECECEC',
+    marginBottom: 12,
+  },
+
+  placeModeOption: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+
+  placeModeOptionActive: {
+    backgroundColor: colors.primary,
+  },
+
+  placeModeOptionText: {
+    marginLeft: 7,
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  placeModeOptionTextActive: {
+    color: colors.white,
+  },
+
+  clearFiltersButton: {
+    minHeight: 44,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    backgroundColor: colors.white,
+    marginBottom: 10,
+  },
+
+  clearFiltersButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  filterErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF4E0',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+
+  filterErrorText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#8A5A00',
+    fontWeight: '600',
+  },
+
+  filterSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.black,
+    marginTop: 10,
+    marginBottom: 9,
+  },
+
+  filterOptionsRow: {
+    gap: 9,
+    paddingRight: 18,
+    paddingBottom: 4,
+  },
+
+  filterOptionChip: {
+    minHeight: 42,
+    maxWidth: 190,
+    borderRadius: 999,
+    borderWidth: 1.2,
+    borderColor: '#E8E8E8',
+    backgroundColor: '#F8F8F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+  },
+
+  filterOptionChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: '#FDECEC',
+  },
+
+  filterOptionChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#444',
+  },
+
+  filterOptionChipTextActive: {
+    color: colors.primary,
   },
 
   placePreviewContainer: {
@@ -988,8 +1712,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 16,
-    zIndex: 15,
+    bottom: 104,
+    zIndex: 24,
   },
 
   webPlacesStripContent: {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../context/AppDataContext';
@@ -65,54 +66,85 @@ export default function PlaceDetailScreen({ route }) {
     routeParams.place?.id;
   const { getSavedPlaces, savePlace, removeSavedPlace, isLoggedIn } =
     useAuth();
-  const { getPlaceById, getCityById } = useAppData();
+  const { getPlaceById, getCityById, getCategoryById, refreshData } = useAppData();
   const { t, language } = useTranslation();
-  const { isRefreshing, refreshApp } = useAppRefresh();
   const [tripModalVisible, setTripModalVisible] = useState(false);
   const [remotePlace, setRemotePlace] = useState(null);
+  const [isPlaceLoading, setIsPlaceLoading] = useState(Boolean(placeId));
+  const [placeErrorMessage, setPlaceErrorMessage] = useState('');
 
-  const place = getPlaceById(placeId) || remotePlace || routeParams.place;
+  const place = remotePlace || getPlaceById(placeId) || (!placeId ? routeParams.place : null);
   const savedPlaces = getSavedPlaces() || [];
   const safePlaceId = place?.id || placeId;
   const isSaved = savedPlaces
     .filter(Boolean)
     .some((item) => String(item.id) === String(safePlaceId));
 
-  useEffect(() => {
-    if (place || !placeId) {
+  const loadFreshPlaceDetails = useCallback(async ({ refreshStore = false } = {}) => {
+    if (!placeId) {
+      setIsPlaceLoading(false);
       return;
     }
 
-    let isMounted = true;
+    setIsPlaceLoading(true);
+    setPlaceErrorMessage('');
 
-    async function loadPlaceDetails() {
-      try {
-        const nextPlace = normalizePlace(await fetchPlaceById(placeId), {
-          language,
-        });
-        if (isMounted && nextPlace) {
-          setRemotePlace(nextPlace);
-        }
-      } catch (error) {
-        logWarning('Could not load place detail:', error?.message);
-      }
+    try {
+      const [freshPlace] = await Promise.all([
+        fetchPlaceById(placeId),
+        refreshStore ? refreshData?.() : Promise.resolve(),
+      ]);
+      const category = freshPlace?.category_id
+        ? getCategoryById(freshPlace.category_id)
+        : null;
+      const city = freshPlace?.city_id
+        ? getCityById(freshPlace.city_id)
+        : null;
+      const nextPlace = normalizePlace(freshPlace, {
+        categoryName: category?.name,
+        cityName: city?.name,
+        language,
+      });
+
+      setRemotePlace(nextPlace);
+    } catch (error) {
+      logWarning('Could not load place detail:', error?.message);
+      setPlaceErrorMessage('Could not refresh this place from Supabase.');
+    } finally {
+      setIsPlaceLoading(false);
     }
+  }, [
+    getCategoryById,
+    getCityById,
+    language,
+    placeId,
+    refreshData,
+  ]);
 
-    loadPlaceDetails();
+  const { isRefreshing, refreshApp } = useAppRefresh(loadFreshPlaceDetails);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [language, place, placeId]);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!placeId) {
+        setIsPlaceLoading(false);
+        return undefined;
+      }
+
+      loadFreshPlaceDetails({ refreshStore: true });
+      return undefined;
+    }, [loadFreshPlaceDetails, placeId])
+  );
 
   if (!place) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar style="dark" />
         <View style={styles.notFound}>
-          <Text style={styles.notFoundTitle}>{t('placeDetail.notFoundTitle')}</Text>
+          <Text style={styles.notFoundTitle}>
+            {isPlaceLoading ? 'Loading place...' : t('placeDetail.notFoundTitle')}
+          </Text>
           <Text style={styles.notFoundText}>
-            {t('placeDetail.notFoundText')}
+            {placeErrorMessage || t('placeDetail.notFoundText')}
           </Text>
         </View>
       </SafeAreaView>
@@ -298,6 +330,9 @@ export default function PlaceDetailScreen({ route }) {
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t('common.description')}</Text>
+            {placeErrorMessage ? (
+              <Text style={styles.errorText}>{placeErrorMessage}</Text>
+            ) : null}
             <Text style={styles.description}>
               {place.description || t('common.noDescriptionPlace')}
             </Text>
@@ -530,6 +565,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
     color: '#4B5563',
+  },
+
+  errorText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#B45309',
+    marginBottom: 10,
+    fontWeight: '600',
   },
 
   infoGrid: {

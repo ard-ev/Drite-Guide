@@ -1,0 +1,106 @@
+
+> drite-guide@1.0.0 web
+> expo start --web --port 8082
+
+env: load .env.local
+env: export EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_AUTH_REDIRECT_URL EXPO_PUBLIC_PASSWORD_RESET_REDIRECT_URL
+Starting project at C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide
+React Compiler enabled
+Starting Metro Bundler
+Waiting on http://localhost:8082
+Logs for your project will appear below.
+Web node_modules\expo\AppEntry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (827/827)
+Web Bundled 2687ms node_modules\expo\AppEntry.js (827 modules)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 90ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 76ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 41ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 61ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 50ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 43ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 80ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 40ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 43ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 52ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo\AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 47ms node_modules\expo\AppEntry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+ ERROR  SyntaxError: C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\src\screens\PlaceDetailScreen.js: Identifier 'isRefreshing' has already been declared. (125:10)
+
+  123 |   ]);
+  124 |
+> 125 |   const { isRefreshing, refreshApp } = useAppRefresh(loadFreshPlaceDetails);
+      |           ^
+  126 |
+  127 |   useFocusEffect(
+  128 |     React.useCallback(() => {
+    at constructor (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:365:19)
+    at FlowParserMixin.raise (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:6616:19)
+    at FlowScopeHandler.checkRedeclarationInScope (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:1619:19)
+    at FlowScopeHandler.declareName (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:1585:12)
+    at FlowScopeHandler.declareName (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:1686:11)
+    at FlowParserMixin.declareNameFromIdentifier (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:7584:16)
+    at FlowParserMixin.checkIdentifier (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:7580:12)
+    at FlowParserMixin.checkLVal (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:7517:12)
+    at FlowParserMixin.checkLVal (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:7561:12)
+    at FlowParserMixin.checkLVal (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:7557:16)
+    at FlowParserMixin.parseVarId (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13429:10)
+    at FlowParserMixin.parseVarId (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:3486:11)
+    at FlowParserMixin.parseVar (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13400:12)
+    at FlowParserMixin.parseVarStatement (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13247:10)
+    at FlowParserMixin.parseStatementContent (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12868:23)
+    at FlowParserMixin.parseStatementLike (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12784:17)
+    at FlowParserMixin.parseStatementLike (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:2930:24)
+    at FlowParserMixin.parseStatementListItem (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12764:17)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13333:61)
+    at FlowParserMixin.parseBlockBody (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13326:10)
+    at FlowParserMixin.parseBlock (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13314:10)
+    at FlowParserMixin.parseFunctionBody (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12117:24)
+    at FlowParserMixin.parseFunctionBody (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:2907:11)
+    at FlowParserMixin.parseFunctionBodyAndFinish (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12103:10)
+    at FlowParserMixin.parseFunctionBodyAndFinish (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:2915:18)
+    at C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13462:12
+    at FlowParserMixin.withSmartMixTopicForbiddingContext (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12420:14)
+    at FlowParserMixin.parseFunction (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13461:10)
+    at FlowParserMixin.parseExportDefaultExpression (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13924:19)
+    at FlowParserMixin.parseExportDefaultExpression (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:2978:18)
+    at FlowParserMixin.parseExport (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13845:25)
+    at FlowParserMixin.parseStatementContent (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12895:27)
+    at FlowParserMixin.parseStatementLike (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12784:17)
+    at FlowParserMixin.parseStatementLike (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:2930:24)
+    at FlowParserMixin.parseModuleItem (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12761:17)
+    at FlowParserMixin.parseBlockOrModuleBlockBody (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13333:36)
+    at FlowParserMixin.parseBlockBody (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:13326:10)
+    at FlowParserMixin.parseProgram (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12639:10)
+    at FlowParserMixin.parseTopLevel (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:12629:25)
+    at FlowParserMixin.parseTopLevel (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:3697:28)
+    at FlowParserMixin.parse (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:14505:25)
+    at parse (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\parser\lib\index.js:14518:26)
+    at parser (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\core\lib\parser\index.js:41:34)
+    at parser.next (<anonymous>)
+    at normalizeFile (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\core\lib\transformation\normalize-file.js:64:37)
+    at normalizeFile.next (<anonymous>)
+    at run (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\core\lib\transformation\index.js:22:50)
+    at run.next (<anonymous>)
+    at transform (C:\Users\sadik\OneDrive\Documents\GitHub\Drite-Guide\drite-guide\node_modules\@babel\core\lib\transform.js:22:33)
+    at transform.next (<anonymous>)

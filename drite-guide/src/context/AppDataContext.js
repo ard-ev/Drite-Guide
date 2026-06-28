@@ -4,14 +4,13 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { AppState } from 'react-native';
 
 import { supabase } from '../lib/supabase';
-import { getCategories } from '../services/categoriesService';
-import { getCities } from '../services/citiesService';
-import { getPlaces } from '../services/placesService';
+import { refreshApplicationData } from '../services/appBootstrapService';
 import { getSupabaseErrorMessage } from '../services/supabaseService';
 import {
   normalizeCategory,
@@ -107,18 +106,22 @@ export function AppDataProvider({ children, initialData = undefined }) {
   const [places, setPlaces] = useState(initialSnapshot.places);
   const [isLoading, setIsLoading] = useState(!hasInitialData);
   const [errorMessage, setErrorMessage] = useState('');
+  const fetchPromiseRef = useRef(null);
 
   const fetchAllData = useCallback(async () => {
+    if (fetchPromiseRef.current) {
+      return fetchPromiseRef.current;
+    }
+
     setIsLoading(true);
     setErrorMessage('');
 
-    try {
-      const [categoriesResponse, citiesResponse, placesResponse] =
-        await Promise.all([
-          getCategories(),
-          getCities(),
-          getPlaces(),
-        ]);
+    fetchPromiseRef.current = (async () => {
+      const {
+        categories: categoriesResponse,
+        cities: citiesResponse,
+        places: placesResponse,
+      } = await refreshApplicationData();
       const nextSnapshot = normalizeAppDataSnapshot(
         {
           categories: categoriesResponse,
@@ -131,6 +134,10 @@ export function AppDataProvider({ children, initialData = undefined }) {
       setCategories(nextSnapshot.categories);
       setCities(nextSnapshot.cities);
       setPlaces(nextSnapshot.places);
+    })();
+
+    try {
+      await fetchPromiseRef.current;
     } catch (error) {
       setErrorMessage(
         getSupabaseErrorMessage(error, 'Could not load data from Supabase.')
@@ -139,15 +146,14 @@ export function AppDataProvider({ children, initialData = undefined }) {
       setCities([]);
       setPlaces([]);
     } finally {
+      fetchPromiseRef.current = null;
       setIsLoading(false);
     }
   }, [currentLanguage]);
 
   useEffect(() => {
-    if (initialData == null) {
-      fetchAllData();
-    }
-  }, [fetchAllData, initialData]);
+    fetchAllData();
+  }, [fetchAllData]);
 
   useEffect(() => {
     if (!hasInitialData) {

@@ -97,15 +97,20 @@ async function fetchRemoteData() {
   return { categories, cities, places };
 }
 
+export async function refreshApplicationData() {
+  const remoteData = await fetchRemoteData();
+  await writeCachedData(remoteData);
+  prefetchImages(collectImageUrls(remoteData));
+  return remoteData;
+}
+
 export async function preloadApplicationData() {
   if (!bootstrapPromise) {
     bootstrapPromise = (async () => {
       const cachedData = await readCachedApplicationData();
 
       try {
-        const remoteData = await fetchRemoteData();
-        await writeCachedData(remoteData);
-        prefetchImages(collectImageUrls(remoteData));
+        const remoteData = await refreshApplicationData();
         return {
           data: remoteData,
           usedCache: false,
