@@ -702,7 +702,10 @@ export default function ExploreScreen({ route }) {
                                                 size={15}
                                                 color={colors.black}
                                             />
-                                            <Text style={styles.mapFloatingPillText}>
+                                            <Text
+                                                style={styles.mapFloatingPillText}
+                                                maxFontSizeMultiplier={1.1}
+                                            >
                                                 {filteredPlaces.length} places
                                             </Text>
                                         </View>
@@ -723,6 +726,8 @@ export default function ExploreScreen({ route }) {
                                                         <Text
                                                             style={styles.activeFilterChipText}
                                                             numberOfLines={1}
+                                                            ellipsizeMode="tail"
+                                                            maxFontSizeMultiplier={1.05}
                                                         >
                                                             {chip.label}
                                                         </Text>
@@ -743,7 +748,11 @@ export default function ExploreScreen({ route }) {
                                                     size={14}
                                                     color="#A15C00"
                                                 />
-                                                <Text style={styles.mapWarningPillText}>
+                                                <Text
+                                                    style={styles.mapWarningPillText}
+                                                    numberOfLines={2}
+                                                    maxFontSizeMultiplier={1.1}
+                                                >
                                                     {locationErrorMessage || 'Location permission unavailable.'}
                                                 </Text>
                                             </View>
@@ -791,10 +800,16 @@ export default function ExploreScreen({ route }) {
                                         <View style={styles.mapInfoCard}>
                                             <View style={styles.mapInfoTopRow}>
                                                 <View>
-                                                    <Text style={styles.mapInfoTitle}>
+                                                    <Text
+                                                        style={styles.mapInfoTitle}
+                                                        maxFontSizeMultiplier={1.1}
+                                                    >
                                                         {hasActiveFilters ? 'Filtered places' : 'All places'}
                                                     </Text>
-                                                    <Text style={styles.mapInfoSubtext}>
+                                                    <Text
+                                                        style={styles.mapInfoSubtext}
+                                                        maxFontSizeMultiplier={1.1}
+                                                    >
                                                         {filteredPlaces.length > 0
                                                             ? t('explore.tapMarker')
                                                             : 'No places match these filters.'}
@@ -802,7 +817,10 @@ export default function ExploreScreen({ route }) {
                                                 </View>
 
                                                 <View style={styles.mapInfoCountBadge}>
-                                                    <Text style={styles.mapInfoCountText}>
+                                                    <Text
+                                                        style={styles.mapInfoCountText}
+                                                        maxFontSizeMultiplier={1.1}
+                                                    >
                                                         {filteredPlaces.length}
                                                     </Text>
                                                 </View>
@@ -925,8 +943,16 @@ export default function ExploreScreen({ route }) {
 
                                         <View style={styles.filterHeader}>
                                             <View>
-                                                <Text style={styles.filterTitle}>Map filters</Text>
-                                                <Text style={styles.filterSubtitle}>
+                                                <Text
+                                                    style={styles.filterTitle}
+                                                    maxFontSizeMultiplier={1.1}
+                                                >
+                                                    Map filters
+                                                </Text>
+                                                <Text
+                                                    style={styles.filterSubtitle}
+                                                    maxFontSizeMultiplier={1.1}
+                                                >
                                                     {filteredPlaces.length} places visible
                                                 </Text>
                                             </View>
@@ -958,6 +984,9 @@ export default function ExploreScreen({ route }) {
                                                         styles.placeModeOptionText,
                                                         !nearbyOnly && styles.placeModeOptionTextActive,
                                                     ]}
+                                                    numberOfLines={1}
+                                                    adjustsFontSizeToFit
+                                                    maxFontSizeMultiplier={1.05}
                                                 >
                                                     All Places
                                                 </Text>
@@ -981,6 +1010,9 @@ export default function ExploreScreen({ route }) {
                                                         styles.placeModeOptionText,
                                                         nearbyOnly && styles.placeModeOptionTextActive,
                                                     ]}
+                                                    numberOfLines={1}
+                                                    adjustsFontSizeToFit
+                                                    maxFontSizeMultiplier={1.05}
                                                 >
                                                     Nearby 30 km
                                                 </Text>
@@ -992,7 +1024,10 @@ export default function ExploreScreen({ route }) {
                                             activeOpacity={0.88}
                                             onPress={clearFilters}
                                         >
-                                            <Text style={styles.clearFiltersButtonText}>
+                                            <Text
+                                                style={styles.clearFiltersButtonText}
+                                                maxFontSizeMultiplier={1.05}
+                                            >
                                                 Clear Filters
                                             </Text>
                                         </TouchableOpacity>
@@ -1004,13 +1039,21 @@ export default function ExploreScreen({ route }) {
                                                     size={16}
                                                     color="#8A5A00"
                                                 />
-                                                <Text style={styles.filterErrorText}>
+                                                <Text
+                                                    style={styles.filterErrorText}
+                                                    maxFontSizeMultiplier={1.1}
+                                                >
                                                     {locationErrorMessage}
                                                 </Text>
                                             </View>
                                         ) : null}
 
-                                        <Text style={styles.filterSectionTitle}>Category Filter</Text>
+                                        <Text
+                                            style={styles.filterSectionTitle}
+                                            maxFontSizeMultiplier={1.05}
+                                        >
+                                            Category Filter
+                                        </Text>
                                         <ScrollView
                                             horizontal
                                             showsHorizontalScrollIndicator={false}
@@ -1037,6 +1080,9 @@ export default function ExploreScreen({ route }) {
                                                             idListIncludes(selectedCategoryIds, category.id) &&
                                                                 styles.filterOptionChipTextActive,
                                                         ]}
+                                                        numberOfLines={1}
+                                                        adjustsFontSizeToFit
+                                                        maxFontSizeMultiplier={1.05}
                                                     >
                                                         {category.name}
                                                     </Text>
@@ -1044,7 +1090,12 @@ export default function ExploreScreen({ route }) {
                                             ))}
                                         </ScrollView>
 
-                                        <Text style={styles.filterSectionTitle}>City Filter</Text>
+                                        <Text
+                                            style={styles.filterSectionTitle}
+                                            maxFontSizeMultiplier={1.05}
+                                        >
+                                            City Filter
+                                        </Text>
                                         <ScrollView
                                             horizontal
                                             showsHorizontalScrollIndicator={false}
@@ -1071,6 +1122,9 @@ export default function ExploreScreen({ route }) {
                                                             idListIncludes(selectedCityIds, city.id) &&
                                                                 styles.filterOptionChipTextActive,
                                                         ]}
+                                                        numberOfLines={1}
+                                                        adjustsFontSizeToFit
+                                                        maxFontSizeMultiplier={1.05}
                                                     >
                                                         {city.name}
                                                     </Text>
@@ -1297,8 +1351,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: 'rgba(255,255,255,0.96)',
+        minHeight: 40,
         paddingHorizontal: 12,
-        paddingVertical: 10,
+        paddingVertical: 8,
         borderRadius: 999,
     boxShadow: '0 6px 12px rgba(0,0,0,0.08)',
         elevation: 5,
@@ -1331,31 +1386,33 @@ const styles = StyleSheet.create({
 
     activeFiltersRow: {
         maxWidth: '100%',
-        marginBottom: 8,
+        marginBottom: 6,
     },
 
     activeFiltersContent: {
-        gap: 8,
+        gap: 6,
         paddingRight: 8,
     },
 
     activeFilterChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        maxWidth: 210,
+        justifyContent: 'center',
+        height: 38,
+        maxWidth: 176,
         backgroundColor: '#FDECEC',
         borderWidth: 1,
         borderColor: 'rgba(213,30,30,0.18)',
-        paddingHorizontal: 11,
-        paddingVertical: 8,
-        borderRadius: 999,
+        paddingHorizontal: 10,
+        borderRadius: 19,
     },
 
     activeFilterChipText: {
         marginRight: 6,
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '700',
         color: colors.primary,
+        flexShrink: 1,
     },
 
     mapActionsColumn: {
@@ -1363,9 +1420,9 @@ const styles = StyleSheet.create({
     },
 
     floatingActionButton: {
-        width: 50,
-        height: 50,
-        borderRadius: 18,
+        width: 48,
+        height: 48,
+        borderRadius: 16,
         backgroundColor: 'rgba(255,255,255,0.96)',
         alignItems: 'center',
         justifyContent: 'center',
@@ -1435,7 +1492,7 @@ const styles = StyleSheet.create({
 
     filterSheet: {
         backgroundColor: colors.white,
-        paddingHorizontal: 18,
+        paddingHorizontal: 16,
         paddingTop: 10,
         paddingBottom: 14,
         borderTopLeftRadius: 28,
@@ -1472,9 +1529,9 @@ const styles = StyleSheet.create({
     },
 
     filterCloseButton: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#F2F2F2',
@@ -1488,9 +1545,9 @@ const styles = StyleSheet.create({
 
     placeModeToggle: {
         flexDirection: 'row',
-        gap: 8,
-        padding: 5,
-        borderRadius: 18,
+        gap: 6,
+        padding: 4,
+        borderRadius: 16,
         backgroundColor: '#F8F8F8',
         borderWidth: 1,
         borderColor: '#ECECEC',
@@ -1499,8 +1556,8 @@ const styles = StyleSheet.create({
 
     placeModeOption: {
         flex: 1,
-        minHeight: 48,
-        borderRadius: 14,
+        minHeight: 44,
+        borderRadius: 13,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -1541,8 +1598,8 @@ const styles = StyleSheet.create({
     },
 
     clearFiltersButton: {
-        minHeight: 48,
-        borderRadius: 16,
+        minHeight: 44,
+        borderRadius: 14,
         borderWidth: 1.5,
         borderColor: colors.primary,
         alignItems: 'center',
@@ -1636,8 +1693,8 @@ const styles = StyleSheet.create({
     },
 
     filterOptionChip: {
-        minHeight: 42,
-        maxWidth: 190,
+        height: 40,
+        maxWidth: 168,
         borderRadius: 999,
         borderWidth: 1.2,
         borderColor: '#E8E8E8',
@@ -1653,7 +1710,7 @@ const styles = StyleSheet.create({
     },
 
     filterOptionChipText: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '700',
         color: '#444',
     },
