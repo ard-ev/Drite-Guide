@@ -430,7 +430,7 @@ export async function signUp({
 
   if (!isStrongSignupPassword(cleanPassword)) {
     throw createCodedError(
-      'Password must be at least 8 characters and include one uppercase letter, one lowercase letter and one number.',
+      'Password must be at least 8 characters and include one uppercase letter, one lowercase letter, one number and one special character.',
       'weak_password',
       400
     );

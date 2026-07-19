@@ -163,7 +163,7 @@ function getFriendlySignupErrorMessage(error, t) {
   if (message.includes('password')) {
     return (
       t('auth.passwordRequirements') ||
-      'Password must have at least 8 characters, one uppercase letter, one lowercase letter and one number.'
+      'Password must have at least 8 characters, one uppercase letter, one lowercase letter, one number and one special character.'
     );
   }
 
@@ -607,7 +607,7 @@ export function AuthProvider({ children }) {
         success: false,
         message:
           t('auth.passwordRequirements') ||
-          'Password must have at least 8 characters, one uppercase letter, one lowercase letter and one number.',
+          'Password must have at least 8 characters, one uppercase letter, one lowercase letter, one number and one special character.',
       };
     }
 

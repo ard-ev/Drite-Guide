@@ -21,6 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/TranslationContext';
 import { isUsernameAvailable } from '../services/profileService';
 import {
+    SIGNUP_PASSWORD_RULES,
     isStrongSignupPassword,
     isValidEmailAddress,
     normalizeUsername,
@@ -74,28 +75,11 @@ export default function SignupScreen() {
 
     const usernameTakenText = t('auth.usernameTaken') || 'Username already taken';
 
-    const passwordRules = [
-        {
-            key: 'length',
-            label: t('auth.passwordRuleLength') || 'At least 8 characters',
-            met: password.length >= 8,
-        },
-        {
-            key: 'uppercase',
-            label: t('auth.passwordRuleUppercase') || 'One uppercase letter',
-            met: /[A-Z]/.test(password),
-        },
-        {
-            key: 'lowercase',
-            label: t('auth.passwordRuleLowercase') || 'One lowercase letter',
-            met: /[a-z]/.test(password),
-        },
-        {
-            key: 'number',
-            label: t('auth.passwordRuleNumber') || 'One number',
-            met: /\d/.test(password),
-        },
-    ];
+    const passwordRules = SIGNUP_PASSWORD_RULES.map((rule) => ({
+        key: rule.key,
+        label: t(rule.translationKey) || rule.fallbackLabel,
+        met: rule.test(password),
+    }));
 
     const finalUsername = normalizeUsername(username);
     const isPasswordWeak = password.length > 0 && !isStrongSignupPassword(password);
@@ -251,7 +235,7 @@ export default function SignupScreen() {
             Alert.alert(
                 t('auth.signupFailed') || 'Sign up failed',
                 t('auth.passwordRequirements') ||
-                    'Password must have at least 8 characters, one uppercase letter, one lowercase letter and one number.'
+                    'Password must have at least 8 characters, one uppercase letter, one lowercase letter, one number and one special character.'
             );
             return;
         }
@@ -318,7 +302,7 @@ export default function SignupScreen() {
             const fallbackMessage =
                 String(error?.message || '').toLowerCase().includes('password')
                     ? t('auth.passwordRequirements') ||
-                        'Password must have at least 8 characters, one uppercase letter, one lowercase letter and one number.'
+                        'Password must have at least 8 characters, one uppercase letter, one lowercase letter, one number and one special character.'
                     : t('auth.signupFailedFallback') || 'Could not create account.';
 
             Alert.alert(

@@ -77,14 +77,41 @@ export function isValidEmailAddress(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
 }
 
+export const SIGNUP_PASSWORD_RULES = [
+  {
+    key: 'length',
+    translationKey: 'auth.passwordRuleLength',
+    fallbackLabel: 'At least 8 characters',
+    test: (password) => String(password || '').length >= 8,
+  },
+  {
+    key: 'uppercase',
+    translationKey: 'auth.passwordRuleUppercase',
+    fallbackLabel: 'One uppercase letter',
+    test: (password) => /[A-Z]/.test(String(password || '')),
+  },
+  {
+    key: 'lowercase',
+    translationKey: 'auth.passwordRuleLowercase',
+    fallbackLabel: 'One lowercase letter',
+    test: (password) => /[a-z]/.test(String(password || '')),
+  },
+  {
+    key: 'number',
+    translationKey: 'auth.passwordRuleNumber',
+    fallbackLabel: 'One number',
+    test: (password) => /\d/.test(String(password || '')),
+  },
+  {
+    key: 'special',
+    translationKey: 'auth.passwordRuleSpecial',
+    fallbackLabel: 'One special character',
+    test: (password) => /[^A-Za-z0-9]/.test(String(password || '')),
+  },
+];
+
 export function isStrongSignupPassword(value) {
-  const password = String(value || '');
-  return (
-    password.length >= 8 &&
-    /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /\d/.test(password)
-  );
+  return SIGNUP_PASSWORD_RULES.every((rule) => rule.test(value));
 }
 
 export function sanitizeSearchTerm(value) {

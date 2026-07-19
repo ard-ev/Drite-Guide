@@ -27,7 +27,9 @@ as $$
   select coalesce(
     length(password_value) >= 8
     and password_value ~ '[A-Z]'
-    and password_value ~ '[0-9]',
+    and password_value ~ '[a-z]'
+    and password_value ~ '[0-9]'
+    and password_value ~ '[^A-Za-z0-9]',
     false
   );
 $$;
