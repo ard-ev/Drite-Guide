@@ -24,8 +24,6 @@ import {
 } from '../services/authService';
 import {
   ensureUserProfile,
-  isEmailAvailable,
-  isUsernameAvailable,
   resetProfilePicture as resetProfilePictureInSupabase,
   updatePreferredLanguage,
   uploadProfilePicture as uploadProfilePictureToSupabase,
@@ -619,26 +617,6 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const emailAvailable = await isEmailAvailable(cleanEmail);
-
-      if (!emailAvailable) {
-        return {
-          success: false,
-          message:
-            t('auth.emailTaken') ||
-            'This email is already registered. Please log in or use another email.',
-        };
-      }
-
-      const usernameAvailable = await isUsernameAvailable(cleanUsername);
-
-      if (!usernameAvailable) {
-        return {
-          success: false,
-          message: t('auth.usernameTaken') || 'Username already taken.',
-        };
-      }
-
       const result = await signUp({
         firstName: cleanFirstName,
         lastName: cleanLastName,

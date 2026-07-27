@@ -251,16 +251,6 @@ export default function SignupScreen() {
         setIsSubmitting(true);
 
         try {
-            const available = await isUsernameAvailable(cleanUsername);
-
-            if (!available) {
-                setUsernameStatus('taken');
-                Alert.alert(t('auth.signupFailed') || 'Sign up failed', usernameTakenText);
-                return;
-            }
-
-            setUsernameStatus('available');
-
             const result = await signup({
                 firstName: cleanFirstName,
                 lastName: cleanLastName,

@@ -3,7 +3,6 @@ import * as Linking from 'expo-linking';
 import { assertSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   ensureUserProfile,
-  isUsernameAvailable,
 } from './profileService';
 import {
   getSupabaseErrorMessage,
@@ -434,12 +433,6 @@ export async function signUp({
       'weak_password',
       400
     );
-  }
-
-  const usernameAvailable = await isUsernameAvailable(cleanUsername);
-
-  if (!usernameAvailable) {
-    throw createCodedError('Username already taken', 'username_taken', 409);
   }
 
   const signupPayload = {

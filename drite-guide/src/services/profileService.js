@@ -228,6 +228,13 @@ export async function isUsernameAvailable(username) {
     return false;
   }
 
+  const { data: rpcData, error: rpcError } = await supabase
+    .rpc('is_username_available', { username_value: normalizedUsername });
+
+  if (!rpcError) {
+    return Boolean(rpcData);
+  }
+
   const { data: functionData, error: functionError } = await supabase.functions.invoke(
     'check-username',
     {
@@ -239,13 +246,6 @@ export async function isUsernameAvailable(username) {
     return functionData.available;
   }
 
-  const { data, error: rpcError } = await supabase
-    .rpc('is_username_available', { username_value: normalizedUsername });
-
-  if (!rpcError) {
-    return Boolean(data);
-  }
-
   const { count, error } = await supabase
     .from('user_profile')
     .select('id', { count: 'exact', head: true })
@@ -255,7 +255,7 @@ export async function isUsernameAvailable(username) {
     return (count || 0) === 0;
   }
 
-  throwIfSupabaseError(rpcError || error, 'Could not check username.');
+  throwIfSupabaseError(error || functionError || rpcError, 'Could not check username.');
   return false;
 }
 
