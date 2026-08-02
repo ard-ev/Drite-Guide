@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dritë Guide",
     "slug": "drite-guide",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "scheme": "driteguide",
@@ -12,6 +12,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.driteguide.app",
+      "buildNumber": "2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Dritë Guide uses the camera so you can take a profile picture.",
