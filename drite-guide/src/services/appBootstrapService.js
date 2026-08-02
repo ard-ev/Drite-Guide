@@ -8,7 +8,9 @@ import { getCities } from './citiesService';
 import { getPlaces } from './placesService';
 
 const APP_DATA_CACHE_KEY = 'drite-guide:bootstrap-data:v1';
-const IMAGE_PREFETCH_CONCURRENCY = 6;
+const IMAGE_PREFETCH_CONCURRENCY = 2;
+const IMAGE_PREFETCH_LIMIT = 24;
+const IMAGE_PREFETCH_DELAY_MS = 1200;
 
 let bootstrapPromise = null;
 
@@ -16,29 +18,29 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
-function collectImageUrls({ places = [] }) {
-  const placeUrls = places.flatMap((place) => {
-    const galleryUrls = Array.isArray(place?.images)
-      ? place.images.map((image) =>
-          toAbsoluteAssetUrl(image?.image_path, STORAGE_BUCKETS.placeImages)
-        )
-      : [];
-
-    return [
-      toAbsoluteAssetUrl(place?.main_image_path, STORAGE_BUCKETS.placeImages),
-      ...galleryUrls,
-    ];
-  });
-
-  return unique(placeUrls).filter((url) =>
-    /^https?:\/\//i.test(url)
+function collectImageUrls({ categories = [], cities = [], places = [] }) {
+  const categoryUrls = categories.map((category) =>
+    toAbsoluteAssetUrl(category?.image_path, STORAGE_BUCKETS.categoryImages)
   );
+  const cityUrls = cities.flatMap((city) => [
+    toAbsoluteAssetUrl(city?.hero_image_path, STORAGE_BUCKETS.cityImages),
+    toAbsoluteAssetUrl(city?.image_path, STORAGE_BUCKETS.cityImages),
+  ]);
+  const placeUrls = places.map((place) =>
+    toAbsoluteAssetUrl(place?.main_image_path, STORAGE_BUCKETS.placeImages)
+  );
+
+  return unique([...categoryUrls, ...cityUrls, ...placeUrls])
+    .filter((url) => /^https?:\/\//i.test(url))
+    .slice(0, IMAGE_PREFETCH_LIMIT);
 }
 
 function prefetchImages(urls) {
-  prefetchImagesInBatches(urls).catch(() => {
-    // Image warmup is best-effort and should never delay the app.
-  });
+  setTimeout(() => {
+    prefetchImagesInBatches(urls).catch(() => {
+      // Image warmup is best-effort and should never delay the app.
+    });
+  }, IMAGE_PREFETCH_DELAY_MS);
 }
 
 export async function readCachedApplicationData() {
