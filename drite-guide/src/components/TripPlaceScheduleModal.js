@@ -3,8 +3,10 @@ import {
   Alert,
   Animated,
   Easing,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -233,7 +235,10 @@ export default function TripPlaceScheduleModal({
 
   return (
     <Modal visible={isMounted} transparent animationType="none" onRequestClose={() => closeWithAnimation()}>
-      <View style={styles.modalRoot}>
+      <KeyboardAvoidingView
+        style={styles.modalRoot}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <Animated.View
           style={[styles.backdropOverlay, styles.noPointerEvents, { opacity: backdropOpacity }]}
         />
@@ -257,6 +262,7 @@ export default function TripPlaceScheduleModal({
             showsVerticalScrollIndicator={false}
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
           >
             <Text style={styles.tripRange}>
               {formatDateRangeForDisplay(trip?.start_date, trip?.end_date)}
@@ -326,7 +332,7 @@ export default function TripPlaceScheduleModal({
           </ScrollView>
         </Pressable>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
 
       <CalendarPickerModal
         visible={datePickerVisible}
@@ -366,6 +372,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 28,
+  },
+  scrollContent: {
+    paddingBottom: 120,
   },
   header: {
     flexDirection: 'row',
