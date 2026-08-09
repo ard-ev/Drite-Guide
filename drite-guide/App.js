@@ -7,7 +7,9 @@ import { AuthProvider } from './src/context/AuthContext';
 import { AppDataProvider } from './src/context/AppDataContext';
 import { TranslationProvider } from './src/context/TranslationContext';
 import {
+  readCachedApplicationData,
   preloadApplicationData,
+  warmApplicationImages,
 } from './src/services/appBootstrapService';
 import { logWarning } from './src/utils/logger';
 import AppSplashScreen from './src/screens/SplashScreen';
@@ -39,6 +41,13 @@ export default function App() {
 
     async function prepareData() {
       try {
+        const cachedData = await readCachedApplicationData();
+
+        if (cachedData) {
+          setBootstrapData(cachedData);
+          warmApplicationImages(cachedData);
+        }
+
         const preloadResult = await preloadApplicationData();
 
         if (preloadResult?.usedCache && preloadResult?.error) {

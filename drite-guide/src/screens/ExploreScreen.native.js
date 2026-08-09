@@ -8,7 +8,6 @@ import {
     RefreshControl,
     Modal,
     Pressable,
-    ImageBackground,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -504,12 +503,12 @@ export default function ExploreScreen({ route }) {
                 activeOpacity={0.88}
                 onPress={() => handleCityPress(city?.id)}
             >
-                <ImageBackground
-                    source={getImageSource(city.image)}
-                    style={styles.cityImage}
-                    imageStyle={styles.cityImageStyle}
-                    resizeMode="cover"
-                >
+                <View style={styles.cityImage}>
+                    <FastImage
+                        source={getImageSource(city.image)}
+                        style={styles.cityImageMedia}
+                        resizeMode="cover"
+                    />
                     <View style={styles.cityOverlay} />
 
                     <View style={styles.cityContent}>
@@ -524,7 +523,7 @@ export default function ExploreScreen({ route }) {
                             <Ionicons name="arrow-forward" size={18} color={colors.white} />
                         </View>
                     </View>
-                </ImageBackground>
+                </View>
             </TouchableOpacity>
         );
     };
@@ -1274,8 +1273,8 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
 
-    cityImageStyle: {
-        borderRadius: 22,
+    cityImageMedia: {
+        ...StyleSheet.absoluteFillObject,
     },
 
     cityOverlay: {

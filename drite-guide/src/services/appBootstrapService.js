@@ -134,3 +134,7 @@ export async function preloadApplicationData() {
 
   return bootstrapPromise;
 }
+
+export function warmApplicationImages(data) {
+  prefetchImages(collectImageUrls(data || {}));
+}

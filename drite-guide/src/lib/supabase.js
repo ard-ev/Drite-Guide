@@ -2,8 +2,8 @@ import 'react-native-url-polyfill/auto';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
-import { createClient } from '@supabase/supabase-js';
+import { AppState, Platform } from 'react-native';
+import { createClient, processLock } from '@supabase/supabase-js';
 
 function normalizeSupabaseProjectUrl(url) {
   const value = String(url || '').trim().replace(/\/+$/, '');
@@ -152,9 +152,20 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+      lock: processLock,
     },
   }
 );
+
+if (Platform.OS !== 'web') {
+  AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      supabase.auth.startAutoRefresh();
+    } else {
+      supabase.auth.stopAutoRefresh();
+    }
+  });
+}
 
 export function assertSupabaseConfigured() {
   if (!isSupabaseConfigured) {

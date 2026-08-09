@@ -107,6 +107,27 @@ function createLocalId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function createFallbackProfileFromAuthUser(user) {
+  if (!user?.id) {
+    return null;
+  }
+
+  const email = user.email || '';
+  const username = normalizeUsername(
+    user.user_metadata?.username || email.split('@')[0] || user.id
+  );
+
+  return {
+    id: user.id,
+    email,
+    username,
+    first_name: user.user_metadata?.first_name || '',
+    last_name: user.user_metadata?.last_name || '',
+    preferred_language: user.user_metadata?.preferred_language || 'en',
+    email_verified: Boolean(user.email_confirmed_at),
+  };
+}
+
 function isLocalTripId(tripId) {
   return String(tripId || '').startsWith('local-trip-');
 }
@@ -357,7 +378,15 @@ export function AuthProvider({ children }) {
     const session = await getCurrentSession();
 
     if (session?.user) {
-      const profile = await ensureUserProfile(session.user);
+      let profile = null;
+
+      try {
+        profile = await ensureUserProfile(session.user);
+      } catch (profileError) {
+        logWarning('Could not load profile during auth bootstrap:', profileError?.message);
+        profile = createFallbackProfileFromAuthUser(session.user);
+      }
+
       await applySessionState(session, profile);
     }
 
@@ -479,7 +508,14 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const profile = await ensureUserProfile(session.user);
+        let profile = null;
+
+        try {
+          profile = await ensureUserProfile(session.user);
+        } catch (profileError) {
+          logWarning('Could not load profile during auth state sync:', profileError?.message);
+          profile = createFallbackProfileFromAuthUser(session.user);
+        }
 
         if (isMounted) {
           await applySessionState(session, profile);

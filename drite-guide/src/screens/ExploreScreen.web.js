@@ -7,7 +7,6 @@ import {
   ScrollView,
   Modal,
   Pressable,
-  ImageBackground,
   Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -21,6 +20,7 @@ import { getCategoryLabel, getImageSource } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
 import colors from '../theme/colors';
 import { logWarning } from '../utils/logger';
+import FastImage from '../components/FastImage';
 
 const NEARBY_RADIUS_KM = 30;
 
@@ -428,12 +428,12 @@ export default function ExploreScreen({ route }) {
         activeOpacity={0.88}
         onPress={() => handleCityPress(city?.id)}
       >
-        <ImageBackground
-          source={getImageSource(city.image)}
-          style={styles.cityImage}
-          imageStyle={styles.cityImageStyle}
-          resizeMode="cover"
-        >
+        <View style={styles.cityImage}>
+          <FastImage
+            source={getImageSource(city.image)}
+            style={styles.cityImageMedia}
+            resizeMode="cover"
+          />
           <View style={styles.cityOverlay} />
 
           <View style={styles.cityContent}>
@@ -448,7 +448,7 @@ export default function ExploreScreen({ route }) {
               <Ionicons name="arrow-forward" size={18} color={colors.white} />
             </View>
           </View>
-        </ImageBackground>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -1190,8 +1190,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
 
-  cityImageStyle: {
-    borderRadius: 22,
+  cityImageMedia: {
+    ...StyleSheet.absoluteFillObject,
   },
 
   cityOverlay: {
