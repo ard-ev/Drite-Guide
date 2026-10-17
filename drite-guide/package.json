@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test:place-access": "node ./scripts/test-place-access.js",
+    "test:auth": "node ./scripts/test-auth.js",
     "translate:content": "node ./scripts/translate-content.js"
   },
   "dependencies": {

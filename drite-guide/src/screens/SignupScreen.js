@@ -261,11 +261,7 @@ export default function SignupScreen() {
             });
 
             if (!result?.success) {
-                if (
-                    String(result?.message || '')
-                        .toLowerCase()
-                        .includes('too many')
-                ) {
+                if (result?.rateLimited) {
                     setEmailCooldownUntil(Date.now() + EMAIL_RATE_LIMIT_COOLDOWN_MS);
                 }
 

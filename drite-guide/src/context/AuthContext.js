@@ -12,6 +12,7 @@ import {
   clearInvalidAuthSession,
   getCurrentSession,
   handleAuthRedirectUrl,
+  isAuthRateLimitError,
   isEmailRateLimitError,
   isEmailNotVerifiedError,
   isInvalidRefreshTokenError,
@@ -190,6 +191,10 @@ function getFriendlySignupErrorMessage(error, t) {
     return t('auth.emailRateLimit') || 'Too many emails sent. Please try again later.';
   }
 
+  if (isAuthRateLimitError(error)) {
+    return t('auth.requestRateLimit');
+  }
+
   return t('auth.signupFailedFallback') || 'Sign up failed. Please try again.';
 }
 
@@ -203,6 +208,10 @@ function getFriendlyPasswordResetErrorMessage(error, t) {
       t('auth.passwordResetRateLimit') ||
       'Too many password reset emails were requested. Please try again later.'
     );
+  }
+
+  if (isAuthRateLimitError(error)) {
+    return t('auth.requestRateLimit');
   }
 
   return (
@@ -498,7 +507,7 @@ export function AuthProvider({ children }) {
       };
     }
 
-    const { data } = onAuthStateChange(async (_event, session) => {
+    const syncAuthSession = async (session) => {
       if (!isMounted) return;
 
       if (!session?.user) {
@@ -533,11 +542,23 @@ export function AuthProvider({ children }) {
 
         logWarning('Auth state sync failed:', error?.message);
       }
+    };
+
+    // Return before querying Supabase: auth events run while its session lock is held.
+    let pendingAuthSync;
+    const { data } = onAuthStateChange((_event, session) => {
+      clearTimeout(pendingAuthSync);
+      pendingAuthSync = setTimeout(() => {
+        syncAuthSession(session).catch((error) => {
+          logWarning('Auth state sync failed:', error?.message);
+        });
+      }, 0);
     });
 
     return () => {
       isMounted = false;
       data?.subscription?.unsubscribe?.();
+      clearTimeout(pendingAuthSync);
       linkingSubscription?.remove?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -582,8 +603,11 @@ export function AuthProvider({ children }) {
         success: false,
         requiresEmailVerification: isEmailNotVerifiedError(error),
         verificationEmail: error?.verificationEmail || null,
+        rateLimited: isAuthRateLimitError(error),
         message: isEmailNotVerifiedError(error)
           ? t('auth.emailNotVerified') || 'Please verify your email first.'
+          : isAuthRateLimitError(error)
+            ? t('auth.requestRateLimit')
           : isInvalidLoginError(error)
             ? t('auth.incorrectEmailOrPassword') || 'Incorrect email or password.'
             : t('auth.loginFailedFallback') || 'Login failed. Please try again.',
@@ -681,6 +705,7 @@ export function AuthProvider({ children }) {
       return {
         success: false,
         message: getFriendlySignupErrorMessage(error, t),
+        rateLimited: isAuthRateLimitError(error),
       };
     }
   };
@@ -711,6 +736,8 @@ export function AuthProvider({ children }) {
         success: false,
         message: isEmailRateLimitError(error)
           ? t('auth.emailRateLimit') || 'Too many emails sent. Please try again later.'
+          : isAuthRateLimitError(error)
+            ? t('auth.requestRateLimit')
           : getSupabaseErrorMessage(
             error,
             t('auth.verificationEmailFailed') ||

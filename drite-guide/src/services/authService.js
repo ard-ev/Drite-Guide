@@ -116,6 +116,7 @@ export function isEmailNotVerifiedError(error) {
 
   return (
     error?.code === EMAIL_NOT_VERIFIED_CODE ||
+    error?.code === 'email_not_confirmed' ||
     message.includes('email not confirmed') ||
     message.includes('not verified')
   );
@@ -126,13 +127,21 @@ export function isEmailRateLimitError(error) {
 
   return (
     error?.code === EMAIL_RATE_LIMIT_CODE ||
-    error?.status === 429 ||
+    error?.code === 'over_email_send_rate_limit' ||
     message.includes('email rate limit') ||
     message.includes('over_email_send_rate_limit') ||
-    message.includes('rate limit exceeded') ||
     message.includes('too many verification emails') ||
     message.includes('too many emails') ||
     message.includes('verification emails were requested')
+  );
+}
+
+export function isAuthRateLimitError(error) {
+  return (
+    isEmailRateLimitError(error) ||
+    error?.status === 429 ||
+    error?.code === 'over_request_rate_limit' ||
+    getSupabaseErrorMessage(error, '').toLowerCase().includes('rate limit exceeded')
   );
 }
 

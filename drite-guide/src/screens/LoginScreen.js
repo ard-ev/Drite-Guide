@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -41,22 +41,33 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [pendingVerificationEmail, setPendingVerificationEmail] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const loginInFlight = useRef(false);
 
     const handleLogin = async () => {
-        const result = await login(identifier, password);
+        if (loginInFlight.current || isBootstrapping) return;
+        loginInFlight.current = true;
+        setIsSubmitting(true);
 
-        if (!result.success) {
-            const verificationEmail = result.verificationEmail ||
-                (identifier.includes('@') ? identifier.trim().toLowerCase() : '');
-            setPendingVerificationEmail(
-                result.requiresEmailVerification ? verificationEmail : ''
-            );
-            Alert.alert(t('auth.loginFailed'), result.message);
-            return;
+        try {
+            const result = await login(identifier, password);
+
+            if (!result.success) {
+                const verificationEmail = result.verificationEmail ||
+                    (identifier.includes('@') ? identifier.trim().toLowerCase() : '');
+                setPendingVerificationEmail(
+                    result.requiresEmailVerification ? verificationEmail : ''
+                );
+                Alert.alert(t('auth.loginFailed'), result.message);
+                return;
+            }
+
+            setPendingVerificationEmail('');
+            navigateToAccount(navigation);
+        } finally {
+            loginInFlight.current = false;
+            setIsSubmitting(false);
         }
-
-        setPendingVerificationEmail('');
-        navigateToAccount(navigation);
     };
 
     const handleResendVerification = async () => {
@@ -200,10 +211,10 @@ export default function LoginScreen() {
                                 style={styles.primaryButton}
                                 activeOpacity={0.88}
                                 onPress={handleLogin}
-                                disabled={isBootstrapping}
+                                disabled={isBootstrapping || isSubmitting}
                             >
                                 <Text style={styles.primaryButtonText}>
-                                    {isBootstrapping ? t('common.pleaseWait') : t('auth.loginTitle')}
+                                    {isBootstrapping || isSubmitting ? t('common.pleaseWait') : t('auth.loginTitle')}
                                 </Text>
                             </TouchableOpacity>
 

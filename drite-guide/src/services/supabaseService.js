@@ -22,7 +22,10 @@ export function getSupabaseErrorMessage(error, fallbackMessage = 'Something went
 
 export function throwIfSupabaseError(error, fallbackMessage) {
   if (error) {
-    throw new Error(getSupabaseErrorMessage(error, fallbackMessage));
+    const wrappedError = new Error(getSupabaseErrorMessage(error, fallbackMessage));
+    wrappedError.code = error.code;
+    wrappedError.status = error.status;
+    throw wrappedError;
   }
 }
 
