@@ -1,16 +1,18 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
+  Platform,
+  SafeAreaView as NativeSafeAreaView,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   ScrollView,
   RefreshControl,
   Keyboard,
 } from 'react-native';
+import { SafeAreaView as AndroidSafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +22,8 @@ import { useAppData } from '../context/AppDataContext';
 import { getCategoryLabel } from '../utils/placeMeta';
 import { useTranslation } from '../context/TranslationContext';
 import useAppRefresh from '../hooks/useAppRefresh';
+
+const SafeAreaView = Platform.OS === 'android' ? AndroidSafeAreaView : NativeSafeAreaView;
 
 export default function SearchResultsScreen({ route }) {
   const navigation = useNavigation();
@@ -266,7 +270,7 @@ export default function SearchResultsScreen({ route }) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView {...(Platform.OS === 'android' ? { edges: ['top'] } : {})} style={styles.container}>
       <StatusBar style="light" />
 
       <View style={styles.header}>
@@ -598,7 +602,7 @@ const styles = StyleSheet.create({
 
   resultsContent: {
     paddingHorizontal: 16,
-    paddingBottom: 160,
+    paddingBottom: Platform.OS === 'android' ? 40 : 160,
   },
 
   resultItem: {

@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppData } from '../context/AppDataContext';
 import colors from '../theme/colors';
@@ -91,6 +92,7 @@ export default function TripPlacePickerModal({
   onClose,
   onSelectPlace,
 }) {
+  const insets = useSafeAreaInsets();
   const { places } = useAppData();
   const [query, setQuery] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -224,8 +226,8 @@ export default function TripPlacePickerModal({
   }, [places, query]);
 
   return (
-    <Modal visible={isMounted} transparent animationType="none" onRequestClose={closeWithAnimation}>
-      <View style={styles.modalRoot}>
+    <Modal visible={isMounted} transparent animationType="none" statusBarTranslucent={Platform.OS === 'android'} navigationBarTranslucent={Platform.OS === 'android'} onRequestClose={closeWithAnimation}>
+      <View style={[styles.modalRoot, Platform.OS === 'android' && { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
         <Animated.View
           style={[styles.backdropOverlay, styles.noPointerEvents, { opacity: backdropOpacity }]}
         />
@@ -233,6 +235,7 @@ export default function TripPlacePickerModal({
         <Animated.View
           style={[
             styles.sheet,
+            Platform.OS === 'android' && { paddingBottom: 28 + insets.bottom },
             keyboardHeight > 0 && { paddingBottom: keyboardHeight + 20 },
             { transform: [{ translateY: sheetTranslateY }] },
           ]}

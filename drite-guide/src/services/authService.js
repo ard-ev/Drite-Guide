@@ -84,7 +84,7 @@ async function resolveLoginEmail(identifier) {
     }
   );
 
-  if (!functionError && typeof functionData?.email === 'string') {
+  if (!functionError && (typeof functionData?.email === 'string' || functionData?.email === null)) {
     return normalizeEmail(functionData.email);
   }
 
@@ -547,13 +547,7 @@ export async function sendPasswordResetEmail(email) {
     redirectTo: PASSWORD_RESET_REDIRECT_URL,
   });
 
-  if (error) {
-    throw createCodedError(
-      'Could not send password reset email.',
-      error.code || 'password_reset_failed',
-      error.status || null
-    );
-  }
+  throwIfSupabaseError(error, 'Could not send password reset email.');
 }
 
 export async function resendVerificationEmail(email) {

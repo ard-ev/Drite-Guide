@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppDataProvider } from './src/context/AppDataContext';
@@ -71,7 +71,7 @@ export default function App() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics} style={{ flex: 1 }}>
       <AuthProvider>
         <TranslationProvider>
           <AppDataProvider initialData={bootstrapData}>
@@ -81,6 +81,6 @@ export default function App() {
           </AppDataProvider>
         </TranslationProvider>
       </AuthProvider>
-    </View>
+    </SafeAreaProvider>
   );
 }

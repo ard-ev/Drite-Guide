@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
+  Platform,
   Text,
   StyleSheet,
   ScrollView,
@@ -396,7 +397,7 @@ const styles = StyleSheet.create({
 
   content: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingBottom: Platform.OS === 'android' ? 32 : 120,
   },
 
   backButton: {

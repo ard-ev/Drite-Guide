@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     View,
+    Platform,
     Text,
     StyleSheet,
     TouchableOpacity,
@@ -11,7 +12,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import MapView, { Marker } from 'react-native-maps';
@@ -103,6 +104,7 @@ export const calculateDistanceKm = (userLat, userLng, placeLat, placeLng) => {
 };
 
 export default function ExploreScreen({ route }) {
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation();
     const screenScrollRef = useRef(null);
     const mapRef = useRef(null);
@@ -650,6 +652,8 @@ export default function ExploreScreen({ route }) {
                     <Modal
                         visible={showMapExpanded}
                         transparent={false}
+                        statusBarTranslucent={Platform.OS === 'android'}
+                        navigationBarTranslucent={Platform.OS === 'android'}
                         animationType="fade"
                         onRequestClose={() => setShowMapExpanded(false)}
                     >
@@ -690,8 +694,17 @@ export default function ExploreScreen({ route }) {
                             </MapView>
 
                             <SafeAreaView
+                                edges={Platform.OS === 'android' ? [] : undefined}
                                 pointerEvents="box-none"
-                                style={styles.mapOverlaySafeArea}
+                                style={[
+                                    styles.mapOverlaySafeArea,
+                                    Platform.OS === 'android' && {
+                                        top: insets.top,
+                                        bottom: insets.bottom,
+                                        left: insets.left,
+                                        right: insets.right,
+                                    },
+                                ]}
                             >
                                 <View style={styles.mapHeaderFloating}>
                                     <View style={styles.mapHeaderLeft}>
@@ -1158,7 +1171,7 @@ const styles = StyleSheet.create({
 
     content: {
         paddingHorizontal: 20,
-        paddingBottom: 120,
+        paddingBottom: Platform.OS === 'android' ? 32 : 120,
     },
 
     headerRow: {

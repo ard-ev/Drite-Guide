@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
     View,
+    Platform,
     Text,
     StyleSheet,
     TouchableOpacity,
@@ -373,7 +374,7 @@ const styles = StyleSheet.create({
 
     content: {
         paddingHorizontal: 20,
-        paddingBottom: 120,
+        paddingBottom: Platform.OS === 'android' ? 32 : 120,
     },
 
     headerRow: {

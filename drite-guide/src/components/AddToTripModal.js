@@ -4,6 +4,7 @@ import {
   Animated,
   Easing,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import colors from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +21,7 @@ import CreateTripModal from './CreateTripModal';
 import { formatDateRangeForDisplay } from '../utils/dateFormat';
 
 export default function AddToTripModal({ visible, place, onClose, onAdded }) {
+  const insets = useSafeAreaInsets();
   const { getTrips, getTrip, createTrip, addPlaceToTrip } = useAuth();
   const supabasePlaceId = place?.id;
   const trips = (getTrips() || []).filter((trip) => trip?.id);
@@ -179,15 +182,17 @@ export default function AddToTripModal({ visible, place, onClose, onAdded }) {
       <Modal
         visible={isMounted && !createTripVisible}
         transparent
+        statusBarTranslucent={Platform.OS === 'android'}
+        navigationBarTranslucent={Platform.OS === 'android'}
         animationType="none"
         onRequestClose={() => closeWithAnimation()}
       >
-        <View style={styles.modalRoot}>
+        <View style={[styles.modalRoot, Platform.OS === 'android' && { paddingTop: insets.top, paddingLeft: insets.left, paddingRight: insets.right }]}>
           <Animated.View
             style={[styles.backdropOverlay, styles.noPointerEvents, { opacity: backdropOpacity }]}
           />
           <Pressable style={styles.backdropPressArea} onPress={() => closeWithAnimation()} />
-          <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
+          <Animated.View style={[styles.sheet, Platform.OS === 'android' && { paddingBottom: 28 + insets.bottom }, { transform: [{ translateY: sheetTranslateY }] }]}>
             <Pressable onPress={() => null}>
             <View style={styles.header}>
               <View>

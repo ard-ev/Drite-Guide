@@ -3,6 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import {
     View,
+    Platform,
     Text,
     StyleSheet,
     ScrollView,
@@ -617,7 +618,7 @@ const styles = StyleSheet.create({
 
     content: {
         paddingHorizontal: 20,
-        paddingBottom: 120,
+        paddingBottom: Platform.OS === 'android' ? 32 : 120,
     },
 
     headerRow: {

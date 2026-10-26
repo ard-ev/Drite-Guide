@@ -577,7 +577,7 @@ export default function HomeScreen({ route }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.content,
-            keyboardHeight > 0 && { paddingBottom: keyboardHeight + 120 },
+            keyboardHeight > 0 && { paddingBottom: keyboardHeight + (Platform.OS === 'android' ? 32 : 120) },
           ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -1036,7 +1036,7 @@ const styles = StyleSheet.create({
 
   content: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingBottom: Platform.OS === 'android' ? 32 : 120,
   },
 
   headerRow: {

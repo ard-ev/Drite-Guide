@@ -43,6 +43,7 @@ export default function LoginScreen() {
     const [pendingVerificationEmail, setPendingVerificationEmail] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const loginInFlight = useRef(false);
+    const passwordResetInFlight = useRef(false);
 
     const handleLogin = async () => {
         if (loginInFlight.current || isBootstrapping) return;
@@ -79,14 +80,20 @@ export default function LoginScreen() {
     };
 
     const sendPasswordReset = async (email) => {
-        const result = await requestPasswordReset(email);
+        if (passwordResetInFlight.current) return;
+        passwordResetInFlight.current = true;
+        try {
+            const result = await requestPasswordReset(email);
 
-        Alert.alert(
-            result.success
-                ? t('auth.passwordResetSentTitle') || 'Password reset email sent'
-                : t('auth.passwordResetFailedTitle') || 'Password reset failed',
-            result.message
-        );
+            Alert.alert(
+                result.success
+                    ? t('auth.passwordResetSentTitle') || 'Password reset email sent'
+                    : t('auth.passwordResetFailedTitle') || 'Password reset failed',
+                result.message
+            );
+        } finally {
+            passwordResetInFlight.current = false;
+        }
     };
 
     const handleForgotPassword = () => {

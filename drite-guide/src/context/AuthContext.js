@@ -468,7 +468,13 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      const profile = await ensureUserProfile(session.user);
+      let profile;
+      try {
+        profile = await ensureUserProfile(session.user);
+      } catch (profileError) {
+        logWarning('Could not load profile during auth bootstrap:', profileError?.message);
+        profile = createFallbackProfileFromAuthUser(session.user);
+      }
       await applySessionState(session, profile);
     } catch (error) {
       if (isInvalidRefreshTokenError(error)) {

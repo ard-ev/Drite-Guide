@@ -11,6 +11,7 @@
     "lint": "expo lint",
     "test:place-access": "node ./scripts/test-place-access.js",
     "test:auth": "node ./scripts/test-auth.js",
+    "test:navigation-layout": "node ./scripts/test-navigation-layout.js",
     "translate:content": "node ./scripts/translate-content.js"
   },
   "dependencies": {

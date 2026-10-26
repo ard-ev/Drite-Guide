@@ -1,7 +1,9 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import HomeStackNavigator from './HomeStackNavigator';
 import ExploreStackNavigator from './ExploreStackNavigator';
@@ -9,6 +11,7 @@ import SavedStackNavigator from './SavedStackNavigator';
 import AccountStackNavigator from './AccountStackNavigator';
 import colors from '../theme/colors';
 import { useTranslation } from '../context/TranslationContext';
+import { getTabBarLayout } from './tabBarLayout';
 
 const Tab = createBottomTabNavigator();
 const TAB_ROOT_SCREENS = {
@@ -20,25 +23,23 @@ const TAB_ROOT_SCREENS = {
 
 export default function TabNavigator() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   return (
+    <SafeAreaView edges={Platform.OS === 'android' ? ['left', 'right'] : []} style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
     <Tab.Navigator
+      safeAreaInsets={Platform.OS === 'android' ? { left: 0, right: 0 } : undefined}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: true,
         tabBarStyle: {
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 80,
+          ...getTabBarLayout(Platform.OS, insets.bottom),
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           backgroundColor: '#FFFFFF',
           borderTopWidth: 0,
           paddingTop: 6,
-          paddingBottom: 10,
-    boxShadow: '0 -4px 14px rgba(0,0,0,0.06)',
+          boxShadow: '0 -4px 14px rgba(0,0,0,0.06)',
           elevation: 10,
         },
         tabBarLabelStyle: {
@@ -100,5 +101,6 @@ export default function TabNavigator() {
         />
       ))}
     </Tab.Navigator>
+    </SafeAreaView>
   );
 }

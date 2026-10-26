@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View,
+  Platform,
   Text,
   StyleSheet,
   TouchableOpacity,
@@ -453,7 +454,7 @@ const styles = StyleSheet.create({
 
   contentContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 140,
+    paddingBottom: Platform.OS === 'android' ? 40 : 140,
   },
 
   galleryRow: {

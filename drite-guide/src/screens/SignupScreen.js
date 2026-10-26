@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -57,7 +57,9 @@ export default function SignupScreen() {
     const { t } = useTranslation();
     const { isRefreshing, refreshApp } = useAppRefresh();
 
-    const bottomScrollPadding = Math.max(tabBarHeight + insets.bottom + 120, 220);
+    const bottomScrollPadding = Platform.OS === 'android'
+        ? 40
+        : Math.max(tabBarHeight + insets.bottom + 120, 220);
 
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -67,6 +69,7 @@ export default function SignupScreen() {
     const [confirmPassword, setConfirmPassword] = useState('');
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const signupInFlight = useRef(false);
     const [emailCooldownUntil, setEmailCooldownUntil] = useState(0);
     const [usernameStatus, setUsernameStatus] = useState('idle');
 
@@ -176,7 +179,7 @@ export default function SignupScreen() {
     };
 
     const handleSignUp = async () => {
-        if (isSubmitting) return;
+        if (signupInFlight.current || isSubmitting) return;
 
         const cleanFirstName = firstName.trim();
         const cleanLastName = lastName.trim();
@@ -248,6 +251,7 @@ export default function SignupScreen() {
             return;
         }
 
+        signupInFlight.current = true;
         setIsSubmitting(true);
 
         try {
@@ -296,6 +300,7 @@ export default function SignupScreen() {
                 fallbackMessage
             );
         } finally {
+            signupInFlight.current = false;
             setIsSubmitting(false);
         }
     };
@@ -315,7 +320,7 @@ export default function SignupScreen() {
                             styles.content,
                             { paddingBottom: bottomScrollPadding },
                         ]}
-                        scrollIndicatorInsets={{ bottom: bottomScrollPadding }}
+                        scrollIndicatorInsets={Platform.OS === 'android' ? undefined : { bottom: bottomScrollPadding }}
                         keyboardShouldPersistTaps="handled"
                         refreshControl={
                             <RefreshControl

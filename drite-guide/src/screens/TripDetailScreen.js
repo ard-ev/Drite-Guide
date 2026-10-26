@@ -347,7 +347,7 @@ export default function TripDetailScreen({ route }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.content,
-            keyboardHeight > 0 && { paddingBottom: keyboardHeight + 120 },
+            keyboardHeight > 0 && { paddingBottom: keyboardHeight + (Platform.OS === 'android' ? 32 : 120) },
           ]}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingBottom: Platform.OS === 'android' ? 32 : 120,
   },
   keyboardAvoider: {
     flex: 1,
