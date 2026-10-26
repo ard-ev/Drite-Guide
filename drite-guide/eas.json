@@ -17,6 +17,11 @@
   },
   "submit": {
     "production": {
+      "android": {
+        "serviceAccountKeyPath": "C:/Users/sadik/Downloads/inner-chassis-486920-i0-0eddf7e98ab1.json",
+        "track": "internal",
+        "releaseStatus": "draft"
+      },
       "ios": {
         "ascAppId": "6780266567"
       }
